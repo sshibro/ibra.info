@@ -268,34 +268,54 @@
       }
     });
 
+    const live = [];
+    const pending = [];
+    let flush = 0;
+
+    function drop(frame) {
+      const iframe = frame.querySelector("iframe");
+      if (iframe) {
+        tell(iframe, false);
+        iframe.remove();
+      }
+      const i = live.indexOf(frame);
+      if (i >= 0) live.splice(i, 1);
+    }
+
+    function attach(frame) {
+      if (frame.querySelector("iframe")) return;
+      while (live.length >= 3) drop(live[0]);
+      const iframe = document.createElement("iframe");
+      iframe.title = frame.dataset.slug + " preview";
+      iframe.tabIndex = -1;
+      iframe.setAttribute("sandbox", "allow-scripts");
+      iframe.addEventListener("load", () => tell(iframe, true), { once: true });
+      iframe.src = frame.dataset.src;
+      frame.appendChild(iframe);
+      live.push(frame);
+      loadSnippet(frame.dataset.slug).catch(() => {});
+    }
+
+    function mount(frame) {
+      if (frame.querySelector("iframe") || pending.includes(frame)) return;
+      pending.push(frame);
+      if (flush) return;
+      flush = requestAnimationFrame(function pump() {
+        flush = 0;
+        const next = pending.shift();
+        if (next && next.isConnected) attach(next);
+        if (pending.length) flush = requestAnimationFrame(pump);
+      });
+    }
+
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          const frame = entry.target;
-          let iframe = frame.querySelector("iframe");
-          if (entry.isIntersecting) {
-            if (!iframe) {
-              iframe = document.createElement("iframe");
-              iframe.title = frame.dataset.slug + " preview";
-              iframe.tabIndex = -1;
-              iframe.setAttribute("sandbox", "allow-scripts");
-              iframe.addEventListener("load", () => tell(iframe, true), {
-                once: true,
-              });
-              iframe.src = frame.dataset.src;
-              frame.appendChild(iframe);
-            } else {
-              tell(iframe, true);
-              requestAnimationFrame(() => tell(iframe, true));
-            }
-            loadSnippet(frame.dataset.slug).catch(() => {});
-          } else if (iframe) {
-            tell(iframe, false);
-            iframe.remove();
-          }
+          if (entry.isIntersecting) mount(entry.target);
+          else drop(entry.target);
         }
       },
-      { rootMargin: "180px 0px", threshold: 0.01 }
+      { rootMargin: "80px 0px", threshold: 0.08 }
     );
 
     root.querySelectorAll(".frame").forEach((el) => io.observe(el));

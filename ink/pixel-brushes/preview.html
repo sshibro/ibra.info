@@ -36,7 +36,7 @@
       });
 
       function fit() {
-        const dpr = Math.min(2, devicePixelRatio || 1);
+        const dpr = 1;
         const w = Math.floor(innerWidth * dpr);
         const h = Math.floor(innerHeight * dpr);
         if (canvas.width !== w || canvas.height !== h) {
@@ -46,22 +46,8 @@
       }
 
       function stamp(x, y, s, hue) {
-        ctx.save();
-        ctx.translate(x, y);
         ctx.fillStyle = "hsl(" + hue + " 62% 42%)";
-        const n = 4;
-        const cell = s / n;
-        const map = [
-          0, 1, 1, 0,
-          1, 1, 1, 1,
-          1, 1, 1, 1,
-          0, 1, 1, 0,
-        ];
-        for (let i = 0; i < 16; i++) {
-          if (!map[i]) continue;
-          ctx.fillRect((i % n) * cell - s / 2, Math.floor(i / n) * cell - s / 2, cell, cell);
-        }
-        ctx.restore();
+        ctx.fillRect(x - s / 2, y - s / 2, s, s);
       }
 
       function stampPath(pts, hue, now) {
@@ -96,7 +82,7 @@
         const turns = 3.2;
         const max = Math.min(w, h) * 0.22;
         const rot = quiet ? i * 0.4 : (now / 2400) + i * 0.7;
-        for (let t = 0.12; t < turns; t += 0.03) {
+        for (let t = 0.12; t < turns; t += 0.055) {
           const r = (t / turns) * max;
           const a = t * Math.PI * 2 + rot;
           pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r * 0.86 });
