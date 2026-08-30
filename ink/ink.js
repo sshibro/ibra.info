@@ -30,7 +30,7 @@
     clearTimeout(toast.tid);
     toast.tid = setTimeout(() => {
       el.hidden = true;
-    }, 1400);
+    }, 2000);
   }
 
   async function copyText(text) {

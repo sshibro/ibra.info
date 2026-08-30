@@ -35,35 +35,45 @@
         translate: 0 -50%;
       }
       .a {
-        width: 96px;
-        height: 76px;
-        left: 16px;
-        animation: a 2.8s ease-in-out infinite;
+        width: 88px;
+        height: 70px;
+        left: 6px;
+        animation: a 3.2s ease-in-out infinite;
       }
       .b {
-        width: 84px;
-        height: 68px;
-        right: 16px;
-        animation: b 2.8s ease-in-out infinite;
+        width: 76px;
+        height: 62px;
+        right: 6px;
+        animation: b 3.2s ease-in-out infinite;
       }
       @keyframes a {
-        50% {
-          transform: translateX(34px);
+        0%,
+        18% {
+          transform: translateX(0);
+        }
+        50%,
+        62% {
+          transform: translateX(38px);
         }
       }
       @keyframes b {
-        50% {
-          transform: translateX(-34px);
+        0%,
+        18% {
+          transform: translateX(0);
+        }
+        50%,
+        62% {
+          transform: translateX(-38px);
         }
       }
       @media (prefers-reduced-motion: reduce) {
         .a {
           animation: none;
-          transform: translateX(28px);
+          transform: translateX(32px);
         }
         .b {
           animation: none;
-          transform: translateX(-28px);
+          transform: translateX(-32px);
         }
       }
     </style>
