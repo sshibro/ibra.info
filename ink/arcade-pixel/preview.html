@@ -6,7 +6,7 @@
     <title>arcade-pixel</title>
     <style>
       html, body { height: 100%; margin: 0; }
-      body { overflow: hidden; background: #f2c14e; }
+      body { overflow: hidden; background: #c6e34a; }
       canvas { display: block; width: 100%; height: 100%; }
     </style>
   </head>
@@ -18,7 +18,7 @@
         cells: 46,
         threshold: 0.52,
         ink: "#1a120c",
-        paper: "#f2c14e"
+        paper: "#c6e34a"
       };
 
       const canvas = document.getElementById("c");
@@ -74,10 +74,12 @@
         s.save();
         s.translate(sw / 2 + Math.sin(t) * 0.35, sh / 2 + 0.3);
         s.rotate(Math.sin(t * 0.35) * 0.018);
-        s.fillStyle = CONFIG.ink;
-        s.font = "700 " + Math.floor(sw * 0.22) + "px ui-sans-serif, system-ui, sans-serif";
+        s.font = "700 " + Math.floor(sw * 0.2) + "px ui-sans-serif, system-ui, sans-serif";
         s.textAlign = "center";
         s.textBaseline = "middle";
+        s.fillStyle = "#000";
+        s.fillText(label(CONFIG.text), 1.1, 1.1);
+        s.fillStyle = CONFIG.ink;
         s.fillText(label(CONFIG.text), 0, 0);
         s.restore();
         const img = s.getImageData(0, 0, sw, sh);

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dia Browser's gradient — ink</title>
-    <meta name="description" content="Blurred rainbow bars that rise from the floor." />
+    <meta name="description" content="A row of tall SVG bars, short at the sides, tall in the middle, painted with one rainbow a." />
     <link rel="canonical" href="https://ibra.info/ink/dia-gradient/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -12,17 +12,19 @@
   </head>
   <body>
     <main class="doc">
-      <p class="back"><a href="../">ink</a></p>
-      <h1>Dia Browser's gradient</h1>
-      <p class="lede">
-        A row of tall SVG bars, short at the sides, tall in the middle, painted
-        with one rainbow and blurred until they melt. They scaleY up from the
-        floor. Own palette — paper dusk, not a clone.
+      <header class="top">
+        <h1>Dia Browser's gradient</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        A row of tall SVG bars, short at the sides, tall in the middle, painted with one rainbow and blurred until they melt. They scaleY up from the floor.
       </p>
-      <div class="stage">
-        <iframe src="preview.html" title="Dia Browser's gradient"></iframe>
-      </div>
-      <form class="knobs">
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Dia Browser's gradient"></iframe>
+        </div>
+        <form class="knobs">
         <label class="knob">
           <span>blur</span>
           <input type="range" name="blur" min="8" max="36" value="24" />
@@ -39,9 +41,10 @@
           <input type="color" name="colorB" value="#e8b86d" aria-label="color b" />
           <input type="color" name="colorC" value="#e07a5f" aria-label="color c" />
         </div>
-      </form>
+        </form>
+      </section>
       <p class="actions">
-        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
       </p>
     </main>
     <script src="../ink.js"></script>

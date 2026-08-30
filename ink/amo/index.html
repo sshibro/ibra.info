@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Amo hover button — ink</title>
-    <meta name="description" content="A pill that puffs its letters on hover." />
+    <meta name="description" content="Hover plays a short puffy-letter clip, leave resets it. Recreated in CSS — no borrowed vid." />
     <link rel="canonical" href="https://ibra.info/ink/amo/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -12,24 +12,27 @@
   </head>
   <body>
     <main class="doc">
-      <p class="back"><a href="../">ink</a></p>
-      <h1>Amo hover button</h1>
-      <p class="lede">
-        Hover plays a short puffy-letter clip, leave resets it. Recreated in
-        CSS and canvas — no borrowed video. Same interaction: enter starts,
-        leave snaps back.
+      <header class="top">
+        <h1>Amo hover button</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        Hover plays a short puffy-letter clip, leave resets it. Recreated in CSS — no borrowed video. Same interaction: enter starts, leave snaps back.
       </p>
-      <div class="stage">
-        <iframe src="preview.html" title="Amo hover button"></iframe>
-      </div>
-      <form class="knobs">
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Amo hover button"></iframe>
+        </div>
+        <form class="knobs">
         <label class="knob">
           <span>label</span>
           <input type="text" name="label" value="shibro" maxlength="14" autocomplete="off" />
         </label>
-      </form>
+        </form>
+      </section>
       <p class="actions">
-        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
       </p>
     </main>
     <script src="../ink.js"></script>

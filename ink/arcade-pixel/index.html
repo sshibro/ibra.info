@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Arcade pixel — ink</title>
-    <meta name="description" content="Draw the word tiny, blow it up, cut it to squares." />
+    <meta name="description" content="The word is drawn tiny, then blown up into chunky squares." />
     <link rel="canonical" href="https://ibra.info/ink/arcade-pixel/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -12,16 +12,19 @@
   </head>
   <body>
     <main class="doc">
-      <p class="back"><a href="../">ink</a></p>
-      <h1>Arcade pixel</h1>
-      <p class="lede">
-        The word is drawn tiny, then blown up with nearest-neighbor. A
-        threshold turns every sample into a chunky square. No pixel font.
+      <header class="top">
+        <h1>Arcade pixel</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        The letters look pixelated, but there is no pixel grid anywhere: the word is just drawn tiny and blown up, so every little pixel becomes a big square. Type your own word and drag the sliders.
       </p>
-      <div class="stage">
-        <iframe src="preview.html" title="Arcade pixel"></iframe>
-      </div>
-      <form class="knobs">
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Arcade pixel"></iframe>
+        </div>
+        <form class="knobs">
         <label class="knob">
           <span>text</span>
           <input type="text" name="text" value="shibro" maxlength="18" autocomplete="off" />
@@ -42,11 +45,12 @@
         </label>
         <label class="knob">
           <span>paper</span>
-          <input type="color" name="paper" value="#f2c14e" />
+          <input type="color" name="paper" value="#c6e34a" />
         </label>
-      </form>
+        </form>
+      </section>
       <p class="actions">
-        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
       </p>
     </main>
     <script src="../ink.js"></script>

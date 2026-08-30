@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ghosty reveal — ink</title>
-    <meta name="description" content="A tall cloudy mask slides across the field." />
+    <meta name="description" content="A generated cloudy mask — several times taller than the box — slides with mask-position. T." />
     <link rel="canonical" href="https://ibra.info/ink/ghost/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -12,17 +12,19 @@
   </head>
   <body>
     <main class="doc">
-      <p class="back"><a href="../">ink</a></p>
-      <h1>Ghosty reveal</h1>
-      <p class="lede">
-        A generated cloudy mask — several times taller than the box — slides
-        with mask-position. The edge is soft fog, not a fade. Intersection
-        Observer starts it when the card is in view.
+      <header class="top">
+        <h1>Ghosty reveal</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        A generated cloudy mask — several times taller than the box — slides with mask-position. The edge is soft fog, not a fade.
       </p>
-      <div class="stage">
-        <iframe src="preview.html" title="Ghosty reveal"></iframe>
-      </div>
-      <form class="knobs">
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Ghosty reveal"></iframe>
+        </div>
+        <form class="knobs">
         <label class="knob">
           <span>softness</span>
           <input type="range" name="softness" min="8" max="40" value="22" />
@@ -42,9 +44,10 @@
           <input type="range" name="duration" min="0.8" max="4" step="0.1" value="2.6" />
           <output data-output="duration">2.6</output>
         </label>
-      </form>
+        </form>
+      </section>
       <p class="actions">
-        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
       </p>
     </main>
     <script src="../ink.js"></script>

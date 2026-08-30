@@ -6,7 +6,7 @@
     <title>spray-burst</title>
     <style>
       html, body { height: 100%; margin: 0; }
-      body { overflow: hidden; background:#1a1630; }
+      body { overflow: hidden; background: #efe8d8; }
       canvas { display: block; width: 100%; height: 100%; }
     </style>
   </head>
@@ -16,10 +16,9 @@
       const CONFIG = {};
       const canvas = document.getElementById("c");
       const ctx = canvas.getContext("2d");
-
       const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
       let view = true, raf = 0;
-      window.addEventListener("message", e => {
+      window.addEventListener("message", (e) => {
         if (e.data && e.data.type === "ink-visible") {
           view = !!e.data.value;
           if (view && !raf) loop();
@@ -27,35 +26,58 @@
       });
       function fit() {
         if (innerWidth < 8 || innerHeight < 8) return;
-        const dpr = Math.min(2, devicePixelRatio || 1);
-        const w = Math.floor(innerWidth * dpr);
-        const h = Math.floor(innerHeight * dpr);
+        const w = Math.floor(innerWidth);
+        const h = Math.floor(innerHeight);
         if (canvas.width !== w || canvas.height !== h) {
           canvas.width = w;
           canvas.height = h;
         }
       }
-
-
-      const parts = Array.from({length: 90}, () => ({ a: Math.random()*Math.PI*2, s: 40+Math.random()*180, hue: 200+Math.random()*80 }));
       function paint(now) {
         fit();
-        const w = canvas.width, h = canvas.height;
-        const t = ((now || 0) % 1600) / 1600;
-        ctx.fillStyle = "#1a1630";
+        if (canvas.width < 8) return;
+        const w = canvas.width, h = canvas.height, t = (now || 0) / 1400;
+        ctx.fillStyle = "#efe8d8";
         ctx.fillRect(0, 0, w, h);
-        parts.forEach((p) => {
-          const r = p.s * (quiet ? 0.7 : t);
-          ctx.fillStyle = "hsla(" + p.hue + ",80%,70%," + (1-t) + ")";
+        const cx = w * 0.5, cy = h * 0.5;
+        const rw = w * 0.72, rh = h * 0.7;
+        ctx.save();
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rw / 2, rh / 2, 0, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = "#2f6fe0";
+        ctx.fillRect(0, 0, w, h);
+        const petals = 10;
+        ctx.fillStyle = "#f2d24a";
+        ctx.translate(cx, cy);
+        ctx.rotate(quiet ? 0.2 : t * 0.35);
+        for (let i = 0; i < petals; i++) {
+          ctx.rotate((Math.PI * 2) / petals);
           ctx.beginPath();
-          ctx.arc(w/2 + Math.cos(p.a)*r, h/2 + Math.sin(p.a)*r, 3 + (1-t)*4, 0, Math.PI*2);
+          ctx.moveTo(0, 0);
+          ctx.lineTo(rw * 0.08, rh * 0.08);
+          ctx.lineTo(0, rh * 0.38);
+          ctx.lineTo(-rw * 0.08, rh * 0.08);
+          ctx.closePath();
           ctx.fill();
-        });
+        }
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.min(w, h) * 0.045, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        ctx.fillStyle = "rgba(20,16,10,0.04)";
+        for (let i = 0; i < 80; i++) {
+          ctx.fillRect((i * 47 + t * 30) % w, (i * 31) % h, 1.2, 1.2);
+        }
       }
-      function loop(now) { raf = 0; if (!view) return; paint(now); if (!quiet) raf = requestAnimationFrame(loop); }
-  
-      if (quiet) { fit(); paint(0); }
-      else raf = requestAnimationFrame(loop);
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        paint(now);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+      paint(0);
+      if (!quiet) raf = requestAnimationFrame(loop);
     </script>
   </body>
 </html>

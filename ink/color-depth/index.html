@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>The art of color depth — ink</title>
-    <meta name="description" content="Several CSS material recipes on one control." />
+    <meta name="description" content="One button, several materials — gloss, bevel, metal, neon, glass, satin. Switch the recipe." />
     <link rel="canonical" href="https://ibra.info/ink/color-depth/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -12,13 +12,19 @@
   </head>
   <body>
     <main class="doc">
-      <p class="back"><a href="../">ink</a></p>
-      <h1>The art of color depth</h1>
-      <p class="lede">One button, several materials — gloss, bevel, metal, neon, glass, satin. Switch the recipe; copy code takes the one you chose.</p>
-      <div class="stage">
-        <iframe src="preview.html" title="color-depth"></iframe>
-      </div>
-      <form class="knobs">
+      <header class="top">
+        <h1>The art of color depth</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        One button, several materials — gloss, bevel, metal, neon, glass, satin. Switch the recipe; copy code takes the one you chose.
+      </p>
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="The art of color depth"></iframe>
+        </div>
+        <form class="knobs">
         <label class="knob">
           <span>recipe</span>
           <select name="recipe">
@@ -30,9 +36,10 @@
             <option value="satin">satin</option>
           </select>
         </label>
-      </form>
+        </form>
+      </section>
       <p class="actions">
-        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
       </p>
     </main>
     <script src="../ink.js"></script>

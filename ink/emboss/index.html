@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Realistic emboss — ink</title>
-    <meta name="description" content="Height-field lighting on a word." />
+    <meta name="description" content="The word is a height field. Normals come from neighboring samples, then a light skims the ." />
     <link rel="canonical" href="https://ibra.info/ink/emboss/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -12,16 +12,19 @@
   </head>
   <body>
     <main class="doc">
-      <p class="back"><a href="../">ink</a></p>
-      <h1>Realistic emboss</h1>
-      <p class="lede">
-        The word is a height field. Normals come from neighboring samples, then
-        a light skims the surface. Depth and angle are knobs.
+      <header class="top">
+        <h1>Realistic emboss</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        The word is a height field. Normals come from neighboring samples, then a light skims the surface. Depth and angle are knobs.
       </p>
-      <div class="stage">
-        <iframe src="preview.html" title="Realistic emboss"></iframe>
-      </div>
-      <form class="knobs">
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Realistic emboss"></iframe>
+        </div>
+        <form class="knobs">
         <label class="knob">
           <span>word</span>
           <input type="text" name="word" value="shibro" maxlength="12" autocomplete="off" />
@@ -36,9 +39,10 @@
           <input type="range" name="light" min="0" max="6.28" step="0.05" value="3.9" />
           <output data-output="light">3.9</output>
         </label>
-      </form>
+        </form>
+      </section>
       <p class="actions">
-        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
       </p>
     </main>
     <script src="../ink.js"></script>

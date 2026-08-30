@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kinetic typography — ink</title>
-    <meta name="description" content="A letter tiled, each tile on its own sine." />
+    <meta name="description" content="A letter is cut into a grid of tiles, and each tile slips on its own wave, so the whole le." />
     <link rel="canonical" href="https://ibra.info/ink/kinetic/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -12,13 +12,19 @@
   </head>
   <body>
     <main class="doc">
-      <p class="back"><a href="../">ink</a></p>
-      <h1>Kinetic typography</h1>
-      <p class="lede">A letter is cut into tiles. Each tile rides its own sine, so the glyph ripples like water.</p>
-      <div class="stage">
-        <iframe src="preview.html" title="kinetic"></iframe>
-      </div>
-      <form class="knobs">
+      <header class="top">
+        <h1>Kinetic typography</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        A letter is cut into a grid of tiles, and each tile slips on its own wave, so the whole letter ripples like water.
+      </p>
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Kinetic typography"></iframe>
+        </div>
+        <form class="knobs">
         <label class="knob">
           <span>letter</span>
           <input type="text" name="letter" value="s" maxlength="1" autocomplete="off" />
@@ -33,9 +39,10 @@
           <input type="range" name="amount" min="0" max="16" value="7" />
           <output data-output="amount">7</output>
         </label>
-      </form>
+        </form>
+      </section>
       <p class="actions">
-        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
       </p>
     </main>
     <script src="../ink.js"></script>

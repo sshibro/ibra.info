@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Chromatic glow — ink</title>
-    <meta name="description" content="Bloom plus a warm/cool split that leans toward the pointer." />
+    <meta name="description" content="The word is blurred at a few sizes and added back. A warm copy and a cool copy drift apart." />
     <link rel="canonical" href="https://ibra.info/ink/chroma/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -12,13 +12,19 @@
   </head>
   <body>
     <main class="doc">
-      <p class="back"><a href="../">ink</a></p>
-      <h1>Chromatic glow</h1>
-      <p class="lede">The word is blurred at a few sizes and added back. A warm copy and a cool copy drift apart; that gap is the rainbow edge. Lean it with the pointer.</p>
-      <div class="stage">
-        <iframe src="preview.html" title="chroma"></iframe>
-      </div>
-      <form class="knobs">
+      <header class="top">
+        <h1>Chromatic glow</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        The word is blurred at a few sizes and added back. A warm copy and a cool copy drift apart; that gap is the rainbow edge. Lean it with the pointer.
+      </p>
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Chromatic glow"></iframe>
+        </div>
+        <form class="knobs">
         <label class="knob">
           <span>word</span>
           <input type="text" name="word" value="shibro" maxlength="16" autocomplete="off" />
@@ -31,9 +37,10 @@
           <span>cool</span>
           <input type="color" name="cool" value="#6ea8c9" />
         </label>
-      </form>
+        </form>
+      </section>
       <p class="actions">
-        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
       </p>
     </main>
     <script src="../ink.js"></script>

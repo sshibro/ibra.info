@@ -1,7 +1,7 @@
 (() => {
   const pieces = [
-    { slug: "ink-flood", kind: "toy" },
-    { slug: "orbit", kind: "toy" },
+    { slug: "spray-burst", kind: "toy" },
+    { slug: "dot-globe", kind: "toy" },
     {
       slug: "arcade-pixel",
       kind: "study",
@@ -9,14 +9,19 @@
       date: "Aug 22, 2026",
     },
     { slug: "checker-conveyor", kind: "toy" },
-    { slug: "flower-lattice", kind: "toy" },
     {
       slug: "liquid-ui",
       kind: "study",
       title: "Liquid UI",
       date: "Jul 19, 2026",
     },
-    { slug: "glitch-word", kind: "toy" },
+    {
+      slug: "kinetic",
+      kind: "study",
+      title: "Kinetic typography",
+      date: "Jul 18, 2026",
+    },
+    { slug: "flower-lattice", kind: "toy" },
     { slug: "holo", kind: "study", title: "Holo", date: "Aug 11, 2026" },
     { slug: "siri-wave", kind: "toy" },
     {
@@ -32,14 +37,9 @@
       title: "Fade motion",
       date: "Jul 30, 2026",
     },
-    { slug: "dot-globe", kind: "toy" },
-    {
-      slug: "kinetic",
-      kind: "study",
-      title: "Kinetic typography",
-      date: "Jul 18, 2026",
-    },
-    { slug: "spray-burst", kind: "toy" },
+    { slug: "orbit", kind: "toy" },
+    { slug: "ink-flood", kind: "toy" },
+    { slug: "glitch-word", kind: "toy" },
     {
       slug: "squircle",
       kind: "study",
@@ -350,6 +350,23 @@
         sync();
       });
     }
+
+    document.addEventListener("click", (event) => {
+      const compare = event.target.closest("[data-compare]");
+      if (compare && form && form.elements.compare) {
+        const on = form.elements.compare.value !== "1";
+        form.elements.compare.value = on ? "1" : "0";
+        compare.setAttribute("aria-pressed", on ? "true" : "false");
+        sync();
+        return;
+      }
+      const remix = event.target.closest("[data-remix]");
+      if (remix && form && form.elements.smoothness) {
+        const next = (0.35 + Math.random() * 0.65).toFixed(2);
+        form.elements.smoothness.value = next;
+        sync();
+      }
+    });
 
     iframe.addEventListener("load", sync);
     if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
