@@ -143,13 +143,25 @@
     clearTimeout(toast.tid);
     toast.tid = setTimeout(() => {
       el.hidden = true;
-    }, 2000);
+    }, 2400);
   }
 
   async function copyText(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
+    let ok = false;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await Promise.race([
+          navigator.clipboard.writeText(text),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("clipboard timeout")), 350)
+          ),
+        ]);
+        ok = true;
+      } catch {
+        /* fall through */
+      }
+    }
+    if (!ok) {
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.setAttribute("readonly", "");
@@ -274,6 +286,7 @@
               frame.appendChild(iframe);
             } else {
               tell(iframe, true);
+              requestAnimationFrame(() => tell(iframe, true));
             }
             loadSnippet(frame.dataset.slug).catch(() => {});
           } else if (iframe) {
