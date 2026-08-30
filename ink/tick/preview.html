@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tick</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #f4f4f1;
+      }
+      .row {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.85rem;
+        height: 3.2rem;
+      }
+      .mark {
+        appearance: none;
+        width: 2px;
+        padding: 0;
+        border: 0;
+        background: #111;
+        cursor: pointer;
+      }
+      .mark:nth-child(odd) {
+        height: 1.4rem;
+      }
+      .mark:nth-child(even) {
+        height: 2.2rem;
+      }
+      .mark:focus-visible {
+        outline: 1px solid #111;
+        outline-offset: 4px;
+      }
+      .mark:hover,
+      .mark:focus-visible {
+        background: #c45c26;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="row" id="row"></div>
+    <script>
+      const CONFIG = {};
+      let ctx;
+      function audio() {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        ctx = ctx || new AC();
+        if (ctx.state === "suspended") ctx.resume();
+        return ctx;
+      }
+      function tick(freq) {
+        const ac = audio();
+        if (!ac) return;
+        const o = ac.createOscillator();
+        const g = ac.createGain();
+        o.type = "square";
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0.045, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.035);
+        o.connect(g);
+        g.connect(ac.destination);
+        o.start();
+        o.stop(ac.currentTime + 0.04);
+      }
+      const row = document.getElementById("row");
+      for (let i = 0; i < 5; i++) {
+        const b = document.createElement("button");
+        b.className = "mark";
+        b.type = "button";
+        b.setAttribute("aria-label", "tick " + (i + 1));
+        const freq = 720 + i * 220;
+        b.addEventListener("pointerenter", () => tick(freq));
+        b.addEventListener("focus", () => tick(freq));
+        row.appendChild(b);
+      }
+    </script>
+  </body>
+</html>

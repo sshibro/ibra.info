@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>typer</title>
+    <style>
+      :root {
+        --typer-fg: #111;
+        --typer-bg: #f4f4f1;
+        --typer-accent: #c45c26;
+        --typer-radius: 999px;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: var(--typer-bg);
+        color: var(--typer-fg);
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.5em;
+        font-size: clamp(1.7rem, 8vw, 2.4rem);
+        letter-spacing: -0.04em;
+        line-height: 1;
+      }
+      .l {
+        display: inline-block;
+        padding: 0.16em 0.15em;
+        visibility: hidden;
+        border-radius: var(--typer-radius);
+      }
+      .l.on {
+        visibility: visible;
+      }
+      .l.fill {
+        background: var(--typer-accent);
+        color: var(--typer-bg);
+      }
+      .l.hi {
+        background: color-mix(in srgb, var(--typer-accent) 28%, var(--typer-bg));
+      }
+      .l.edge {
+        box-shadow: inset 0 0 0 1.5px var(--typer-accent);
+      }
+      .l.fill:has(+ .fill),
+      .l.hi:has(+ .hi),
+      .l.edge:has(+ .edge) {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+      .l.fill + .fill,
+      .l.hi + .hi,
+      .l.edge + .edge {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <p class="row" id="row" aria-live="polite"></p>
+    <script>
+      const CONFIG = {
+        text: "shibro",
+        speed: 1,
+        color: "#c45c26"
+      };
+
+      const row = document.getElementById("row");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true;
+      let raf = 0;
+      let start = performance.now();
+      let letters = [];
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+
+      function label(s) {
+        return String(s || "shibro").replace(/[^\x20-\x7E]/g, "").slice(0, 16) || "shibro";
+      }
+
+      function render(text) {
+        document.documentElement.style.setProperty("--typer-accent", CONFIG.color);
+        row.textContent = "";
+        letters = [...text].map((ch) => {
+          const el = document.createElement("span");
+          el.className = "l";
+          el.textContent = ch === " " ? "\u00a0" : ch;
+          row.appendChild(el);
+          return el;
+        });
+      }
+
+      function stateAt(i, typed, wave) {
+        if (i >= typed) return "off";
+        if (quiet || wave < 0) return "plain";
+        const d = wave - i;
+        if (d < 0.15) return "plain";
+        if (d < 1) return "fill";
+        if (d < 2.1) return "hi";
+        if (d < 3.2) return "edge";
+        return "plain";
+      }
+
+      function paint(text, t) {
+        const n = text.length;
+        const typed = quiet ? n : Math.min(n, Math.floor(t / 0.08));
+        const wave = (t - n * 0.08) / 0.11;
+        letters.forEach((el, i) => {
+          const s = stateAt(i, typed, wave);
+          el.className = "l" + (s === "off" ? "" : " on") + (s === "plain" || s === "off" ? "" : " " + s);
+        });
+      }
+
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        const text = label(CONFIG.text);
+        if (row.dataset.text !== text) {
+          render(text);
+          row.dataset.text = text;
+        }
+        const n = text.length;
+        const cycle = ((n * 0.08 + n * 0.11 + 1.35) * 1000) / CONFIG.speed;
+        const t = quiet ? 99 : (((now || performance.now()) - start) % cycle) / 1000 * CONFIG.speed;
+        paint(text, t);
+        document.documentElement.style.setProperty("--typer-accent", CONFIG.color);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+
+      render(label(CONFIG.text));
+      if (quiet) paint(label(CONFIG.text), 99);
+      else raf = requestAnimationFrame(loop);
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        start = performance.now();
+        render(label(CONFIG.text));
+        if (quiet) paint(label(CONFIG.text), 99);
+      };
+    </script>
+  </body>
+</html>

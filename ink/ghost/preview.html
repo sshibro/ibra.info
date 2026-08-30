@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ghost</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        overflow: hidden;
+        background: #111;
+      }
+      .art {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 28% 42%, #c45c26 0 22%, transparent 23%),
+          radial-gradient(circle at 72% 58%, #3d6b4f 0 18%, transparent 19%),
+          linear-gradient(118deg, transparent 42%, #efe6c9 42% 48%, transparent 48%),
+          #161616;
+        --soft: 22%;
+        --dur: 2.4s;
+        -webkit-mask-image: linear-gradient(
+          var(--angle, to bottom),
+          #000 0,
+          #000 calc(22% - var(--soft) * 0.15),
+          transparent calc(40% + var(--soft) * 0.55)
+        );
+        mask-image: linear-gradient(
+          var(--angle, to bottom),
+          #000 0,
+          #000 calc(22% - var(--soft) * 0.15),
+          transparent calc(40% + var(--soft) * 0.55)
+        );
+        -webkit-mask-size: var(--ms, 100% 520%);
+        mask-size: var(--ms, 100% 520%);
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: 0% 0%;
+        mask-position: 0% 0%;
+      }
+      .art.run {
+        animation: wipe var(--dur) ease-in-out infinite alternate;
+      }
+      @keyframes wipe {
+        to {
+          -webkit-mask-position: var(--to, 0% 100%);
+          mask-position: var(--to, 0% 100%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .art,
+        .art.run {
+          animation: none;
+          -webkit-mask-image: none;
+          mask-image: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="art" id="art" aria-hidden="true"></div>
+    <script>
+      const CONFIG = {
+        softness: 22,
+        direction: "down",
+        duration: 2.4
+      };
+
+      const art = document.getElementById("art");
+      const dirs = {
+        down: { angle: "to bottom", ms: "100% 520%", to: "0% 100%" },
+        up: { angle: "to top", ms: "100% 520%", to: "0% 100%" },
+        right: { angle: "to right", ms: "520% 100%", to: "100% 0%" },
+        left: { angle: "to left", ms: "520% 100%", to: "100% 0%" },
+      };
+
+      function apply(c) {
+        const d = dirs[c.direction] || dirs.down;
+        art.style.setProperty("--soft", c.softness + "%");
+        art.style.setProperty("--dur", c.duration + "s");
+        art.style.setProperty("--angle", d.angle);
+        art.style.setProperty("--ms", d.ms);
+        art.style.setProperty("--to", d.to);
+      }
+
+      function play(on) {
+        art.classList.toggle("run", on && !matchMedia("(prefers-reduced-motion: reduce)").matches);
+      }
+
+      apply(CONFIG);
+
+      const io = new IntersectionObserver(
+        ([e]) => play(e.isIntersecting),
+        { threshold: 0.2 }
+      );
+      io.observe(art);
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") play(!!e.data.value);
+      });
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        apply(CONFIG);
+        play(false);
+        void art.offsetWidth;
+        play(true);
+      };
+    </script>
+  </body>
+</html>

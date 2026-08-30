@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>chroma — ink</title>
+    <meta name="description" content="stacked blur. warm and cool follow the pointer." />
+    <link rel="canonical" href="https://ibra.info/ink/chroma/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>chroma</h1>
+      <p class="lede">stacked blur. warm and cool follow the pointer.</p>
+      <div class="stage">
+        <iframe src="preview.html" title="chroma"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>word</span>
+          <input type="text" name="word" value="shibro" maxlength="16" autocomplete="off" />
+        </label>
+        <label class="knob">
+          <span>warm</span>
+          <input type="color" name="warm" value="#e8a54b" />
+        </label>
+        <label class="knob">
+          <span>cool</span>
+          <input type="color" name="cool" value="#6ea8c9" />
+        </label>
+      </form>
+      <p class="actions">
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

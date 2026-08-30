@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>rim</title>
+    <style>
+      @property --a {
+        syntax: "<angle>";
+        inherits: false;
+        initial-value: 0deg;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #f4f4f1;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .card {
+        position: relative;
+        width: min(62%, 196px);
+        aspect-ratio: 1.35;
+        display: grid;
+        place-items: center;
+        color: #f4f4f1;
+        background: #141414;
+        border-radius: 18px;
+        letter-spacing: -0.03em;
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        padding: 2.5px;
+        border-radius: inherit;
+        background: conic-gradient(
+          from var(--a),
+          #ff6a2b,
+          #f2c14e,
+          #3d8f6a,
+          #5ec8e6,
+          #ff6a2b
+        );
+        -webkit-mask:
+          linear-gradient(#000 0 0) content-box,
+          linear-gradient(#000 0 0);
+        mask:
+          linear-gradient(#000 0 0) content-box,
+          linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+        animation: spin 4s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          --a: 360deg;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .card::before {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">shibro</div>
+    <script>
+      const CONFIG = {};
+    </script>
+  </body>
+</html>

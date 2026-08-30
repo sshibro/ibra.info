@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>color-depth</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #f4f4f1;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      button {
+        appearance: none;
+        position: relative;
+        overflow: hidden;
+        border: 0;
+        margin: 0;
+        padding: 0.9rem 1.55rem;
+        font: 400 1.1rem/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.03em;
+        cursor: pointer;
+        color: #f4f4f1;
+        border-radius: 10px;
+      }
+      button:focus-visible {
+        outline: 1px solid #111;
+        outline-offset: 4px;
+      }
+      .gloss {
+        background: #171717;
+      }
+      .gloss::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          165deg,
+          rgba(255, 255, 255, 0.28) 0%,
+          rgba(255, 255, 255, 0.06) 38%,
+          transparent 42%
+        );
+        pointer-events: none;
+      }
+      .bevel {
+        background: #2a2a28;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.38),
+          inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+          inset 1px 0 0 rgba(255, 255, 255, 0.08),
+          inset -1px 0 0 rgba(0, 0, 0, 0.2),
+          0 1px 2px rgba(0, 0, 0, 0.18);
+      }
+      .metal {
+        background: linear-gradient(180deg, #9a9a96 0%, #4a4a47 46%, #7a7a76 100%);
+        color: #161616;
+      }
+      .metal::before {
+        content: "";
+        position: absolute;
+        width: 42%;
+        height: 160%;
+        left: var(--mx, 50%);
+        top: var(--my, 40%);
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.5), transparent 62%);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .neon {
+        background: #111;
+        box-shadow:
+          0 0 0 1px #c45c26,
+          0 0 14px rgba(196, 92, 38, 0.45),
+          inset 0 0 12px rgba(196, 92, 38, 0.18);
+      }
+    </style>
+  </head>
+  <body>
+    <button type="button" id="btn" class="gloss">shibro</button>
+    <script>
+      const CONFIG = {
+        recipe: "gloss"
+      };
+
+      const btn = document.getElementById("btn");
+      const recipes = ["gloss", "bevel", "metal", "neon"];
+
+      function apply(c) {
+        const name = recipes.includes(c.recipe) ? c.recipe : "gloss";
+        btn.className = name;
+      }
+
+      apply(CONFIG);
+
+      btn.addEventListener("pointermove", (e) => {
+        const r = btn.getBoundingClientRect();
+        btn.style.setProperty("--mx", ((e.clientX - r.left) / r.width) * 100 + "%");
+        btn.style.setProperty("--my", ((e.clientY - r.top) / r.height) * 100 + "%");
+      });
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        apply(CONFIG);
+      };
+
+      const css = {
+        gloss: `.btn{appearance:none;position:relative;overflow:hidden;border:0;padding:.9rem 1.55rem;border-radius:10px;background:#171717;color:#f4f4f1;font:400 1.1rem/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:-.03em}
+.btn::after{content:"";position:absolute;inset:0;background:linear-gradient(165deg,rgba(255,255,255,.28),rgba(255,255,255,.06) 38%,transparent 42%);pointer-events:none}`,
+        bevel: `.btn{appearance:none;border:0;padding:.9rem 1.55rem;border-radius:10px;background:#2a2a28;color:#f4f4f1;font:400 1.1rem/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:-.03em;box-shadow:inset 0 1px 0 rgba(255,255,255,.38),inset 0 -2px 0 rgba(0,0,0,.4),inset 1px 0 0 rgba(255,255,255,.08),inset -1px 0 0 rgba(0,0,0,.2),0 1px 2px rgba(0,0,0,.18)}`,
+        metal: `.btn{appearance:none;position:relative;overflow:hidden;border:0;padding:.9rem 1.55rem;border-radius:10px;color:#161616;font:400 1.1rem/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:-.03em;background:linear-gradient(180deg,#9a9a96,#4a4a47 46%,#7a7a76)}
+.btn::before{content:"";position:absolute;width:42%;height:160%;left:var(--mx,50%);top:var(--my,40%);background:radial-gradient(circle,rgba(255,255,255,.5),transparent 62%);transform:translate(-50%,-50%);pointer-events:none}`,
+        neon: `.btn{appearance:none;border:0;padding:.9rem 1.55rem;border-radius:10px;background:#111;color:#f4f4f1;font:400 1.1rem/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:-.03em;box-shadow:0 0 0 1px #c45c26,0 0 14px rgba(196,92,38,.45),inset 0 0 12px rgba(196,92,38,.18)}`,
+      };
+
+      const js = {
+        metal: `\n<script>\nconst b=document.querySelector('.btn');\nb.addEventListener('pointermove',e=>{\n  const r=b.getBoundingClientRect();\n  b.style.setProperty('--mx',((e.clientX-r.left)/r.width)*100+'%');\n  b.style.setProperty('--my',((e.clientY-r.top)/r.height)*100+'%');\n});\n<\/script>`,
+        gloss: "",
+        bevel: "",
+        neon: "",
+      };
+
+      window.snippet = (params) => {
+        const name = recipes.includes(params.recipe) ? params.recipe : "gloss";
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${name}</title>
+<style>
+html,body{height:100%;margin:0}
+body{display:grid;place-items:center;background:#f4f4f1}
+${css[name]}
+</style>
+</head>
+<body>
+<button type="button" class="btn">shibro</button>${js[name] || ""}
+</body>
+</html>
+`;
+      };
+    </script>
+  </body>
+</html>

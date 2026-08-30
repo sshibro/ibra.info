@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>chroma</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #121212;
+      }
+      .wrap {
+        position: relative;
+        display: grid;
+        place-items: center;
+        --split: 48%;
+        --warm: #e8a54b;
+        --cool: #6ea8c9;
+      }
+      .glow,
+      .word {
+        font: 650 clamp(2.2rem, 11vw, 3.5rem)/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.05em;
+        white-space: nowrap;
+      }
+      .glow {
+        position: absolute;
+        background: linear-gradient(90deg, var(--warm) var(--split), var(--cool));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        pointer-events: none;
+        user-select: none;
+      }
+      .warm {
+        filter: blur(18px);
+        transform: translateX(-2px);
+        opacity: 0.8;
+      }
+      .cool {
+        filter: blur(18px);
+        transform: translateX(2px);
+        opacity: 0.8;
+      }
+      .mid {
+        filter: blur(7px);
+        opacity: 0.9;
+      }
+      .word {
+        position: relative;
+        background: linear-gradient(90deg, var(--warm) var(--split), var(--cool));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="wrap">
+      <span class="glow warm" aria-hidden="true"></span>
+      <span class="glow cool" aria-hidden="true"></span>
+      <span class="glow mid" aria-hidden="true"></span>
+      <span class="word" id="word">shibro</span>
+    </div>
+    <script>
+      const CONFIG = {
+        word: "shibro",
+        warm: "#e8a54b",
+        cool: "#6ea8c9"
+      };
+
+      const wrap = document.getElementById("wrap");
+      const word = document.getElementById("word");
+      const glows = [...wrap.querySelectorAll(".glow")];
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true;
+      let pointer = false;
+      let raf = 0;
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+
+      function label(s) {
+        return String(s || "shibro").replace(/[^\x20-\x7E]/g, "").slice(0, 16) || "shibro";
+      }
+
+      function apply(c) {
+        const t = label(c.word);
+        word.textContent = t;
+        glows.forEach((el) => {
+          el.textContent = t;
+        });
+        wrap.style.setProperty("--warm", c.warm);
+        wrap.style.setProperty("--cool", c.cool);
+      }
+
+      function lean(t) {
+        wrap.style.setProperty("--split", `${Math.max(14, Math.min(86, t * 100))}%`);
+      }
+
+      apply(CONFIG);
+      lean(0.46);
+
+      wrap.addEventListener("pointermove", (e) => {
+        pointer = true;
+        const r = wrap.getBoundingClientRect();
+        lean((e.clientX - r.left) / r.width);
+      });
+
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        if (!quiet && !pointer) lean(0.5 + Math.sin((now || 0) / 1300) * 0.2);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+      if (!quiet) raf = requestAnimationFrame(loop);
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        apply(CONFIG);
+      };
+    </script>
+  </body>
+</html>

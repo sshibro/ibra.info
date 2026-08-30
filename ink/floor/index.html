@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>floor — ink</title>
+    <meta name="description" content="blurred bars, short at the sides." />
+    <link rel="canonical" href="https://ibra.info/ink/floor/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>floor</h1>
+      <p class="lede">blurred bars, short at the sides.</p>
+      <div class="stage">
+        <iframe src="preview.html" title="floor"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>blur</span>
+          <input type="range" name="blur" min="8" max="36" value="22" />
+          <output data-output="blur">22</output>
+        </label>
+        <label class="knob">
+          <span>bars</span>
+          <input type="range" name="bars" min="7" max="13" value="9" />
+          <output data-output="bars">9</output>
+        </label>
+        <div class="knob colors">
+          <span>colors</span>
+          <input type="color" name="colorA" value="#c45c26" aria-label="color a" />
+          <input type="color" name="colorB" value="#d4a017" aria-label="color b" />
+          <input type="color" name="colorC" value="#3d6b4f" aria-label="color c" />
+        </div>
+      </form>
+      <p class="actions">
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

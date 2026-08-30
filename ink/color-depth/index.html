@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>color-depth — ink</title>
+    <meta name="description" content="four materials on one button." />
+    <link rel="canonical" href="https://ibra.info/ink/color-depth/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>color-depth</h1>
+      <p class="lede">four materials on one button.</p>
+      <div class="stage">
+        <iframe src="preview.html" title="color-depth"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>recipe</span>
+          <select name="recipe">
+            <option value="gloss" selected>gloss</option>
+            <option value="bevel">bevel</option>
+            <option value="metal">metal</option>
+            <option value="neon">neon</option>
+          </select>
+        </label>
+      </form>
+      <p class="actions">
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>
