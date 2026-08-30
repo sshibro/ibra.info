@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ghost</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        overflow: hidden;
+        background: #111;
+      }
+      .art {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 28% 42%, #c45c26 0 22%, transparent 23%),
+          radial-gradient(circle at 72% 58%, #3d6b4f 0 18%, transparent 19%),
+          linear-gradient(118deg, transparent 42%, #efe6c9 42% 48%, transparent 48%),
+          #161616;
+        --soft: 28%;
+        --dur: 2.4s;
+        -webkit-mask-image: linear-gradient(
+          var(--angle, 90deg),
+          #000 0,
+          #000 calc(50% - var(--soft)),
+          transparent calc(50% + var(--soft))
+        );
+        mask-image: linear-gradient(
+          var(--angle, 90deg),
+          #000 0,
+          #000 calc(50% - var(--soft)),
+          transparent calc(50% + var(--soft))
+        );
+        -webkit-mask-size: 280% 280%;
+        mask-size: 280% 280%;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: var(--mx, 100%) var(--my, 50%);
+        mask-position: var(--mx, 100%) var(--my, 50%);
+        animation: wipe var(--dur) ease-in-out infinite alternate;
+      }
+      @keyframes wipe {
+        to {
+          -webkit-mask-position: var(--tx, 0%) var(--ty, 50%);
+          mask-position: var(--tx, 0%) var(--ty, 50%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .art {
+          animation: none;
+          -webkit-mask-image: none;
+          mask-image: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="art" id="art" aria-hidden="true"></div>
+    <script>
+      const CONFIG = {
+        softness: 28,
+        direction: "right",
+        duration: 2.4
+      };
+
+      const art = document.getElementById("art");
+      const dirs = {
+        right: { angle: "90deg", mx: "100%", my: "50%", tx: "0%", ty: "50%" },
+        left: { angle: "270deg", mx: "0%", my: "50%", tx: "100%", ty: "50%" },
+        down: { angle: "180deg", mx: "50%", my: "0%", tx: "50%", ty: "100%" },
+        up: { angle: "0deg", mx: "50%", my: "100%", tx: "50%", ty: "0%" },
+      };
+
+      function apply(c) {
+        const d = dirs[c.direction] || dirs.right;
+        art.style.setProperty("--soft", c.softness + "%");
+        art.style.setProperty("--dur", c.duration + "s");
+        art.style.setProperty("--angle", d.angle);
+        art.style.setProperty("--mx", d.mx);
+        art.style.setProperty("--my", d.my);
+        art.style.setProperty("--tx", d.tx);
+        art.style.setProperty("--ty", d.ty);
+        art.style.animation = "none";
+        void art.offsetWidth;
+        art.style.animation = "";
+      }
+
+      apply(CONFIG);
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        apply(CONFIG);
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ghost — ink</title>
+    <meta name="description" content="a field revealed by a moving mask, not a fade." />
+    <link rel="canonical" href="https://ibra.info/ink/ghost/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>ghost</h1>
+      <p class="lede">a field revealed by a moving mask, not a fade.</p>
+      <div class="stage">
+        <iframe src="preview.html" title="ghost"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>softness</span>
+          <input type="range" name="softness" min="8" max="48" value="28" />
+          <output data-output="softness">28</output>
+        </label>
+        <label class="knob">
+          <span>direction</span>
+          <select name="direction">
+            <option value="right" selected>right</option>
+            <option value="left">left</option>
+            <option value="up">up</option>
+            <option value="down">down</option>
+          </select>
+        </label>
+        <label class="knob">
+          <span>duration</span>
+          <input
+            type="range"
+            name="duration"
+            min="0.8"
+            max="4"
+            step="0.1"
+            value="2.4"
+          />
+          <output data-output="duration">2.4</output>
+        </label>
+      </form>
+      <p class="actions">
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

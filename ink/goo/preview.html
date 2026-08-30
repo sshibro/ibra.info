@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>goo</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #efece4;
+      }
+      svg {
+        position: absolute;
+        width: 0;
+        height: 0;
+      }
+      .field {
+        position: relative;
+        width: 240px;
+        height: 130px;
+        filter: url(#goo);
+      }
+      .blob {
+        position: absolute;
+        top: 50%;
+        border-radius: 26px;
+        background: #161616;
+        translate: 0 -50%;
+      }
+      .a {
+        width: 96px;
+        height: 76px;
+        left: 16px;
+        animation: a 2.8s ease-in-out infinite;
+      }
+      .b {
+        width: 84px;
+        height: 68px;
+        right: 16px;
+        animation: b 2.8s ease-in-out infinite;
+      }
+      @keyframes a {
+        50% {
+          transform: translateX(34px);
+        }
+      }
+      @keyframes b {
+        50% {
+          transform: translateX(-34px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .a {
+          animation: none;
+          transform: translateX(28px);
+        }
+        .b {
+          animation: none;
+          transform: translateX(-28px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg aria-hidden="true">
+      <filter id="goo" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
+        <feColorMatrix
+          in="blur"
+          type="matrix"
+          values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
+        />
+      </filter>
+    </svg>
+    <div class="field" aria-hidden="true">
+      <i class="blob a"></i>
+      <i class="blob b"></i>
+    </div>
+    <script>
+      const CONFIG = {
+        goo: 18,
+        blur: 12
+      };
+
+      const blur = document.querySelector("feGaussianBlur");
+      const matrix = document.querySelector("feColorMatrix");
+
+      function apply(c) {
+        blur.setAttribute("stdDeviation", String(c.blur));
+        matrix.setAttribute(
+          "values",
+          `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${c.goo} -7`
+        );
+      }
+
+      apply(CONFIG);
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        apply(CONFIG);
+      };
+    </script>
+  </body>
+</html>

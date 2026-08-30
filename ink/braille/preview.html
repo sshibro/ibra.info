@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>braille</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #f4f4f1;
+        color: #111;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .spin {
+        font-size: clamp(2rem, 10vw, 2.8rem);
+        letter-spacing: 0.12em;
+        line-height: 1;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spin::after {
+          content: "⣿⡇⠀" !important;
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <span class="spin" id="spin" role="img" aria-label="loading">⣿⠀⠀</span>
+    <script>
+      const CONFIG = {};
+      const frames = [
+        "⣿⠀⠀",
+        "⢸⣿⠀",
+        "⠀⣿⡇",
+        "⠀⠀⣿",
+        "⠀⢸⣿",
+        "⣿⡇⠀",
+      ];
+      const el = document.getElementById("spin");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!quiet) {
+        let i = 0;
+        setInterval(() => {
+          i = (i + 1) % frames.length;
+          el.textContent = frames[i];
+        }, 110);
+      }
+    </script>
+  </body>
+</html>

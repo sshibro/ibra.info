@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ink — Ibragim Shirinov</title>
+    <meta name="description" content="live ui you can copy." />
+    <link rel="canonical" href="https://ibra.info/ink/" />
+    <meta property="og:title" content="ink — Ibragim Shirinov" />
+    <meta property="og:description" content="live ui you can copy." />
+    <meta property="og:url" content="https://ibra.info/ink/" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="ink.css" />
+  </head>
+  <body>
+    <main>
+      <p class="back"><a href="/">ibra.info</a></p>
+      <h1>ink</h1>
+      <p class="lede">live ui you can copy.</p>
+      <ul class="grid"></ul>
+      <p class="foot">free to copy. mit.</p>
+    </main>
+    <script src="ink.js"></script>
+    <script>
+      Ink.mountGrid(document.querySelector(".grid"));
+    </script>
+  </body>
+</html>

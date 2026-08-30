@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>floor</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        overflow: hidden;
+        background: #101010;
+      }
+      svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .rise {
+        transform-box: fill-box;
+        transform-origin: center bottom;
+        animation: up 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+      }
+      @keyframes up {
+        from {
+          transform: scaleY(0.08);
+          opacity: 0.35;
+        }
+        to {
+          transform: scaleY(1);
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rise {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg id="svg" viewBox="0 0 400 180" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <script>
+      const CONFIG = {
+        blur: 14,
+        bars: 7,
+        colorA: "#c45c26",
+        colorB: "#d4a017",
+        colorC: "#3d6b4f"
+      };
+
+      const svg = document.getElementById("svg");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function mix(a, b, t) {
+        const pa = a.slice(1).match(/../g).map((h) => parseInt(h, 16));
+        const pb = b.slice(1).match(/../g).map((h) => parseInt(h, 16));
+        return (
+          "#" +
+          pa
+            .map((v, i) =>
+              Math.round(v + (pb[i] - v) * t)
+                .toString(16)
+                .padStart(2, "0")
+            )
+            .join("")
+        );
+      }
+
+      function colorAt(i, n, a, b, c) {
+        if (n <= 1) return b;
+        const t = i / (n - 1);
+        return t < 0.5 ? mix(a, b, t * 2) : mix(b, c, (t - 0.5) * 2);
+      }
+
+      function apply(c) {
+        const n = Math.max(3, Math.min(13, Math.round(c.bars)));
+        const blur = Math.max(2, c.blur);
+        let bars = "";
+        const mid = (n - 1) / 2;
+        const gap = 400 / n;
+        for (let i = 0; i < n; i++) {
+          const bell = Math.exp(-0.5 * ((i - mid) / (n * 0.28)) ** 2);
+          const h = 70 + bell * 100;
+          const w = gap * 0.72;
+          const x = i * gap + (gap - w) / 2;
+          const col = colorAt(i, n, c.colorA, c.colorB, c.colorC);
+          bars += `<rect x="${x.toFixed(1)}" y="${(180 - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${col}"/>`;
+        }
+        svg.innerHTML = `
+          <defs>
+            <filter id="b" x="-20%" y="-20%" width="140%" height="160%">
+              <feGaussianBlur stdDeviation="${blur}"/>
+            </filter>
+          </defs>
+          <g class="rise" filter="url(#b)">${bars}</g>
+        `;
+        if (quiet) return;
+        const g = svg.querySelector(".rise");
+        g.style.animation = "none";
+        void g.getBoundingClientRect();
+        g.style.animation = "";
+      }
+
+      apply(CONFIG);
+      window.setParams = (next) => {
+        Object.assign(CONFIG, next);
+        apply(CONFIG);
+      };
+    </script>
+  </body>
+</html>

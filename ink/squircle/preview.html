@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>squircle</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #f4f4f1;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        margin: 0;
+        color: #f4f4f1;
+        background: #111;
+        font: 400 1.125rem/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.03em;
+        padding: 0.9rem 1.55rem;
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 1px solid #111;
+        outline-offset: 4px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        button {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <button type="button" id="btn">shibro</button>
+    <script>
+      const CONFIG = {
+        radius: 22,
+        smoothness: 2
+      };
+
+      const btn = document.getElementById("btn");
+      const native =
+        typeof CSS !== "undefined" &&
+        (CSS.supports("corner-shape", "squircle") ||
+          CSS.supports("corner-shape", "superellipse(2)"));
+
+      function pathFor(w, h, r, k) {
+        r = Math.min(Math.max(0, r), w / 2, h / 2);
+        const p = 1 / Math.max(k, 0.25);
+        const steps = 20;
+        const pts = [];
+        const corners = [
+          [w - r, r, -Math.PI / 2],
+          [w - r, h - r, 0],
+          [r, h - r, Math.PI / 2],
+          [r, r, Math.PI],
+        ];
+        for (const [cx, cy, a0] of corners) {
+          for (let i = 0; i <= steps; i++) {
+            const t = a0 + (i / steps) * (Math.PI / 2);
+            const c = Math.cos(t);
+            const s = Math.sin(t);
+            pts.push(
+              [
+                cx + r * Math.sign(c) * Math.pow(Math.abs(c), p),
+                cy + r * Math.sign(s) * Math.pow(Math.abs(s), p),
+              ]
+                .map((n) => n.toFixed(2))
+                .join(" ")
+            );
+          }
+        }
+        return `M${pts[0]}L${pts.slice(1).join("L")}Z`;
+      }
+
+      function apply(c) {
+        const r = Number(c.radius);
+        const n = Number(c.smoothness);
+        btn.style.borderRadius = r + "px";
+        if (native) {
+          btn.style.cornerShape = `superellipse(${n})`;
+          btn.style.clipPath = "none";
+          return;
+        }
+        const w = btn.offsetWidth;
+        const h = btn.offsetHeight;
+        btn.style.borderRadius = "0";
+        btn.style.clipPath = `path("${pathFor(w, h, r, n)}")`;
+      }
+
+      apply(CONFIG);
+      new ResizeObserver(() => apply(CONFIG)).observe(btn);
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        apply(CONFIG);
+      };
+    </script>
+  </body>
+</html>

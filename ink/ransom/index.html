@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ransom — ink</title>
+    <meta name="description" content="each letter a scrap." />
+    <link rel="canonical" href="https://ibra.info/ink/ransom/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>ransom</h1>
+      <p class="lede">each letter a scrap.</p>
+      <div class="stage">
+        <iframe src="preview.html" title="ransom"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>text</span>
+          <input type="text" name="text" value="shibro" maxlength="12" autocomplete="off" />
+        </label>
+        <label class="knob">
+          <span>messiness</span>
+          <input
+            type="range"
+            name="messiness"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.65"
+          />
+          <output data-output="messiness">0.65</output>
+        </label>
+        <input type="hidden" name="seed" value="1" />
+      </form>
+      <p class="actions">
+        <button type="button" class="reroll" data-reroll="seed">re-roll</button>
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

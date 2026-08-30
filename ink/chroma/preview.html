@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>chroma</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #121212;
+      }
+      .wrap {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-width: 12rem;
+        min-height: 4rem;
+        --split: 48%;
+        --warm: #e8a54b;
+        --cool: #6ea8c9;
+      }
+      .glow,
+      .word {
+        font: 650 clamp(2.1rem, 11vw, 3.4rem)/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.05em;
+        white-space: nowrap;
+      }
+      .glow {
+        position: absolute;
+        inset: auto;
+        background: linear-gradient(
+          90deg,
+          var(--warm) var(--split),
+          var(--cool)
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        pointer-events: none;
+        user-select: none;
+      }
+      .g1 {
+        filter: blur(22px);
+        opacity: 0.7;
+        transform: translateX(calc((var(--split) - 50%) * 0.18));
+      }
+      .g2 {
+        filter: blur(10px);
+        opacity: 0.85;
+        transform: translateX(calc((var(--split) - 50%) * 0.1));
+      }
+      .g3 {
+        filter: blur(4px);
+        opacity: 0.9;
+      }
+      .word {
+        position: relative;
+        background: linear-gradient(
+          90deg,
+          var(--warm) var(--split),
+          var(--cool)
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="wrap">
+      <span class="glow g1" aria-hidden="true"></span>
+      <span class="glow g2" aria-hidden="true"></span>
+      <span class="glow g3" aria-hidden="true"></span>
+      <span class="word" id="word">shibro</span>
+    </div>
+    <script>
+      const CONFIG = {
+        word: "shibro",
+        warm: "#e8a54b",
+        cool: "#6ea8c9"
+      };
+
+      const wrap = document.getElementById("wrap");
+      const word = document.getElementById("word");
+      const glows = [...wrap.querySelectorAll(".glow")];
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let pointer = false;
+
+      function label(s) {
+        return String(s || "shibro").replace(/[^\x20-\x7E]/g, "").slice(0, 16) || "shibro";
+      }
+
+      function apply(c) {
+        const t = label(c.word);
+        word.textContent = t;
+        glows.forEach((el) => {
+          el.textContent = t;
+        });
+        wrap.style.setProperty("--warm", c.warm);
+        wrap.style.setProperty("--cool", c.cool);
+      }
+
+      function lean(t) {
+        wrap.style.setProperty("--split", `${Math.max(12, Math.min(88, t * 100))}%`);
+      }
+
+      apply(CONFIG);
+      lean(0.46);
+
+      if (!quiet) {
+        wrap.addEventListener("pointermove", (e) => {
+          pointer = true;
+          const r = wrap.getBoundingClientRect();
+          lean((e.clientX - r.left) / r.width);
+        });
+        (function loop(now) {
+          if (!pointer) lean(0.5 + Math.sin(now / 1300) * 0.2);
+          requestAnimationFrame(loop);
+        })(0);
+      }
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        apply(CONFIG);
+      };
+    </script>
+  </body>
+</html>
