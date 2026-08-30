@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>flower-lattice</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background:#f3ead8; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {};
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true, raf = 0;
+      window.addEventListener("message", e => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+      function fit() {
+        const dpr = Math.min(2, devicePixelRatio || 1);
+        canvas.width = Math.floor(innerWidth * dpr);
+        canvas.height = Math.floor(innerHeight * dpr);
+      }
+
+
+      function flower(x, y, r, rot, col) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.fillStyle = col;
+        for (let i = 0; i < 6; i++) {
+          ctx.rotate(Math.PI / 3);
+          ctx.beginPath();
+          ctx.ellipse(0, r * 0.45, r * 0.22, r * 0.45, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      function paint(now) {
+        fit();
+        const w = canvas.width, h = canvas.height, t = (now || 0) / 1400;
+        ctx.fillStyle = "#f3ead8";
+        ctx.fillRect(0, 0, w, h);
+        const gap = Math.min(w, h) / 4.2;
+        for (let y = gap * 0.4; y < h; y += gap) {
+          for (let x = gap * 0.4; x < w; x += gap) {
+            flower(x, y, gap * 0.42, t + x * 0.01 + y * 0.01, "#c45c26");
+          }
+        }
+      }
+      function loop(now) { raf = 0; if (!view) return; paint(now); if (!quiet) raf = requestAnimationFrame(loop); }
+  
+      if (quiet) { fit(); paint(0); }
+      else raf = requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

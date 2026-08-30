@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dia-gradient</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #0c0d10; }
+      svg { display: block; width: 100%; height: 100%; }
+      .rise {
+        transform-box: fill-box;
+        transform-origin: center bottom;
+        animation: up 1.55s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both;
+      }
+      @keyframes up {
+        from { transform: scaleY(0); }
+        to { transform: scaleY(1); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .rise { animation: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <svg id="svg" viewBox="0 0 400 180" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <script>
+      const CONFIG = {
+        blur: 24,
+        bars: 9,
+        colorA: "#1b2430",
+        colorB: "#e8b86d",
+        colorC: "#e07a5f"
+      };
+
+      const svg = document.getElementById("svg");
+
+      function apply(c) {
+        const n = Math.max(7, Math.min(13, Math.round(c.bars)));
+        const blur = Math.max(8, c.blur);
+        const mid = (n - 1) / 2;
+        const gap = 400 / n;
+        let bars = "";
+        for (let i = 0; i < n; i++) {
+          const bell = Math.exp(-0.5 * ((i - mid) / (n * 0.28)) ** 2);
+          const h = 58 + bell * 118;
+          const w = gap * 0.8;
+          const x = i * gap + (gap - w) / 2;
+          bars += `<rect x="${x.toFixed(1)}" y="${(180 - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="url(#rain)"/>`;
+        }
+        svg.innerHTML = `
+          <defs>
+            <linearGradient id="rain" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0" stop-color="${c.colorA}"/>
+              <stop offset="0.42" stop-color="${c.colorB}"/>
+              <stop offset="0.72" stop-color="${c.colorC}"/>
+              <stop offset="1" stop-color="#f4e1ea" stop-opacity="0.15"/>
+            </linearGradient>
+            <filter id="b" x="-40%" y="-40%" width="180%" height="200%">
+              <feGaussianBlur stdDeviation="${blur}"/>
+            </filter>
+          </defs>
+          <g class="rise" filter="url(#b)">${bars}</g>
+        `;
+      }
+
+      apply(CONFIG);
+      window.setParams = (next) => {
+        Object.assign(CONFIG, next);
+        apply(CONFIG);
+      };
+    </script>
+  </body>
+</html>

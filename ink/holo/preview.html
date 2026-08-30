@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>holo</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background:
+          radial-gradient(120% 80% at 50% 0%, #2a2433, #121014);
+        perspective: 900px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .scene { width: min(78%, 280px); }
+      .card {
+        position: relative;
+        aspect-ratio: 1.62 / 1;
+        border-radius: 16px;
+        transform-style: preserve-3d;
+        background: linear-gradient(160deg, #1b1822, #0e0c12 60%);
+        box-shadow:
+          0 18px 40px rgba(0, 0, 0, 0.35),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+      }
+      .foil {
+        position: absolute;
+        inset: 0;
+        background:
+          conic-gradient(from var(--a, 210deg) at 50% 40%,
+            #ff7ad9, #7ad7ff, #ffe27a, #7affb2, #c9a6ff, #ff7ad9);
+        mix-blend-mode: color-dodge;
+        opacity: var(--bloom, 0.55);
+        filter: saturate(1.4) blur(0.2px);
+        transform: translate3d(var(--ox, 0px), var(--oy, 0px), 1px);
+      }
+      .sheen {
+        position: absolute;
+        inset: -20%;
+        background: linear-gradient(
+          115deg,
+          transparent 36%,
+          rgba(255, 255, 255, 0.55) 48%,
+          transparent 60%
+        );
+        mix-blend-mode: screen;
+        transform: translateX(var(--sx, -20%));
+        opacity: 0.65;
+      }
+      .face {
+        position: relative;
+        z-index: 2;
+        height: 100%;
+        padding: 1.05rem 1.15rem;
+        color: #f7f2ea;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .mark {
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 35% 30%, #fff6, transparent 40%),
+          conic-gradient(#ffb3e6, #8ad4ff, #ffe28a, #ffb3e6);
+        box-shadow: 0 0 0 1px #fff3;
+      }
+      .name {
+        margin: 0;
+        font-size: clamp(1.4rem, 7vw, 1.85rem);
+        letter-spacing: -0.04em;
+        font-weight: 500;
+      }
+      .sub {
+        margin: 0.2rem 0 0;
+        color: #d7cfc4;
+        font-size: 0.72rem;
+        letter-spacing: 0.01em;
+      }
+      .ticks {
+        position: absolute;
+        right: 0.7rem;
+        top: 50%;
+        transform: translate3d(var(--hx, 0px), -50%, 12px);
+        color: #ffd0ea;
+        font-size: 0.7rem;
+        letter-spacing: 0.18em;
+        writing-mode: vertical-rl;
+        opacity: 0.85;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scene">
+      <div class="card" id="card">
+        <div class="foil" id="foil"></div>
+        <div class="sheen" id="sheen"></div>
+        <div class="face">
+          <div class="mark" aria-hidden="true"></div>
+          <div>
+            <p class="name" id="name">shibro</p>
+            <p class="sub">visuals, on the side</p>
+          </div>
+        </div>
+        <div class="ticks" id="ticks">✦ ✦ ✦</div>
+      </div>
+    </div>
+    <script>
+      const CONFIG = {
+        name: "shibro",
+        parallax: 0.26,
+        bloom: 0.55
+      };
+
+      const card = document.getElementById("card");
+      const foil = document.getElementById("foil");
+      const sheen = document.getElementById("sheen");
+      const name = document.getElementById("name");
+      const ticks = document.getElementById("ticks");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true;
+      let raf = 0;
+      let px = 0.5;
+      let py = 0.45;
+      let tx = 0.5;
+      let ty = 0.45;
+      let held = false;
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+
+      function label(s) {
+        return String(s || "shibro").replace(/[^\x20-\x7E]/g, "").slice(0, 16) || "shibro";
+      }
+
+      function apply() {
+        name.textContent = label(CONFIG.name);
+        foil.style.setProperty("--bloom", String(CONFIG.bloom));
+      }
+
+      function lean(x, y) {
+        const p = Number(CONFIG.parallax);
+        const rx = (0.5 - y) * 28 * p * 4;
+        const ry = (x - 0.5) * 34 * p * 4;
+        card.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+        foil.style.setProperty("--a", (210 + (x - 0.5) * 80) + "deg");
+        foil.style.setProperty("--ox", ((x - 0.5) * 18) + "px");
+        foil.style.setProperty("--oy", ((y - 0.5) * 14) + "px");
+        sheen.style.setProperty("--sx", ((x - 0.5) * 80) + "%");
+        ticks.style.setProperty("--hx", ((x - 0.5) * 10) + "px");
+      }
+
+      card.addEventListener("pointermove", (e) => {
+        const r = card.getBoundingClientRect();
+        held = true;
+        tx = (e.clientX - r.left) / r.width;
+        ty = (e.clientY - r.top) / r.height;
+      });
+      card.addEventListener("pointerleave", () => {
+        held = false;
+      });
+
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        if (!held && !quiet) {
+          const t = (now || 0) / 1600;
+          tx = 0.5 + Math.sin(t) * 0.28;
+          ty = 0.45 + Math.cos(t * 0.8) * 0.16;
+        }
+        px += (tx - px) * 0.12;
+        py += (ty - py) * 0.12;
+        lean(px, py);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+
+      apply();
+      lean(0.5, 0.45);
+      if (quiet) lean(0.62, 0.38);
+      else raf = requestAnimationFrame(loop);
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        apply();
+      };
+    </script>
+  </body>
+</html>

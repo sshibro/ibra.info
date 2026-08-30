@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>amo</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #efece6;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .pill {
+        appearance: none;
+        border: 0;
+        margin: 0;
+        padding: 0.7rem 1.2rem;
+        border-radius: 999px;
+        background: #171513;
+        color: #f4f0ea;
+        cursor: pointer;
+        display: flex;
+        gap: 0.02em;
+        font: 500 1.15rem/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.03em;
+      }
+      .ch {
+        display: inline-block;
+        transform: scale(1);
+        background: linear-gradient(180deg, #fff6, transparent 46%), #f4f0ea;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 1px 0 #0006);
+      }
+      .pill.on .ch {
+        animation: puff 0.7s cubic-bezier(0.2, 1.4, 0.3, 1) both;
+      }
+      .pill.on .ch:nth-child(2) { animation-delay: 0.04s; }
+      .pill.on .ch:nth-child(3) { animation-delay: 0.08s; }
+      .pill.on .ch:nth-child(4) { animation-delay: 0.12s; }
+      .pill.on .ch:nth-child(5) { animation-delay: 0.16s; }
+      .pill.on .ch:nth-child(6) { animation-delay: 0.2s; }
+      .pill.on .ch:nth-child(7) { animation-delay: 0.24s; }
+      .pill.on .ch:nth-child(8) { animation-delay: 0.28s; }
+      @keyframes puff {
+        0% { transform: scale(1) rotateX(0); filter: drop-shadow(0 1px 0 #0004); }
+        45% { transform: scale(1.55, 1.7) rotateX(12deg); filter: drop-shadow(0 8px 6px #0004); }
+        100% { transform: scale(1.28, 1.34) rotateX(6deg); filter: drop-shadow(0 4px 3px #0003); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .pill.on .ch { animation: none; transform: scale(1.15); }
+      }
+    </style>
+  </head>
+  <body>
+    <button type="button" class="pill" id="pill" aria-label="shibro"></button>
+    <script>
+      const CONFIG = {
+        label: "shibro"
+      };
+
+      const pill = document.getElementById("pill");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true;
+      let demo = 0;
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") view = !!e.data.value;
+      });
+
+      function label(s) {
+        return String(s || "shibro").replace(/[^\x20-\x7E]/g, "").slice(0, 14) || "shibro";
+      }
+
+      function render() {
+        const t = label(CONFIG.label);
+        pill.setAttribute("aria-label", t);
+        pill.innerHTML = [...t].map((ch) => `<span class="ch">${ch === " " ? "&nbsp;" : ch}</span>`).join("");
+      }
+
+      function play() {
+        pill.classList.remove("on");
+        void pill.offsetWidth;
+        pill.classList.add("on");
+      }
+
+      function reset() {
+        pill.classList.remove("on");
+      }
+
+      pill.addEventListener("pointerenter", play);
+      pill.addEventListener("pointerleave", reset);
+      pill.addEventListener("focus", play);
+      pill.addEventListener("blur", reset);
+
+      render();
+      if (!quiet) {
+        demo = setInterval(() => {
+          if (!view || pill.matches(":hover")) return;
+          play();
+          setTimeout(reset, 1100);
+        }, 2800);
+        setTimeout(play, 400);
+      }
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        render();
+      };
+    </script>
+  </body>
+</html>

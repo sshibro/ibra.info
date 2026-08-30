@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Swirl ASCII — ink</title>
+    <meta name="description" content="A swirling glyph field with a CRT wash." />
+    <link rel="canonical" href="https://ibra.info/ink/ascii/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>Swirl ASCII</h1>
+      <p class="lede">
+        A field of glyphs spinning around the center — faster in the middle,
+        almost still at the rim — with a warm CRT wash. Original; no borrowed
+        wordmarks.
+      </p>
+      <div class="stage">
+        <iframe src="preview.html" title="Swirl ASCII"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>density</span>
+          <input type="range" name="density" min="40" max="140" value="82" />
+          <output data-output="density">82</output>
+        </label>
+        <label class="knob">
+          <span>speed</span>
+          <input type="range" name="speed" min="0.2" max="2.2" step="0.1" value="1" />
+          <output data-output="speed">1</output>
+        </label>
+      </form>
+      <p class="actions">
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Amo hover button — ink</title>
+    <meta name="description" content="A pill that puffs its letters on hover." />
+    <link rel="canonical" href="https://ibra.info/ink/amo/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>Amo hover button</h1>
+      <p class="lede">
+        Hover plays a short puffy-letter clip, leave resets it. Recreated in
+        CSS and canvas — no borrowed video. Same interaction: enter starts,
+        leave snaps back.
+      </p>
+      <div class="stage">
+        <iframe src="preview.html" title="Amo hover button"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>label</span>
+          <input type="text" name="label" value="shibro" maxlength="14" autocomplete="off" />
+        </label>
+      </form>
+      <p class="actions">
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

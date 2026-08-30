@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Figma vector editor — ink</title>
+    <meta name="description" content="A frame, a path, and bezier handles." />
+    <link rel="canonical" href="https://ibra.info/ink/vector/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>Figma vector editor</h1>
+      <p class="lede">
+        A thin selection frame with corner squares and a size badge, plus a
+        live bezier path. Drag anchors to move, drag diamonds to bend.
+      </p>
+      <div class="stage">
+        <iframe src="preview.html" title="Figma vector editor"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>accent</span>
+          <input type="color" name="accent" value="#0d99ff" />
+        </label>
+      </form>
+      <p class="actions">
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

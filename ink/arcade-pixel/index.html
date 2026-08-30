@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Arcade pixel — ink</title>
+    <meta name="description" content="Draw the word tiny, blow it up, cut it to squares." />
+    <link rel="canonical" href="https://ibra.info/ink/arcade-pixel/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>Arcade pixel</h1>
+      <p class="lede">
+        The word is drawn tiny, then blown up with nearest-neighbor. A
+        threshold turns every sample into a chunky square. No pixel font.
+      </p>
+      <div class="stage">
+        <iframe src="preview.html" title="Arcade pixel"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>text</span>
+          <input type="text" name="text" value="shibro" maxlength="18" autocomplete="off" />
+        </label>
+        <label class="knob">
+          <span>cells</span>
+          <input type="range" name="cells" min="28" max="90" value="46" />
+          <output data-output="cells">46</output>
+        </label>
+        <label class="knob">
+          <span>threshold</span>
+          <input type="range" name="threshold" min="0.2" max="0.85" step="0.01" value="0.52" />
+          <output data-output="threshold">0.52</output>
+        </label>
+        <label class="knob">
+          <span>ink</span>
+          <input type="color" name="ink" value="#1a120c" />
+        </label>
+        <label class="knob">
+          <span>paper</span>
+          <input type="color" name="paper" value="#f2c14e" />
+        </label>
+      </form>
+      <p class="actions">
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

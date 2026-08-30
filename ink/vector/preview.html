@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>vector</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #f4f4f1;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .frame {
+        position: relative;
+        width: min(82%, 340px);
+        height: min(70%, 190px);
+        border: 1.5px solid var(--accent, #0d99ff);
+        background: color-mix(in srgb, var(--accent, #0d99ff) 7%, #f4f4f1);
+      }
+      .h {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #fff;
+        border: 1.5px solid var(--accent, #0d99ff);
+        transform: translate(-50%, -50%);
+      }
+      .h.tl { left: 0; top: 0; }
+      .h.tr { left: 100%; top: 0; }
+      .h.bl { left: 0; top: 100%; }
+      .h.br { left: 100%; top: 100%; }
+      .badge {
+        position: absolute;
+        left: 50%;
+        bottom: -1.45rem;
+        transform: translateX(-50%);
+        background: var(--accent, #0d99ff);
+        color: #fff;
+        font-size: 0.68rem;
+        padding: 0.12rem 0.38rem;
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      svg { display: block; width: 100%; height: 100%; }
+      .arm { stroke: #9bb7d4; stroke-width: 1; fill: none; }
+      .anchor { fill: #fff; stroke: var(--accent, #0d99ff); stroke-width: 1.5; cursor: grab; }
+      .handle { fill: #fff; stroke: var(--accent, #0d99ff); stroke-width: 1.2; cursor: grab; }
+      path.letter { fill: var(--accent, #0d99ff); fill-opacity: 0.12; stroke: var(--accent, #0d99ff); stroke-width: 1.6; }
+    </style>
+  </head>
+  <body>
+    <div class="frame" id="frame">
+      <span class="h tl"></span><span class="h tr"></span>
+      <span class="h bl"></span><span class="h br"></span>
+      <span class="badge" id="badge">340 × 190</span>
+      <svg id="svg" viewBox="0 0 340 190" aria-label="vector editor">
+        <path class="letter" id="letter"></path>
+        <g id="rig"></g>
+      </svg>
+    </div>
+    <script>
+      const CONFIG = {
+        accent: "#0d99ff"
+      };
+
+      const frame = document.getElementById("frame");
+      const badge = document.getElementById("badge");
+      const svg = document.getElementById("svg");
+      const letter = document.getElementById("letter");
+      const rig = document.getElementById("rig");
+
+      const pts = [
+        { x: 70, y: 150, hx: 70, hy: 110, ix: 70, iy: 150 },
+        { x: 110, y: 40, hx: 150, hy: 40, ix: 80, iy: 40 },
+        { x: 200, y: 150, hx: 200, hy: 150, ix: 160, iy: 110 },
+        { x: 270, y: 48, hx: 300, hy: 48, ix: 240, iy: 48 },
+      ];
+
+      function d() {
+        const a = pts[0];
+        let s = `M ${a.x} ${a.y}`;
+        for (let i = 1; i < pts.length; i++) {
+          const p = pts[i];
+          const prev = pts[i - 1];
+          s += ` C ${prev.hx} ${prev.hy}, ${p.ix} ${p.iy}, ${p.x} ${p.y}`;
+        }
+        return s;
+      }
+
+      function apply() {
+        frame.style.setProperty("--accent", CONFIG.accent);
+        letter.setAttribute("d", d());
+        rig.innerHTML = pts.map((p, i) => `
+          <line class="arm" x1="${p.ix}" y1="${p.iy}" x2="${p.x}" y2="${p.y}"></line>
+          <line class="arm" x1="${p.x}" y1="${p.y}" x2="${p.hx}" y2="${p.hy}"></line>
+          <circle class="anchor" data-i="${i}" data-k="a" cx="${p.x}" cy="${p.y}" r="4.2"></circle>
+          <rect class="handle" data-i="${i}" data-k="i" x="${p.ix - 3.2}" y="${p.iy - 3.2}" width="6.4" height="6.4" transform="rotate(45 ${p.ix} ${p.iy})"></rect>
+          <rect class="handle" data-i="${i}" data-k="h" x="${p.hx - 3.2}" y="${p.hy - 3.2}" width="6.4" height="6.4" transform="rotate(45 ${p.hx} ${p.hy})"></rect>
+        `).join("");
+      }
+
+      function local(e) {
+        const p = svg.createSVGPoint();
+        p.x = e.clientX;
+        p.y = e.clientY;
+        return p.matrixTransform(svg.getScreenCTM().inverse());
+      }
+
+      let drag = null;
+      svg.addEventListener("pointerdown", (e) => {
+        const t = e.target.closest("[data-i]");
+        if (!t) return;
+        drag = { i: +t.dataset.i, k: t.dataset.k };
+        svg.setPointerCapture(e.pointerId);
+      });
+      svg.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        const p = local(e);
+        const node = pts[drag.i];
+        if (drag.k === "a") {
+          const dx = p.x - node.x;
+          const dy = p.y - node.y;
+          node.x = p.x;
+          node.y = p.y;
+          node.hx += dx;
+          node.hy += dy;
+          node.ix += dx;
+          node.iy += dy;
+        } else if (drag.k === "h") {
+          node.hx = p.x;
+          node.hy = p.y;
+        } else {
+          node.ix = p.x;
+          node.iy = p.y;
+        }
+        apply();
+      });
+      svg.addEventListener("pointerup", () => {
+        drag = null;
+      });
+
+      function size() {
+        const r = frame.getBoundingClientRect();
+        badge.textContent = Math.round(r.width) + " × " + Math.round(r.height);
+      }
+      new ResizeObserver(size).observe(frame);
+      apply();
+      size();
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        apply();
+      };
+    </script>
+  </body>
+</html>

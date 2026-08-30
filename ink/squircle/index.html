@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>squircle — ink</title>
-    <meta name="description" content="superellipse beside a plain radius." />
+    <title>Apple's corners — ink</title>
+    <meta name="description" content="Superellipse clip-path versus a radius kink." />
     <link rel="canonical" href="https://ibra.info/ink/squircle/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -13,22 +13,19 @@
   <body>
     <main class="doc">
       <p class="back"><a href="../">ink</a></p>
-      <h1>squircle</h1>
-      <p class="lede">superellipse beside a plain radius.</p>
+      <h1>Apple's corners</h1>
+      <p class="lede">
+        A normal rounded corner has a tiny kink where the arc meets the flat.
+        A superellipse eases in. Smoothness slides the exponent. A few chrome
+        samples sit beside the comparison.
+      </p>
       <div class="stage">
-        <iframe src="preview.html" title="squircle"></iframe>
+        <iframe src="preview.html" title="Apple's corners"></iframe>
       </div>
       <form class="knobs">
         <label class="knob">
           <span>smoothness</span>
-          <input
-            type="range"
-            name="smoothness"
-            min="0"
-            max="1"
-            step="0.02"
-            value="0.72"
-          />
+          <input type="range" name="smoothness" min="0" max="1" step="0.02" value="0.72" />
           <output data-output="smoothness">0.72</output>
         </label>
       </form>

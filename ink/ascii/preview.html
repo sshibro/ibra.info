@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ascii</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #14110e; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {
+        density: 82,
+        speed: 1
+      };
+
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true;
+      let raf = 0;
+      const glyphs = " .:-=+*#%@";
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+
+      function fit() {
+        const dpr = Math.min(2, devicePixelRatio || 1);
+        canvas.width = Math.floor(innerWidth * dpr);
+        canvas.height = Math.floor(innerHeight * dpr);
+      }
+
+      function paint(now) {
+        fit();
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.fillStyle = "#14110e";
+        ctx.fillRect(0, 0, w, h);
+        const n = Math.max(30, Math.round(Number(CONFIG.density)));
+        const t = quiet ? 0 : ((now || 0) / 1000) * Number(CONFIG.speed);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = Math.floor(Math.min(w, h) / 28) + "px ui-monospace, monospace";
+        const cx = w / 2;
+        const cy = h / 2;
+        for (let i = 0; i < n; i++) {
+          const ring = (i / n);
+          const a = t * (1.8 - ring * 1.5) + i * 0.37;
+          const r = 12 + ring * Math.min(w, h) * 0.46;
+          const x = cx + Math.cos(a) * r;
+          const y = cy + Math.sin(a) * r * 0.72;
+          const g = glyphs[i % glyphs.length];
+          const warm = 180 + ring * 50;
+          ctx.fillStyle = "rgb(" + warm + "," + (140 - ring * 40) + "," + (90 - ring * 20) + ")";
+          ctx.globalAlpha = 0.35 + (1 - ring) * 0.55;
+          ctx.fillText(g, x, y);
+        }
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = "#f0d8b0";
+        ctx.font = "600 " + Math.floor(Math.min(w, h) * 0.12) + "px ui-monospace, monospace";
+        ctx.fillText("shibro", cx, cy);
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = "#000";
+        for (let y = 0; y < h; y += 3) ctx.fillRect(0, y, w, 1);
+        ctx.globalAlpha = 1;
+        const vg = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.2, cx, cy, Math.min(w, h) * 0.7);
+        vg.addColorStop(0, "rgba(0,0,0,0)");
+        vg.addColorStop(1, "rgba(12,8,6,0.55)");
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        paint(now);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+
+      paint(0);
+      if (!quiet) raf = requestAnimationFrame(loop);
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        paint(performance.now());
+      };
+    </script>
+  </body>
+</html>

@@ -5,63 +5,86 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>squircle</title>
     <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-      }
+      html, body { height: 100%; margin: 0; }
       body {
         display: grid;
         place-items: center;
         overflow: hidden;
         background: #f4f4f1;
         font-family: ui-sans-serif, system-ui, sans-serif;
+        color: #111;
+      }
+      .wrap {
+        display: grid;
+        gap: 1.1rem;
+        justify-items: center;
       }
       .pair {
         display: flex;
         align-items: end;
-        gap: 1.75rem;
+        gap: 1.4rem;
       }
       .col {
         display: grid;
         justify-items: center;
-        gap: 0.55rem;
+        gap: 0.4rem;
       }
-      button {
+      .tile {
         appearance: none;
         border: 0;
         margin: 0;
-        width: 7.25rem;
-        height: 7.25rem;
+        width: 6.4rem;
+        height: 6.4rem;
         color: #f4f4f1;
         background: #111;
-        font: 400 1.05rem/1 ui-sans-serif, system-ui, sans-serif;
+        font: 400 1rem/1 ui-sans-serif, system-ui, sans-serif;
         letter-spacing: -0.03em;
-        cursor: pointer;
       }
-      button:focus-visible {
-        outline: 1px solid #111;
-        outline-offset: 4px;
+      .round { border-radius: var(--r, 22px); }
+      .note { font-size: 0.68rem; color: #5c5c57; }
+      .chrome {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
       }
-      .round {
-        border-radius: var(--r, 28px);
+      .pill, .icon, .bar {
+        background: #111;
+        color: #f4f4f1;
       }
-      .note {
+      .pill {
+        border: 0;
+        padding: 0.45rem 0.85rem;
+        font: 400 0.78rem/1 ui-sans-serif, system-ui, sans-serif;
+      }
+      .icon {
+        width: 1.7rem;
+        height: 1.7rem;
+        display: grid;
+        place-items: center;
         font-size: 0.7rem;
-        letter-spacing: 0.02em;
-        color: #5c5c57;
+      }
+      .bar {
+        width: 5.4rem;
+        height: 0.7rem;
       }
     </style>
   </head>
   <body>
-    <div class="pair">
-      <div class="col">
-        <button type="button" class="round" id="round">shibro</button>
-        <span class="note">radius</span>
+    <div class="wrap">
+      <div class="pair">
+        <div class="col">
+          <button type="button" class="tile round" id="round">shibro</button>
+          <span class="note">radius</span>
+        </div>
+        <div class="col">
+          <button type="button" class="tile" id="smooth">shibro</button>
+          <span class="note">smooth</span>
+        </div>
       </div>
-      <div class="col">
-        <button type="button" id="smooth">shibro</button>
-        <span class="note">smooth</span>
+      <div class="chrome">
+        <button type="button" class="pill" id="pill">Get the app</button>
+        <div class="icon" id="icon">s</div>
+        <div class="bar" id="bar"></div>
       </div>
     </div>
     <script>
@@ -71,11 +94,16 @@
 
       const smooth = document.getElementById("smooth");
       const round = document.getElementById("round");
+      const extras = [
+        document.getElementById("pill"),
+        document.getElementById("icon"),
+        document.getElementById("bar"),
+      ];
 
       function path(w, h, r, n) {
         r = Math.min(Math.max(0, r), w / 2, h / 2);
         const p = 2 / n;
-        const steps = 22;
+        const steps = 24;
         const pts = [];
         const corners = [
           [w - r, r, -Math.PI / 2],
@@ -95,17 +123,21 @@
             );
           }
         }
-        return `M${pts[0]}L${pts.slice(1).join("L")}Z`;
+        return `path("M${pts[0]}L${pts.slice(1).join("L")}Z")`;
+      }
+
+      function clip(el, r, n) {
+        el.style.clipPath = path(el.offsetWidth, el.offsetHeight, r, n);
       }
 
       function apply(c) {
         const t = Math.max(0, Math.min(1, Number(c.smoothness)));
         const n = 2 + t * 3.2;
-        const r = 28;
-        const w = smooth.offsetWidth;
-        const h = smooth.offsetHeight;
-        round.style.setProperty("--r", r + "px");
-        smooth.style.clipPath = `path("${path(w, h, r, n)}")`;
+        round.style.setProperty("--r", "22px");
+        clip(smooth, 22, n);
+        clip(extras[0], 14, n);
+        clip(extras[1], 8, n);
+        clip(extras[2], 8, n);
       }
 
       apply(CONFIG);

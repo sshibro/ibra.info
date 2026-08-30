@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pixel brushes — ink</title>
+    <meta name="description" content="A bitmap stamped along a path." />
+    <link rel="canonical" href="https://ibra.info/ink/pixel-brushes/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <p class="back"><a href="../">ink</a></p>
+      <h1>Pixel brushes</h1>
+      <p class="lede">
+        A brush is a tiny bitmap stamped along a path. Spacing keeps it crisp;
+        scatter and jitter turn the same stamp into a spray. Draw, or watch the
+        spiral.
+      </p>
+      <div class="stage">
+        <iframe src="preview.html" title="Pixel brushes"></iframe>
+      </div>
+      <form class="knobs">
+        <label class="knob">
+          <span>spacing</span>
+          <input type="range" name="spacing" min="0.04" max="0.28" step="0.01" value="0.09" />
+          <output data-output="spacing">0.09</output>
+        </label>
+        <label class="knob">
+          <span>scatter</span>
+          <input type="range" name="scatter" min="0" max="0.22" step="0.01" value="0.04" />
+          <output data-output="scatter">0.04</output>
+        </label>
+        <label class="knob">
+          <span>size</span>
+          <input type="range" name="size" min="0.02" max="0.1" step="0.005" value="0.04" />
+          <output data-output="size">0.04</output>
+        </label>
+      </form>
+      <p class="actions">
+        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

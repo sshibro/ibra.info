@@ -5,46 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ghost</title>
     <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-      }
-      body {
-        overflow: hidden;
-        background: #111;
-      }
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #111; }
       .art {
         position: absolute;
         inset: 0;
         background:
-          radial-gradient(circle at 28% 42%, #c45c26 0 22%, transparent 23%),
-          radial-gradient(circle at 72% 58%, #3d6b4f 0 18%, transparent 19%),
-          linear-gradient(118deg, transparent 42%, #efe6c9 42% 48%, transparent 48%),
+          radial-gradient(circle at 26% 40%, #c45c26 0 20%, transparent 21%),
+          radial-gradient(circle at 70% 62%, #3d6b4f 0 16%, transparent 17%),
+          radial-gradient(circle at 54% 28%, #efe6c9 0 10%, transparent 11%),
+          linear-gradient(118deg, transparent 42%, #d7c39a 42% 47%, transparent 47%),
           #161616;
-        --soft: 22%;
-        --dur: 2.4s;
-        -webkit-mask-image: linear-gradient(
-          var(--angle, to bottom),
-          #000 0,
-          #000 calc(22% - var(--soft) * 0.15),
-          transparent calc(40% + var(--soft) * 0.55)
-        );
-        mask-image: linear-gradient(
-          var(--angle, to bottom),
-          #000 0,
-          #000 calc(22% - var(--soft) * 0.15),
-          transparent calc(40% + var(--soft) * 0.55)
-        );
-        -webkit-mask-size: var(--ms, 100% 520%);
-        mask-size: var(--ms, 100% 520%);
+        -webkit-mask-image: var(--mask);
+        mask-image: var(--mask);
+        -webkit-mask-size: var(--ms, 100% 480%);
+        mask-size: var(--ms, 100% 480%);
         -webkit-mask-repeat: no-repeat;
         mask-repeat: no-repeat;
-        -webkit-mask-position: 0% 0%;
-        mask-position: 0% 0%;
+        -webkit-mask-position: var(--from, 0% 0%);
+        mask-position: var(--from, 0% 0%);
       }
       .art.run {
-        animation: wipe var(--dur) ease-in-out infinite alternate;
+        animation: wipe var(--dur, 2.6s) ease-in-out infinite alternate;
       }
       @keyframes wipe {
         to {
@@ -53,8 +35,7 @@
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        .art,
-        .art.run {
+        .art, .art.run {
           animation: none;
           -webkit-mask-image: none;
           mask-image: none;
@@ -68,36 +49,83 @@
       const CONFIG = {
         softness: 22,
         direction: "down",
-        duration: 2.4
+        duration: 2.6
       };
 
       const art = document.getElementById("art");
       const dirs = {
-        down: { angle: "to bottom", ms: "100% 520%", to: "0% 100%" },
-        up: { angle: "to top", ms: "100% 520%", to: "0% 100%" },
-        right: { angle: "to right", ms: "520% 100%", to: "100% 0%" },
-        left: { angle: "to left", ms: "520% 100%", to: "100% 0%" },
+        down: { ms: "100% 480%", from: "50% 0%", to: "50% 100%" },
+        up: { ms: "100% 480%", from: "50% 100%", to: "50% 0%" },
+        right: { ms: "480% 100%", from: "0% 50%", to: "100% 50%" },
+        left: { ms: "480% 100%", from: "100% 50%", to: "0% 50%" },
       };
+
+      function hash(x, y) {
+        let n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+        return n - Math.floor(n);
+      }
+
+      function noise(x, y) {
+        const x0 = Math.floor(x);
+        const y0 = Math.floor(y);
+        const fx = x - x0;
+        const fy = y - y0;
+        const u = fx * fx * (3 - 2 * fx);
+        const v = fy * fy * (3 - 2 * fy);
+        const a = hash(x0, y0);
+        const b = hash(x0 + 1, y0);
+        const c = hash(x0, y0 + 1);
+        const d = hash(x0 + 1, y0 + 1);
+        return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+      }
+
+      function cloudyMask(soft) {
+        const w = 96;
+        const h = 420;
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        const g = c.getContext("2d");
+        const img = g.createImageData(w, h);
+        const feather = 70 + soft * 2.2;
+        for (let y = 0; y < h; y++) {
+          const along = y / h;
+          const edge = (along - 0.28) * (h / feather);
+          const ramp = 1 / (1 + Math.exp(edge));
+          for (let x = 0; x < w; x++) {
+            const n =
+              noise(x / 14, y / 18) * 0.55 +
+              noise(x / 7, y / 9) * 0.3 +
+              noise(x / 3.5, y / 4.2) * 0.15;
+            const a = Math.max(0, Math.min(255, (ramp * 0.82 + n * 0.34) * 255));
+            const i = (y * w + x) * 4;
+            img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+            img.data[i + 3] = a;
+          }
+        }
+        g.putImageData(img, 0, 0);
+        return "url(" + c.toDataURL("image/png") + ")";
+      }
 
       function apply(c) {
         const d = dirs[c.direction] || dirs.down;
-        art.style.setProperty("--soft", c.softness + "%");
+        art.style.setProperty("--mask", cloudyMask(Number(c.softness)));
         art.style.setProperty("--dur", c.duration + "s");
-        art.style.setProperty("--angle", d.angle);
         art.style.setProperty("--ms", d.ms);
+        art.style.setProperty("--from", d.from);
         art.style.setProperty("--to", d.to);
       }
 
       function play(on) {
-        art.classList.toggle("run", on && !matchMedia("(prefers-reduced-motion: reduce)").matches);
+        const run = on && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+        art.classList.toggle("run", run);
       }
 
       apply(CONFIG);
 
-      const io = new IntersectionObserver(
-        ([e]) => play(e.isIntersecting),
-        { threshold: 0.2 }
-      );
+      const io = new IntersectionObserver(([e]) => play(e.isIntersecting), {
+        threshold: 0.2,
+      });
       io.observe(art);
 
       window.addEventListener("message", (e) => {
