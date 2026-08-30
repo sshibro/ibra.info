@@ -34,8 +34,12 @@
 
       function fit() {
         const dpr = Math.min(2, devicePixelRatio || 1);
-        canvas.width = Math.floor(innerWidth * dpr);
-        canvas.height = Math.floor(innerHeight * dpr);
+        const w = Math.floor(innerWidth * dpr);
+        const h = Math.floor(innerHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
       }
 
       function paint(now) {

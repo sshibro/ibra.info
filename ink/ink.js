@@ -291,6 +291,7 @@
             loadSnippet(frame.dataset.slug).catch(() => {});
           } else if (iframe) {
             tell(iframe, false);
+            iframe.remove();
           }
         }
       },
