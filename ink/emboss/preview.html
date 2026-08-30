@@ -37,7 +37,7 @@
       }
 
       function fit() {
-        const dpr = Math.min(1.6, devicePixelRatio || 1);
+        const dpr = 1;
         const w = Math.floor(innerWidth * dpr);
         const h = Math.floor(innerHeight * dpr);
         if (canvas.width !== w || canvas.height !== h) {
@@ -106,10 +106,12 @@
         ctx.putImageData(out, 0, 0);
       }
 
+      let skip = 0;
       function loop(now) {
         raf = 0;
         if (!view) return;
-        paint(now);
+        skip = (skip + 1) % 2;
+        if (!skip) paint(now);
         if (!quiet) raf = requestAnimationFrame(loop);
       }
 
