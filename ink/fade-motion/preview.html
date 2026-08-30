@@ -40,6 +40,7 @@
       }
 
       function fit() {
+        if (innerWidth < 8 || innerHeight < 8) return;
         const dpr = Math.min(2, devicePixelRatio || 1);
         const w = Math.floor(innerWidth * dpr);
         const h = Math.floor(innerHeight * dpr);

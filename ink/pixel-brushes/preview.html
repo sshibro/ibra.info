@@ -36,9 +36,9 @@
       });
 
       function fit() {
-        const dpr = 1;
-        const w = Math.floor(innerWidth * dpr);
-        const h = Math.floor(innerHeight * dpr);
+        if (innerWidth < 8 || innerHeight < 8) return;
+        const w = Math.floor(innerWidth);
+        const h = Math.floor(innerHeight);
         if (canvas.width !== w || canvas.height !== h) {
           canvas.width = w;
           canvas.height = h;
@@ -52,7 +52,7 @@
 
       function stampPath(pts, hue, now) {
         if (pts.length < 2) return;
-        const min = canvas.width * Number(CONFIG.spacing);
+        const min = Math.max(6, canvas.width * Number(CONFIG.spacing));
         const scatter = canvas.width * Number(CONFIG.scatter);
         const size = canvas.width * Number(CONFIG.size);
         let carry = 0;
