@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>lego-reveal</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background:#f4f4f1; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {};
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true, raf = 0;
+      window.addEventListener("message", e => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+      function fit() {
+        if (innerWidth < 8 || innerHeight < 8) return;
+        const dpr = Math.min(2, devicePixelRatio || 1);
+        const w = Math.floor(innerWidth * dpr);
+        const h = Math.floor(innerHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+
+
+      function paint(now) {
+        fit();
+        const w = canvas.width, h = canvas.height;
+        ctx.fillStyle = "#f4f4f1";
+        ctx.fillRect(0, 0, w, h);
+        const off = document.createElement("canvas");
+        off.width = 48; off.height = 24;
+        const o = off.getContext("2d");
+        o.fillStyle = "#111";
+        o.font = "700 16px ui-sans-serif,system-ui,sans-serif";
+        o.textAlign = "center";
+        o.textBaseline = "middle";
+        o.fillText("shibro", 24, 13);
+        const img = o.getImageData(0,0,48,24);
+        const t = quiet ? 1 : (((now||0)%2400)/2400);
+        const bw = w/48, bh = h/24;
+        for (let y = 0; y < 24; y++) {
+          for (let x = 0; x < 48; x++) {
+            if (img.data[(y*48+x)*4+3] < 80) continue;
+            const appear = (x/48 + y/48) * 0.6;
+            if (t < appear) continue;
+            ctx.fillStyle = ["#c0392b","#f1c40f","#2980b9","#27ae60"][(x+y)%4];
+            ctx.fillRect(x*bw+1, y*bh+1, bw-2, bh-2);
+            ctx.fillStyle = "rgba(255,255,255,0.3)";
+            ctx.beginPath();
+            ctx.arc(x*bw+bw/2, y*bh+bh*0.35, Math.min(bw,bh)*0.18, 0, Math.PI*2);
+            ctx.fill();
+          }
+        }
+      }
+      function loop(now) { raf = 0; if (!view) return; paint(now); if (!quiet) raf = requestAnimationFrame(loop); }
+  
+      if (quiet) { fit(); paint(0); }
+      else raf = requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

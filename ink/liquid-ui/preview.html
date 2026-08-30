@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>liquid-ui</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #eceae4; touch-action: none; }
+      svg { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <svg id="svg" viewBox="0 0 400 220" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <path id="blob" fill="#fff"></path>
+      <g id="marks" pointer-events="none"></g>
+    </svg>
+    <script>
+      const CONFIG = {
+        goo: 28
+      };
+
+      const svg = document.getElementById("svg");
+      const blob = document.getElementById("blob");
+      const marks = document.getElementById("marks");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true;
+      let dragging = null;
+      let raf = 0;
+      const A = { x: 168, y: 110, hx: 108, hy: 34, r: 34 };
+      const B = { x: 298, y: 110, hx: 40, hy: 16, r: 14 };
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) tick();
+        }
+      });
+
+      function smin(a, b, k) {
+        k = Math.max(0.0001, k);
+        const h = Math.max(k - Math.abs(a - b), 0) / k;
+        return Math.min(a, b) - h * h * k * 0.25;
+      }
+
+      function sdRoundBox(px, py, c) {
+        const dx = Math.abs(px - c.x) - (c.hx - c.r);
+        const dy = Math.abs(py - c.y) - (c.hy - c.r);
+        const ox = Math.max(dx, 0);
+        const oy = Math.max(dy, 0);
+        return Math.hypot(ox, oy) + Math.min(Math.max(dx, dy), 0) - c.r;
+      }
+
+      function field(px, py, k) {
+        return smin(sdRoundBox(px, py, A), sdRoundBox(px, py, B), k);
+      }
+
+      function lerp(a, b, va, vb) {
+        return a + (b - a) * (va / (va - vb || 1));
+      }
+
+      function march(k) {
+        const nx = 72, ny = 40, x0 = 8, y0 = 8, x1 = 392, y1 = 212;
+        const dx = (x1 - x0) / nx, dy = (y1 - y0) / ny;
+        const g = [];
+        for (let j = 0; j <= ny; j++) {
+          g[j] = [];
+          for (let i = 0; i <= nx; i++) g[j][i] = field(x0 + i * dx, y0 + j * dy, k);
+        }
+        const segs = [];
+        function edge(i, j, side) {
+          const x = x0 + i * dx, y = y0 + j * dy;
+          if (side === 0) return [lerp(x, x + dx, g[j][i], g[j][i + 1]), y];
+          if (side === 1) return [x + dx, lerp(y, y + dy, g[j][i + 1], g[j + 1][i + 1])];
+          if (side === 2) return [lerp(x, x + dx, g[j + 1][i], g[j + 1][i + 1]), y + dy];
+          return [x, lerp(y, y + dy, g[j][i], g[j + 1][i])];
+        }
+        const table = {
+          1: [3, 0], 2: [0, 1], 3: [3, 1], 4: [1, 2], 5: [3, 0, 1, 2], 6: [0, 2],
+          7: [3, 2], 8: [2, 3], 9: [0, 2], 10: [0, 1, 2, 3], 11: [1, 2], 12: [1, 3],
+          13: [0, 1], 14: [0, 3],
+        };
+        for (let j = 0; j < ny; j++) {
+          for (let i = 0; i < nx; i++) {
+            const code =
+              (g[j][i] < 0 ? 1 : 0) + (g[j][i + 1] < 0 ? 2 : 0) +
+              (g[j + 1][i + 1] < 0 ? 4 : 0) + (g[j + 1][i] < 0 ? 8 : 0);
+            const e = table[code];
+            if (!e) continue;
+            for (let n = 0; n < e.length; n += 2) segs.push([edge(i, j, e[n]), edge(i, j, e[n + 1])]);
+          }
+        }
+        return stitch(segs);
+      }
+
+      function key(p) { return p[0].toFixed(2) + ":" + p[1].toFixed(2); }
+
+      function stitch(segs) {
+        const unused = segs.slice(), rings = [];
+        while (unused.length) {
+          let [a, b] = unused.pop();
+          const ring = [a, b];
+          let guard = unused.length + 2;
+          while (guard--) {
+            const last = ring[ring.length - 1], lk = key(last);
+            let found = -1;
+            for (let i = 0; i < unused.length; i++) {
+              if (key(unused[i][0]) === lk) { ring.push(unused[i][1]); found = i; break; }
+              if (key(unused[i][1]) === lk) { ring.push(unused[i][0]); found = i; break; }
+            }
+            if (found < 0) break;
+            unused.splice(found, 1);
+            if (key(ring[ring.length - 1]) === key(ring[0])) break;
+          }
+          if (ring.length > 8) rings.push(ring);
+        }
+        return rings;
+      }
+
+      function chaikin(pts) {
+        const next = [], n = pts.length;
+        for (let i = 0; i < n; i++) {
+          const a = pts[i], b = pts[(i + 1) % n];
+          next.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+          next.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+        }
+        return next;
+      }
+
+      function chrome() {
+        marks.innerHTML = `
+          <circle cx="${A.x - 74}" cy="${A.y}" r="8" fill="#e6e3da"/>
+          <circle cx="${A.x - 54}" cy="${A.y}" r="8" fill="#e6e3da"/>
+          <circle cx="${A.x - 34}" cy="${A.y}" r="8" fill="#e6e3da"/>
+          <rect x="${A.x - 16}" y="${A.y - 8}" width="58" height="5" rx="2.5" fill="#e6e3da"/>
+          <rect x="${A.x - 16}" y="${A.y + 4}" width="40" height="5" rx="2.5" fill="#efece4"/>
+          <text x="${B.x}" y="${B.y + 4}" text-anchor="middle" font-size="11" font-family="ui-sans-serif,system-ui,sans-serif" fill="#3a3a36">Share</text>
+        `;
+      }
+
+      function draw() {
+        const k = Math.max(8, Math.min(60, Number(CONFIG.goo)));
+        const rings = march(k).map((r) => chaikin(chaikin(r)));
+        blob.setAttribute(
+          "d",
+          rings.map((r) => "M" + r.map((p) => p[0].toFixed(2) + " " + p[1].toFixed(2)).join("L") + "Z").join("")
+        );
+        chrome();
+      }
+
+      function pt(e) {
+        const r = svg.getBoundingClientRect();
+        return { x: ((e.clientX - r.left) / r.width) * 400, y: ((e.clientY - r.top) / r.height) * 220 };
+      }
+
+      function nearest(p) {
+        return Math.hypot(p.x - A.x, p.y - A.y) < Math.hypot(p.x - B.x, p.y - B.y) ? A : B;
+      }
+
+      svg.addEventListener("pointerdown", (e) => {
+        dragging = nearest(pt(e));
+        svg.setPointerCapture(e.pointerId);
+      });
+      svg.addEventListener("pointermove", (e) => {
+        if (!dragging) return;
+        const p = pt(e);
+        dragging.x = Math.max(70, Math.min(330, p.x));
+        dragging.y = Math.max(55, Math.min(165, p.y));
+        draw();
+      });
+      svg.addEventListener("pointerup", () => { dragging = null; });
+
+      let t0 = performance.now();
+      function tick(now) {
+        raf = 0;
+        if (!view) return;
+        if (!quiet && !dragging) {
+          const t = ((now || performance.now()) - t0) / 1000;
+          B.x = 298 + Math.sin(t * 0.65) * 8;
+        }
+        draw();
+        if (!quiet) raf = requestAnimationFrame(tick);
+      }
+
+      draw();
+      if (!quiet) raf = requestAnimationFrame(tick);
+      window.setParams = (c) => { Object.assign(CONFIG, c); draw(); };
+    </script>
+  </body>
+</html>

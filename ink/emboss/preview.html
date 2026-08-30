@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>emboss</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #c8b89a; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {
+        word: "shibro",
+        depth: 1.6,
+        light: 3.9
+      };
+
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true;
+      let raf = 0;
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+
+      function label(s) {
+        return String(s || "shibro").replace(/[^\x20-\x7E]/g, "").slice(0, 12) || "shibro";
+      }
+
+      function fit() {
+        const dpr = 1;
+        const w = Math.floor(innerWidth * dpr);
+        const h = Math.floor(innerHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+
+      function heightMap() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const off = document.createElement("canvas");
+        off.width = w;
+        off.height = h;
+        const o = off.getContext("2d");
+        o.fillStyle = "#000";
+        o.fillRect(0, 0, w, h);
+        o.fillStyle = "#fff";
+        o.font = "700 " + Math.floor(Math.min(w, h) * 0.28) + "px ui-serif, Georgia, serif";
+        o.textAlign = "center";
+        o.textBaseline = "middle";
+        o.fillText(label(CONFIG.word), w / 2, h / 2 + 4);
+        o.filter = "blur(1.2px)";
+        o.drawImage(off, 0, 0);
+        return o.getImageData(0, 0, w, h);
+      }
+
+      let src = null;
+      let word = "";
+
+      function paint(now) {
+        fit();
+        if (!src || word !== label(CONFIG.word) || src.width !== canvas.width) {
+          word = label(CONFIG.word);
+          src = heightMap();
+        }
+        const w = src.width;
+        const h = src.height;
+        const out = ctx.createImageData(w, h);
+        const depth = Number(CONFIG.depth);
+        const ang = quiet ? Number(CONFIG.light) : Number(CONFIG.light) + Math.sin((now || 0) / 1800) * 0.25;
+        const lx = Math.cos(ang);
+        const ly = Math.sin(ang);
+        const lz = 0.85;
+        const data = src.data;
+        const dest = out.data;
+        for (let y = 1; y < h - 1; y++) {
+          for (let x = 1; x < w - 1; x++) {
+            const i = (y * w + x) * 4;
+            const c = data[i];
+            const dx = (data[i + 4] - data[i - 4]) * depth * 0.02;
+            const dy = (data[i + w * 4] - data[i - w * 4]) * depth * 0.02;
+            const nz = 1;
+            const inv = 1 / Math.sqrt(dx * dx + dy * dy + nz * nz);
+            const ndot = Math.max(0, (-dx * inv) * lx + (-dy * inv) * ly + nz * inv * lz);
+            const spec = Math.pow(ndot, 18) * 90;
+            const base = 168 + ndot * 70 + spec;
+            const paper = 200;
+            const mix = c / 255;
+            dest[i] = paper * (1 - mix) + base * mix * 0.92;
+            dest[i + 1] = paper * 0.92 * (1 - mix) + base * mix * 0.86;
+            dest[i + 2] = paper * 0.78 * (1 - mix) + base * mix * 0.68;
+            dest[i + 3] = 255;
+          }
+        }
+        ctx.putImageData(out, 0, 0);
+      }
+
+      let skip = 0;
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        skip = (skip + 1) % 2;
+        if (!skip) paint(now);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+
+      paint(0);
+      if (!quiet) raf = requestAnimationFrame(loop);
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        src = null;
+        paint(performance.now());
+      };
+    </script>
+  </body>
+</html>

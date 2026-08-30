@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fade motion — ink</title>
+    <meta name="description" content="Thought this was a blur. It is stacked copies of the word, each a little more gone. Move t." />
+    <link rel="canonical" href="https://ibra.info/ink/fade-motion/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <header class="top">
+        <h1>Fade motion</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        Thought this was a blur. It is stacked copies of the word, each a little more gone. Move the pointer and the trail densifies where they pile up.
+      </p>
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Fade motion"></iframe>
+        </div>
+        <form class="knobs">
+        <label class="knob">
+          <span>word</span>
+          <input type="text" name="word" value="shibro" maxlength="14" autocomplete="off" />
+        </label>
+        <label class="knob">
+          <span>copies</span>
+          <input type="range" name="copies" min="12" max="80" value="36" />
+          <output data-output="copies">36</output>
+        </label>
+        </form>
+      </section>
+      <p class="actions">
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

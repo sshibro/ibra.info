@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dash-cascade</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background:#111; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {};
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true, raf = 0;
+      window.addEventListener("message", e => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+      function fit() {
+        if (innerWidth < 8 || innerHeight < 8) return;
+        const dpr = Math.min(2, devicePixelRatio || 1);
+        const w = Math.floor(innerWidth * dpr);
+        const h = Math.floor(innerHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+
+
+      function paint(now) {
+        fit();
+        const w = canvas.width, h = canvas.height, t = (now || 0) / 12;
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#e8c36a";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 10]);
+        for (let i = 0; i < 18; i++) {
+          ctx.lineDashOffset = -t + i * 9;
+          ctx.beginPath();
+          ctx.moveTo(w*0.15 + i*8, -10);
+          ctx.lineTo(w*0.15 + i*8 + 40, h+10);
+          ctx.stroke();
+        }
+      }
+      function loop(now) { raf = 0; if (!view) return; paint(now); if (!quiet) raf = requestAnimationFrame(loop); }
+  
+      if (quiet) { fit(); paint(0); }
+      else raf = requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

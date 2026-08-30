@@ -124,6 +124,25 @@ a:hover {
   text-decoration-color: currentColor;
 }
 
+a.pill {
+  display: inline-block;
+  padding: 0.02em 0.55em 0.1em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 9%, var(--bg));
+  text-decoration: none;
+  white-space: nowrap;
+  line-height: 1.35;
+  vertical-align: baseline;
+}
+
+a.pill:hover {
+  background: color-mix(in srgb, var(--fg) 13%, var(--bg));
+}
+
+a.pill:focus-visible {
+  outline-offset: 2px;
+}
+
 a:focus-visible {
   outline: 1px solid var(--fg);
   outline-offset: 3px;

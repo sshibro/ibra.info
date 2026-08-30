@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>folder-embroidery</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background:#2c3a2c; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {};
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true, raf = 0;
+      window.addEventListener("message", e => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+      function fit() {
+        if (innerWidth < 8 || innerHeight < 8) return;
+        const dpr = Math.min(2, devicePixelRatio || 1);
+        const w = Math.floor(innerWidth * dpr);
+        const h = Math.floor(innerHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+
+
+      function paint(now) {
+        fit();
+        const w = canvas.width, h = canvas.height, t = (now || 0) / 400;
+        ctx.fillStyle = "#2c3a2c";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#d9e6c8";
+        ctx.lineWidth = 1.2;
+        ctx.font = "700 " + Math.floor(Math.min(w,h)*0.16) + "px ui-serif,Georgia,serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.strokeText("shibro", w/2, h/2);
+        ctx.fillStyle = "#d9e6c8";
+        const step = 7;
+        for (let i = 0; i < 80; i++) {
+          const a = i * 0.4 + t;
+          ctx.fillRect(w/2 + Math.cos(a)*90 - 1, h/2 + Math.sin(a)*28 - 1, 2, 2);
+        }
+      }
+      function loop(now) { raf = 0; if (!view) return; paint(now); if (!quiet) raf = requestAnimationFrame(loop); }
+  
+      if (quiet) { fit(); paint(0); }
+      else raf = requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

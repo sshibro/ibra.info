@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Symbols effect — ink</title>
+    <meta name="description" content="A generated field is cut into brightness bands. Each band is stamped with its own glyph an." />
+    <link rel="canonical" href="https://ibra.info/ink/symbols/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <header class="top">
+        <h1>Symbols effect</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        A generated field is cut into brightness bands. Each band is stamped with its own glyph and tint, so the picture is rebuilt out of marks.
+      </p>
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Symbols effect"></iframe>
+        </div>
+        <form class="knobs">
+        <label class="knob">
+          <span>cell</span>
+          <input type="range" name="cell" min="6" max="18" value="9" />
+          <output data-output="cell">9</output>
+        </label>
+        <label class="knob">
+          <span>bands</span>
+          <input type="range" name="bands" min="3" max="7" value="4" />
+          <output data-output="bands">4</output>
+        </label>
+        </form>
+      </section>
+      <p class="actions">
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

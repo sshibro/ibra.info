@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>pixel-brushes</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #f4f4f1; touch-action: none; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {
+        spacing: 0.09,
+        scatter: 0.04,
+        size: 0.04
+      };
+
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true;
+      let raf = 0;
+      let drawing = false;
+      const user = [];
+      const hues = [8, 210, 145];
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+
+      function fit() {
+        if (innerWidth < 8 || innerHeight < 8) return;
+        const w = Math.floor(innerWidth);
+        const h = Math.floor(innerHeight);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+
+      function stamp(x, y, s, hue) {
+        ctx.fillStyle = "hsl(" + hue + " 62% 42%)";
+        ctx.fillRect(x - s / 2, y - s / 2, s, s);
+      }
+
+      function stampPath(pts, hue, now) {
+        if (pts.length < 2) return;
+        const scatter = canvas.width * Number(CONFIG.scatter);
+        const size = Math.max(3, canvas.width * Number(CONFIG.size));
+        const step = Math.max(1, Math.round(pts.length * Number(CONFIG.spacing) * 2));
+        for (let i = 0; i < pts.length; i += step) {
+          const p = pts[i];
+          const jx = Math.sin(now * 0.001 + i * 1.7 + hue) * scatter;
+          const jy = Math.cos(now * 0.0013 + i * 2.1) * scatter;
+          stamp(p.x + jx, p.y + jy, size, hue);
+        }
+      }
+
+      function spiral(now, i) {
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w * (0.28 + i * 0.22);
+        const cy = h * 0.52;
+        const pts = [];
+        const turns = 3.2;
+        const max = Math.min(w, h) * 0.22;
+        const rot = quiet ? i * 0.4 : (now / 2400) + i * 0.7;
+        for (let t = 0.12; t < turns; t += 0.08) {
+          const r = (t / turns) * max;
+          const a = t * Math.PI * 2 + rot;
+          pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r * 0.86 });
+        }
+        return pts;
+      }
+
+      function paint(now) {
+        fit();
+        if (canvas.width < 8 || canvas.height < 8) return;
+        ctx.fillStyle = "#f4f4f1";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        hues.forEach((hue, i) => stampPath(spiral(now, i), hue, now));
+        if (user.length) stampPath(user, 330, now);
+      }
+
+      function pt(e) {
+        const r = canvas.getBoundingClientRect();
+        const sx = canvas.width / r.width;
+        const sy = canvas.height / r.height;
+        return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+      }
+
+      canvas.addEventListener("pointerdown", (e) => {
+        drawing = true;
+        user.length = 0;
+        user.push(pt(e));
+        canvas.setPointerCapture(e.pointerId);
+      });
+      canvas.addEventListener("pointermove", (e) => {
+        if (!drawing) return;
+        user.push(pt(e));
+      });
+      canvas.addEventListener("pointerup", () => {
+        drawing = false;
+      });
+
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        paint(now || 0);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+
+      paint(0);
+      if (!quiet) raf = requestAnimationFrame(loop);
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        paint(performance.now());
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Holo — ink</title>
+    <meta name="description" content="Tilt the card and the foil catches the light. A warm copy and a cool copy slide across the." />
+    <link rel="canonical" href="https://ibra.info/ink/holo/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <header class="top">
+        <h1>Holo</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        Tilt the card and the foil catches the light. A warm copy and a cool copy slide across the face; marks lift on the side you turn.
+      </p>
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Holo"></iframe>
+        </div>
+        <form class="knobs">
+        <label class="knob">
+          <span>name</span>
+          <input type="text" name="name" value="shibro" maxlength="16" autocomplete="off" />
+        </label>
+        <label class="knob">
+          <span>parallax</span>
+          <input type="range" name="parallax" min="0.08" max="0.5" step="0.01" value="0.26" />
+          <output data-output="parallax">0.26</output>
+        </label>
+        <label class="knob">
+          <span>bloom</span>
+          <input type="range" name="bloom" min="0.15" max="0.9" step="0.01" value="0.55" />
+          <output data-output="bloom">0.55</output>
+        </label>
+        </form>
+      </section>
+      <p class="actions">
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dot-globe</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #f7f4ee; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {};
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true, raf = 0;
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+
+      function fit() {
+        if (innerWidth < 8 || innerHeight < 8) return;
+        const dpr = Math.min(2, devicePixelRatio || 1);
+        const w = Math.floor(innerWidth * dpr);
+        const h = Math.floor(innerHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+
+      function rot(x, y, z, ay, ax) {
+        let s = Math.sin(ay), c = Math.cos(ay);
+        let X = x * c - z * s, Z = x * s + z * c;
+        s = Math.sin(ax); c = Math.cos(ax);
+        const Y = y * c - Z * s;
+        Z = y * s + Z * c;
+        return { x: X, y: Y, z: Z };
+      }
+
+      function drawSphere(cx, cy, R, ay, ax, kind) {
+        const faces = [];
+        if (kind === 0) {
+          const lons = 16, lats = 12;
+          for (let i = 0; i < lons; i++) {
+            for (let j = 0; j < lats; j++) {
+              const lon0 = (i / lons) * Math.PI * 2 - Math.PI;
+              const lon1 = ((i + 1) / lons) * Math.PI * 2 - Math.PI;
+              const lat0 = (j / lats) * Math.PI - Math.PI / 2;
+              const lat1 = ((j + 1) / lats) * Math.PI - Math.PI / 2;
+              const midLon = (lon0 + lon1) / 2;
+              let fill = "#5b3fd6";
+              if (midLon < 0) fill = (i + j) % 2 ? "#d8f26a" : "#f4f4f1";
+              faces.push({ lon0, lon1, lat0, lat1, fill, round: 0.12 });
+            }
+          }
+        } else if (kind === 1) {
+          const lons = 12, lats = 10;
+          for (let i = 0; i < lons; i++) {
+            for (let j = 0; j < lats; j++) {
+              const lon0 = (i / lons) * Math.PI * 2;
+              const lon1 = ((i + 1) / lons) * Math.PI * 2;
+              const lat0 = (j / lats) * Math.PI - Math.PI / 2;
+              const lat1 = ((j + 1) / lats) * Math.PI - Math.PI / 2;
+              const hi = (i + j * 3) % 11 === 0 || (i * 2 + j) % 13 === 0;
+              faces.push({
+                lon0, lon1, lat0, lat1,
+                fill: hi ? "#e07a5f" : "#2f9d8f",
+                round: 0.42,
+              });
+            }
+          }
+        } else {
+          const lons = 18, lats = 14;
+          for (let i = 0; i < lons; i++) {
+            for (let j = 0; j < lats; j++) {
+              const lon0 = (i / lons) * Math.PI * 2;
+              const lon1 = ((i + 1) / lons) * Math.PI * 2;
+              const lat0 = (j / lats) * Math.PI - Math.PI / 2;
+              const lat1 = ((j + 1) / lats) * Math.PI - Math.PI / 2;
+              const hi = (i + j) % 9 === 0 || i === 4;
+              faces.push({
+                lon0, lon1, lat0, lat1,
+                fill: hi ? "#f2d24a" : "#2d6cdf",
+                round: 0.08,
+              });
+            }
+          }
+        }
+
+        const drawn = [];
+        for (const f of faces) {
+          const pts = [
+            [Math.cos(f.lat0) * Math.cos(f.lon0), Math.sin(f.lat0), Math.cos(f.lat0) * Math.sin(f.lon0)],
+            [Math.cos(f.lat0) * Math.cos(f.lon1), Math.sin(f.lat0), Math.cos(f.lat0) * Math.sin(f.lon1)],
+            [Math.cos(f.lat1) * Math.cos(f.lon1), Math.sin(f.lat1), Math.cos(f.lat1) * Math.sin(f.lon1)],
+            [Math.cos(f.lat1) * Math.cos(f.lon0), Math.sin(f.lat1), Math.cos(f.lat1) * Math.sin(f.lon0)],
+          ].map(([x, y, z]) => rot(x, y, z, ay, ax));
+          const z = (pts[0].z + pts[1].z + pts[2].z + pts[3].z) / 4;
+          if (z < 0.05) continue;
+          drawn.push({ pts, z, fill: f.fill, round: f.round });
+        }
+        drawn.sort((a, b) => a.z - b.z);
+        for (const f of drawn) {
+          const p = f.pts.map((q) => [cx + q.x * R, cy + q.y * R]);
+          ctx.beginPath();
+          const inset = f.round;
+          if (inset > 0.2) {
+            const mx = (p[0][0] + p[1][0] + p[2][0] + p[3][0]) / 4;
+            const my = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4;
+            const rw = Math.hypot(p[1][0] - p[0][0], p[1][1] - p[0][1]) * 0.36;
+            const rh = Math.hypot(p[3][0] - p[0][0], p[3][1] - p[0][1]) * 0.36;
+            ctx.roundRect(mx - rw, my - rh, rw * 2, rh * 2, Math.min(rw, rh) * 0.45);
+          } else {
+            ctx.moveTo(p[0][0], p[0][1]);
+            ctx.lineTo(p[1][0], p[1][1]);
+            ctx.lineTo(p[2][0], p[2][1]);
+            ctx.lineTo(p[3][0], p[3][1]);
+            ctx.closePath();
+          }
+          ctx.fillStyle = f.fill;
+          ctx.fill();
+        }
+      }
+
+      function paint(now) {
+        fit();
+        const w = canvas.width, h = canvas.height;
+        ctx.fillStyle = "#f7f4ee";
+        ctx.fillRect(0, 0, w, h);
+        const t = quiet ? 0.4 : (now || 0) / 2400;
+        const R = Math.min(w, h) * 0.28;
+        const gap = R * 2.35;
+        const mid = w / 2;
+        const cy = h * 0.5;
+        drawSphere(mid - gap, cy, R, t * 0.7, 0.25, 0);
+        drawSphere(mid, cy, R, -t * 0.55, 0.15, 1);
+        drawSphere(mid + gap, cy, R, t * 0.4, -0.2, 2);
+      }
+
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        paint(now);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+
+      paint(0);
+      if (!quiet) raf = requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

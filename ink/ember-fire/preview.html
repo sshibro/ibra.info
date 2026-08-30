@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ember-fire</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #1a0a00; }
+      canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c" width="64" height="40"></canvas>
+    <script>
+      const CONFIG = {};
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true, raf = 0;
+      const w = 64, h = 40;
+      const cells = Array.from({ length: w * h }, () => Math.random());
+      const img = ctx.createImageData(w, h);
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+
+      function paint() {
+        for (let x = 0; x < w; x++) cells[(h - 1) * w + x] = 0.55 + Math.random() * 0.45;
+        for (let y = 0; y < h - 1; y++) {
+          for (let x = 0; x < w; x++) {
+            const i = y * w + x;
+            const below = cells[(y + 1) * w + x];
+            const side = cells[(y + 1) * w + ((x + (Math.random() < 0.5 ? -1 : 1) + w) % w)];
+            cells[i] = Math.max(0, below * 0.55 + side * 0.35 + cells[i] * 0.1 - 0.02);
+          }
+        }
+        for (let i = 0; i < cells.length; i++) {
+          const v = cells[i];
+          img.data[i * 4] = 20 + v * 230;
+          img.data[i * 4 + 1] = v * v * 140;
+          img.data[i * 4 + 2] = v * 20;
+          img.data[i * 4 + 3] = 255;
+        }
+        ctx.putImageData(img, 0, 0);
+      }
+
+      function loop() {
+        raf = 0;
+        if (!view) return;
+        paint();
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+
+      paint();
+      if (!quiet) raf = requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ink-flood</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden; background: #f4f4f1; }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {};
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true, raf = 0;
+      window.addEventListener("message", e => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+      function fit() {
+        if (innerWidth < 8 || innerHeight < 8) return;
+        const dpr = Math.min(2, devicePixelRatio || 1);
+        const w = Math.floor(innerWidth * dpr);
+        const h = Math.floor(innerHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+      function paint(now) {
+        fit();
+        const w = canvas.width, h = canvas.height, t = (now || 0) / 900;
+        ctx.fillStyle = "#f4f4f1";
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#161412";
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let x = 0; x <= w; x += 6) {
+          const n = Math.sin(x * 0.012 + t) * 28 + Math.sin(x * 0.03 - t * 1.4) * 16;
+          const y = h * 0.38 + n + Math.sin(t * 0.6) * 18;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let x = 0; x <= w; x += 6) {
+          const n = Math.sin(x * 0.02 - t * 1.2) * 22;
+          ctx.lineTo(x, h * 0.55 + n);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        paint(now);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+      if (quiet) { fit(); paint(0); }
+      else raf = requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

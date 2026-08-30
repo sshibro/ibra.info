@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>checker-conveyor</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { overflow: hidden;  }
+      canvas { display: block; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script>
+      const CONFIG = {};
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true, raf = 0;
+      window.addEventListener("message", e => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+      function fit() {
+        if (innerWidth < 8 || innerHeight < 8) return;
+        const dpr = Math.min(2, devicePixelRatio || 1);
+        const w = Math.floor(innerWidth * dpr);
+        const h = Math.floor(innerHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+
+
+      function paint(now) {
+        fit();
+        const w = canvas.width, h = canvas.height;
+        const s = Math.min(w, h) / 8;
+        const o = quiet ? 0 : ((now || 0) / 30) % (s * 2);
+        for (let y = -s; y < h + s; y += s) {
+          for (let x = -s * 2; x < w + s; x += s) {
+            const i = Math.floor((x + o) / s) + Math.floor(y / s);
+            ctx.fillStyle = i % 2 ? "#1b3a4b" : "#e07a5f";
+            ctx.fillRect(x + o, y, s + 1, s + 1);
+          }
+        }
+      }
+      function loop(now) { raf = 0; if (!view) return; paint(now); if (!quiet) raf = requestAnimationFrame(loop); }
+  
+      if (quiet) { fit(); paint(0); }
+      else raf = requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

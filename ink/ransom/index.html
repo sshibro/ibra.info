@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ransom — ink</title>
-    <meta name="description" content="each letter a scrap." />
+    <title>Ransom note — ink</title>
+    <meta name="description" content="Each letter is a torn scrap with its own paper, tilt, and size. Type a note, tune the mess." />
     <link rel="canonical" href="https://ibra.info/ink/ransom/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -12,13 +12,19 @@
   </head>
   <body>
     <main class="doc">
-      <p class="back"><a href="../">ink</a></p>
-      <h1>ransom</h1>
-      <p class="lede">each letter a scrap.</p>
-      <div class="stage">
-        <iframe src="preview.html" title="ransom"></iframe>
-      </div>
-      <form class="knobs">
+      <header class="top">
+        <h1>Ransom note</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        Each letter is a torn scrap with its own paper, tilt, and size. Type a note, tune the mess, re-roll the pile. Drawn scraps — no cut-letter textures.
+      </p>
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Ransom note"></iframe>
+        </div>
+        <form class="knobs">
         <label class="knob">
           <span>text</span>
           <input type="text" name="text" value="shibro" maxlength="12" autocomplete="off" />
@@ -36,10 +42,11 @@
           <output data-output="messiness">0.65</output>
         </label>
         <input type="hidden" name="seed" value="1" />
-      </form>
+          <button type="button" class="reroll" data-reroll="seed">re-roll</button>
+        </form>
+      </section>
       <p class="actions">
-        <button type="button" class="reroll" data-reroll="seed">re-roll</button>
-        <button type="button" class="copy-code" data-copy-detail>copy code</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
       </p>
     </main>
     <script src="../ink.js"></script>

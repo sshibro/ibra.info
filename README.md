@@ -4,7 +4,7 @@ Static personal site. No build step.
 
 GitHub Pages serves the files from the `main` branch root. `CNAME` is `ibra.info`.
 
-`/ink/` is a grid of copyable CSS and JS studies.
+`/ink/` is a single-column stack of live studies and canvas toys. Named studies open a playground. Untitled toys copy their source.
 
 The same files can be copied onto a VPS at `/var/www/ibra.info` behind nginx:
 
