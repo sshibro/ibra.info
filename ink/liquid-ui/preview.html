@@ -27,8 +27,8 @@
       let view = true;
       let dragging = null;
       let raf = 0;
-      const A = { x: 168, y: 110, hx: 92, hy: 38, r: 22 };
-      const B = { x: 292, y: 110, hx: 36, hy: 18, r: 14 };
+      const A = { x: 168, y: 110, hx: 108, hy: 34, r: 34 };
+      const B = { x: 298, y: 110, hx: 40, hy: 16, r: 14 };
 
       window.addEventListener("message", (e) => {
         if (e.data && e.data.type === "ink-visible") {
@@ -51,15 +51,8 @@
         return Math.hypot(ox, oy) + Math.min(Math.max(dx, dy), 0) - c.r;
       }
 
-      function sdCapsule(px, py, ax, ay, bx, by, rad) {
-        const pax = px - ax, pay = py - ay, bax = bx - ax, bay = by - ay;
-        const t = Math.max(0, Math.min(1, (pax * bax + pay * bay) / (bax * bax + bay * bay || 1)));
-        return Math.hypot(pax - bax * t, pay - bay * t) - rad;
-      }
-
       function field(px, py, k) {
-        const d = smin(sdRoundBox(px, py, A), sdRoundBox(px, py, B), k);
-        return smin(d, sdCapsule(px, py, A.x + A.hx * 0.4, A.y, B.x - B.hx * 0.2, B.y, 8), k * 0.55);
+        return smin(sdRoundBox(px, py, A), sdRoundBox(px, py, B), k);
       }
 
       function lerp(a, b, va, vb) {
@@ -67,7 +60,7 @@
       }
 
       function march(k) {
-        const nx = 64, ny = 36, x0 = 10, y0 = 10, x1 = 390, y1 = 210;
+        const nx = 72, ny = 40, x0 = 8, y0 = 8, x1 = 392, y1 = 212;
         const dx = (x1 - x0) / nx, dy = (y1 - y0) / ny;
         const g = [];
         for (let j = 0; j <= ny; j++) {
@@ -136,11 +129,11 @@
 
       function chrome() {
         marks.innerHTML = `
-          <circle cx="${A.x - 62}" cy="${A.y}" r="7" fill="#e4e1d8"/>
-          <circle cx="${A.x - 44}" cy="${A.y}" r="7" fill="#e4e1d8"/>
-          <circle cx="${A.x - 26}" cy="${A.y}" r="7" fill="#e4e1d8"/>
-          <rect x="${A.x - 8}" y="${A.y - 8}" width="52" height="5" rx="2" fill="#e4e1d8"/>
-          <rect x="${A.x - 8}" y="${A.y + 4}" width="36" height="5" rx="2" fill="#eceae4"/>
+          <circle cx="${A.x - 74}" cy="${A.y}" r="8" fill="#e6e3da"/>
+          <circle cx="${A.x - 54}" cy="${A.y}" r="8" fill="#e6e3da"/>
+          <circle cx="${A.x - 34}" cy="${A.y}" r="8" fill="#e6e3da"/>
+          <rect x="${A.x - 16}" y="${A.y - 8}" width="58" height="5" rx="2.5" fill="#e6e3da"/>
+          <rect x="${A.x - 16}" y="${A.y + 4}" width="40" height="5" rx="2.5" fill="#efece4"/>
           <text x="${B.x}" y="${B.y + 4}" text-anchor="middle" font-size="11" font-family="ui-sans-serif,system-ui,sans-serif" fill="#3a3a36">Share</text>
         `;
       }
@@ -183,7 +176,7 @@
         if (!view) return;
         if (!quiet && !dragging) {
           const t = ((now || performance.now()) - t0) / 1000;
-          B.x = 292 + Math.sin(t * 0.7) * 10;
+          B.x = 298 + Math.sin(t * 0.65) * 8;
         }
         draw();
         if (!quiet) raf = requestAnimationFrame(tick);

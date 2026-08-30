@@ -6,14 +6,14 @@
       slug: "arcade-pixel",
       kind: "study",
       title: "Arcade pixel",
-      date: "Aug 22, 2026",
+      date: "Aug 8, 2026",
     },
-    { slug: "checker-conveyor", kind: "toy" },
+    { slug: "flower-lattice", kind: "toy" },
     {
       slug: "liquid-ui",
       kind: "study",
       title: "Liquid UI",
-      date: "Jul 19, 2026",
+      date: "Jul 27, 2026",
     },
     {
       slug: "kinetic",
@@ -21,7 +21,7 @@
       title: "Kinetic typography",
       date: "Jul 18, 2026",
     },
-    { slug: "flower-lattice", kind: "toy" },
+    { slug: "checker-conveyor", kind: "toy" },
     { slug: "holo", kind: "study", title: "Holo", date: "Aug 11, 2026" },
     { slug: "siri-wave", kind: "toy" },
     {
@@ -222,7 +222,12 @@
   function paintOutputs(form) {
     for (const el of form.querySelectorAll("[data-output]")) {
       const field = form.elements[el.dataset.output];
-      if (field) el.textContent = field.value;
+      if (!field) continue;
+      if (field.name === "smoothness") {
+        el.textContent = Number(field.value).toFixed(2);
+      } else {
+        el.textContent = field.value;
+      }
     }
   }
 
@@ -318,7 +323,9 @@
       { rootMargin: "80px 0px", threshold: 0.08 }
     );
 
-    root.querySelectorAll(".frame").forEach((el) => io.observe(el));
+    const frames = [...root.querySelectorAll(".frame")];
+    frames.slice(0, 2).forEach(attach);
+    frames.forEach((el) => io.observe(el));
   }
 
   function detail() {

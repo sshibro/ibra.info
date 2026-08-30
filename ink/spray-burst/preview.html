@@ -6,7 +6,7 @@
     <title>spray-burst</title>
     <style>
       html, body { height: 100%; margin: 0; }
-      body { overflow: hidden; background: #efe8d8; }
+      body { overflow: hidden; background: #efe6d4; }
       canvas { display: block; width: 100%; height: 100%; }
     </style>
   </head>
@@ -17,13 +17,20 @@
       const canvas = document.getElementById("c");
       const ctx = canvas.getContext("2d");
       const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      let view = true, raf = 0;
+      let view = true, raf = 0, plate = null, plateKey = "";
+
       window.addEventListener("message", (e) => {
         if (e.data && e.data.type === "ink-visible") {
           view = !!e.data.value;
           if (view && !raf) loop();
         }
       });
+
+      function hash(i, s) {
+        const n = Math.sin(i * 127.1 + s * 311.7) * 43758.5453;
+        return n - Math.floor(n);
+      }
+
       function fit() {
         if (innerWidth < 8 || innerHeight < 8) return;
         const w = Math.floor(innerWidth);
@@ -31,51 +38,104 @@
         if (canvas.width !== w || canvas.height !== h) {
           canvas.width = w;
           canvas.height = h;
+          plate = null;
         }
       }
+
+      function spray(g, cx, cy, rx, ry, color, count, inward) {
+        g.fillStyle = color;
+        for (let i = 0; i < count; i++) {
+          const a = hash(i, 1.7) * Math.PI * 2;
+          const j = inward
+            ? 0.82 + hash(i, 2.3) * 0.22
+            : 0.94 + hash(i, 3.1) * 0.14;
+          const x = cx + Math.cos(a) * rx * j;
+          const y = cy + Math.sin(a) * ry * j;
+          const r = 0.6 + hash(i, 4.4) * 2.8;
+          g.beginPath();
+          g.arc(x, y, r, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+
+      function buildPlate(w, h) {
+        plate = document.createElement("canvas");
+        plate.width = w;
+        plate.height = h;
+        plateKey = w + "x" + h;
+        const g = plate.getContext("2d");
+        g.fillStyle = "#efe6d4";
+        g.fillRect(0, 0, w, h);
+
+        const cx = w * 0.5, cy = h * 0.5;
+        const rx = w * 0.36, ry = h * 0.34;
+
+        g.fillStyle = "#2f6fe0";
+        g.beginPath();
+        g.roundRect(cx - rx, cy - ry, rx * 2, ry * 2, 6);
+        g.fill();
+        spray(g, cx, cy, rx, ry, "#2f6fe0", 420, false);
+        spray(g, cx, cy, rx, ry, "#efe6d4", 380, false);
+
+        const burst = document.createElement("canvas");
+        burst.width = w;
+        burst.height = h;
+        const b = burst.getContext("2d");
+        b.translate(cx, cy);
+        b.fillStyle = "#f2d24a";
+        const petals = 10;
+        for (let i = 0; i < petals; i++) {
+          b.rotate((Math.PI * 2) / petals);
+          b.beginPath();
+          b.moveTo(0, 0);
+          b.lineTo(rx * 0.16, ry * 0.12);
+          b.quadraticCurveTo(rx * 0.08, ry * 0.42, 0, ry * 0.56);
+          b.quadraticCurveTo(-rx * 0.08, ry * 0.42, -rx * 0.16, ry * 0.12);
+          b.closePath();
+          b.fill();
+        }
+        b.beginPath();
+        b.arc(0, 0, Math.min(w, h) * 0.042, 0, Math.PI * 2);
+        b.fill();
+        g.drawImage(burst, 0, 0);
+
+        g.fillStyle = "rgba(47,111,224,0.55)";
+        for (let i = 0; i < 220; i++) {
+          const a = hash(i, 8.2) * Math.PI * 2;
+          const rr = (0.18 + hash(i, 9.1) * 0.5) * Math.min(rx, ry);
+          g.beginPath();
+          g.arc(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 0.7 + hash(i, 6) * 1.6, 0, Math.PI * 2);
+          g.fill();
+        }
+        g.fillStyle = "rgba(20,16,10,0.05)";
+        for (let i = 0; i < 160; i++) {
+          g.fillRect(hash(i, 11) * w, hash(i, 13) * h, 1.2, 1.2);
+        }
+      }
+
       function paint(now) {
         fit();
         if (canvas.width < 8) return;
-        const w = canvas.width, h = canvas.height, t = (now || 0) / 1400;
-        ctx.fillStyle = "#efe8d8";
-        ctx.fillRect(0, 0, w, h);
-        const cx = w * 0.5, cy = h * 0.5;
-        const rw = w * 0.72, rh = h * 0.7;
+        if (!plate || plateKey !== canvas.width + "x" + canvas.height) {
+          buildPlate(canvas.width, canvas.height);
+        }
+        ctx.drawImage(plate, 0, 0);
+        if (quiet) return;
+        const t = (now || 0) / 8000;
         ctx.save();
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, rw / 2, rh / 2, 0, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillStyle = "#2f6fe0";
-        ctx.fillRect(0, 0, w, h);
-        const petals = 10;
-        ctx.fillStyle = "#f2d24a";
-        ctx.translate(cx, cy);
-        ctx.rotate(quiet ? 0.2 : t * 0.35);
-        for (let i = 0; i < petals; i++) {
-          ctx.rotate((Math.PI * 2) / petals);
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(rw * 0.08, rh * 0.08);
-          ctx.lineTo(0, rh * 0.38);
-          ctx.lineTo(-rw * 0.08, rh * 0.08);
-          ctx.closePath();
-          ctx.fill();
-        }
-        ctx.beginPath();
-        ctx.arc(0, 0, Math.min(w, h) * 0.045, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.globalCompositeOperation = "soft-light";
+        ctx.fillStyle = "rgba(255,255,255," + (0.04 + Math.sin(t * 6) * 0.02) + ")";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.restore();
-        ctx.fillStyle = "rgba(20,16,10,0.04)";
-        for (let i = 0; i < 80; i++) {
-          ctx.fillRect((i * 47 + t * 30) % w, (i * 31) % h, 1.2, 1.2);
-        }
       }
+
       function loop(now) {
         raf = 0;
         if (!view) return;
         paint(now);
         if (!quiet) raf = requestAnimationFrame(loop);
       }
+
       paint(0);
       if (!quiet) raf = requestAnimationFrame(loop);
     </script>

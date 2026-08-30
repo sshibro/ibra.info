@@ -18,26 +18,26 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 1.4rem;
+        gap: 1.6rem;
       }
       .btn {
         appearance: none;
-        border: 1px solid #e2e0d8;
+        border: 1px solid #e4e2da;
         margin: 0;
-        padding: 0.72rem 1.15rem;
-        background: linear-gradient(180deg, #fff, #f3f2ed);
+        padding: 0.78rem 1.28rem;
+        background: linear-gradient(180deg, #ffffff 0%, #f4f3ee 100%);
         color: #1a1a18;
-        font: 400 0.95rem/1 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: -0.02em;
-        box-shadow: 0 8px 20px rgba(20, 16, 10, 0.08);
+        font: 400 0.98rem/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.022em;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.9) inset,
+          0 10px 22px rgba(20, 16, 10, 0.1);
       }
       .note {
-        position: absolute;
-        bottom: 0.7rem;
         font-size: 0.68rem;
-        color: #7a7872;
+        color: #8a877f;
       }
-      .col { display: grid; justify-items: center; gap: 0.4rem; }
+      .col { display: grid; justify-items: center; gap: 0.45rem; }
     </style>
   </head>
   <body>
@@ -63,7 +63,7 @@
       function path(w, h, r, n) {
         r = Math.min(Math.max(0, r), w / 2, h / 2);
         const p = 2 / n;
-        const steps = 26;
+        const steps = 32;
         const pts = [];
         const corners = [
           [w - r, r, -Math.PI / 2],
@@ -92,7 +92,10 @@
         const show = Number(c.compare) === 1;
         plainCol.hidden = !show;
         plain.style.borderRadius = "14px";
-        smooth.style.clipPath = path(smooth.offsetWidth || 140, smooth.offsetHeight || 42, 16, n);
+        plain.style.clipPath = "none";
+        const w = smooth.offsetWidth || 148;
+        const h = smooth.offsetHeight || 44;
+        smooth.style.clipPath = path(w, h, Math.min(18, h / 2), n);
       }
 
       apply(CONFIG);

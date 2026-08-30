@@ -6,26 +6,69 @@
     <title>arcade-pixel</title>
     <style>
       html, body { height: 100%; margin: 0; }
-      body { overflow: hidden; background: #c6e34a; }
-      canvas { display: block; width: 100%; height: 100%; }
+      body { overflow: hidden; background: #b8e832; }
+      canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
     </style>
   </head>
   <body>
     <canvas id="c"></canvas>
     <script>
       const CONFIG = {
-        text: "shibro",
+        text: "insert coin",
         cells: 46,
         threshold: 0.52,
-        ink: "#1a120c",
-        paper: "#c6e34a"
+        ink: "#ffffff",
+        paper: "#b8e832"
       };
 
       const canvas = document.getElementById("c");
       const ctx = canvas.getContext("2d");
+      const wave = document.createElement("canvas");
+      const waveCtx = wave.getContext("2d");
       const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
       let view = true;
       let raf = 0;
+
+      // 5x7 bitmap, bit 4 is the left column
+      const FONT = {
+        " ": [0,0,0,0,0,0,0],
+        A: [14,17,17,31,17,17,17],
+        B: [30,17,17,30,17,17,30],
+        C: [14,17,16,16,16,17,14],
+        D: [30,17,17,17,17,17,30],
+        E: [31,16,16,30,16,16,31],
+        F: [31,16,16,30,16,16,16],
+        G: [14,17,16,19,17,17,14],
+        H: [17,17,17,31,17,17,17],
+        I: [14,4,4,4,4,4,14],
+        J: [7,1,1,1,17,17,14],
+        K: [17,18,20,24,20,18,17],
+        L: [16,16,16,16,16,16,31],
+        M: [17,27,21,21,17,17,17],
+        N: [17,25,21,19,17,17,17],
+        O: [14,17,17,17,17,17,14],
+        P: [30,17,17,30,16,16,16],
+        Q: [14,17,17,17,21,18,13],
+        R: [30,17,17,30,20,18,17],
+        S: [14,17,16,14,1,17,14],
+        T: [31,4,4,4,4,4,4],
+        U: [17,17,17,17,17,17,14],
+        V: [17,17,17,17,17,10,4],
+        W: [17,17,17,21,21,21,10],
+        X: [17,17,10,4,10,17,17],
+        Y: [17,17,10,4,4,4,4],
+        Z: [31,1,2,4,8,16,31],
+        0: [14,17,19,21,25,17,14],
+        1: [4,12,4,4,4,4,14],
+        2: [14,17,1,6,8,16,31],
+        3: [14,17,1,6,1,17,14],
+        4: [2,6,10,18,31,2,2],
+        5: [31,16,30,1,1,17,14],
+        6: [14,17,16,30,17,17,14],
+        7: [31,1,2,4,8,8,8],
+        8: [14,17,17,14,17,17,14],
+        9: [14,17,17,15,1,17,14],
+      };
 
       window.addEventListener("message", (e) => {
         if (e.data && e.data.type === "ink-visible") {
@@ -35,7 +78,10 @@
       });
 
       function label(s) {
-        return String(s || "shibro").replace(/[^\x20-\x7E]/g, "").slice(0, 18) || "shibro";
+        return String(s || "insert coin")
+          .toUpperCase()
+          .replace(/[^A-Z0-9 ]/g, "")
+          .slice(0, 18) || "INSERT COIN";
       }
 
       function hex(h) {
@@ -57,48 +103,79 @@
         }
       }
 
+      function glyphWidth() { return 6; }
+
       function paint(now) {
         fit();
         const w = canvas.width;
         const h = canvas.height;
-        const cells = Math.max(20, Math.round(Number(CONFIG.cells)));
-        const sw = cells;
-        const sh = Math.max(10, Math.round(cells * (h / w)));
-        const small = document.createElement("canvas");
-        small.width = sw;
-        small.height = sh;
-        const s = small.getContext("2d");
-        s.fillStyle = CONFIG.paper;
-        s.fillRect(0, 0, sw, sh);
+        if (w < 8) return;
         const t = quiet ? 0 : (now || 0) / 900;
-        s.save();
-        s.translate(sw / 2 + Math.sin(t) * 0.35, sh / 2 + 0.3);
-        s.rotate(Math.sin(t * 0.35) * 0.018);
-        s.font = "700 " + Math.floor(sw * 0.2) + "px ui-sans-serif, system-ui, sans-serif";
-        s.textAlign = "center";
-        s.textBaseline = "middle";
-        s.fillStyle = "#000";
-        s.fillText(label(CONFIG.text), 1.1, 1.1);
-        s.fillStyle = CONFIG.ink;
-        s.fillText(label(CONFIG.text), 0, 0);
-        s.restore();
-        const img = s.getImageData(0, 0, sw, sh);
-        const cut = Number(CONFIG.threshold) * 255;
-        const [ir, ig, ib] = hex(CONFIG.ink);
-        const [pr, pg, pb] = hex(CONFIG.paper);
-        for (let i = 0; i < img.data.length; i += 4) {
-          const y = img.data[i] * 0.3 + img.data[i + 1] * 0.59 + img.data[i + 2] * 0.11;
-          const on = y < cut;
-          img.data[i] = on ? ir : pr;
-          img.data[i + 1] = on ? ig : pg;
-          img.data[i + 2] = on ? ib : pb;
-          img.data[i + 3] = 255;
+        const paper = CONFIG.paper || "#b8e832";
+        const ink = CONFIG.ink || "#ffffff";
+        const [pr, pg, pb] = hex(paper);
+        const sw = 160, sh = 100;
+        if (wave.width !== sw || wave.height !== sh) {
+          wave.width = sw;
+          wave.height = sh;
         }
-        s.putImageData(img, 0, 0);
+        const img = waveCtx.createImageData(sw, sh);
+        const data = img.data;
+        for (let y = 0; y < sh; y++) {
+          for (let x = 0; x < sw; x++) {
+            const wave =
+              Math.sin(x * 0.18 + t) * 10 +
+              Math.sin(y * 0.22 - t * 0.7) * 8 +
+              Math.sin((x + y) * 0.09 + t * 0.4) * 6;
+            const n = (wave + 24) / 48;
+            const i = (y * sw + x) * 4;
+            data[i] = Math.max(0, Math.min(255, pr + (n - 0.5) * 70));
+            data[i + 1] = Math.max(0, Math.min(255, pg + (n - 0.5) * 40));
+            data[i + 2] = Math.max(0, Math.min(255, pb + (n - 0.45) * 20));
+            data[i + 3] = 255;
+          }
+        }
+        waveCtx.putImageData(img, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(wave, 0, 0, w, h);
         ctx.imageSmoothingEnabled = false;
-        ctx.fillStyle = CONFIG.paper;
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(small, 0, 0, w, h);
+
+        const text = label(CONFIG.text);
+        const cols = text.length * glyphWidth() - 1;
+        const cell = Math.max(4, Math.floor(Math.min(w / (cols + 8), h / 16)));
+        const tw = cols * cell;
+        const th = 7 * cell;
+        const ox = Math.floor((w - tw) / 2);
+        const oy = Math.floor((h - th) / 2);
+        const shadow = Math.max(2, Math.round(cell * 0.55));
+
+        function plot(px, py, color) {
+          ctx.fillStyle = color;
+          ctx.fillRect(px, py, cell, cell);
+        }
+
+        for (let i = 0; i < text.length; i++) {
+          const rows = FONT[text[i]] || FONT[" "];
+          for (let r = 0; r < 7; r++) {
+            for (let c = 0; c < 5; c++) {
+              if (rows[r] & (16 >> c)) {
+                const x = ox + (i * glyphWidth() + c) * cell;
+                const y = oy + r * cell;
+                plot(x + shadow, y + shadow, "#111");
+              }
+            }
+          }
+        }
+        for (let i = 0; i < text.length; i++) {
+          const rows = FONT[text[i]] || FONT[" "];
+          for (let r = 0; r < 7; r++) {
+            for (let c = 0; c < 5; c++) {
+              if (rows[r] & (16 >> c)) {
+                plot(ox + (i * glyphWidth() + c) * cell, oy + r * cell, ink);
+              }
+            }
+          }
+        }
       }
 
       function loop(now) {
@@ -109,8 +186,7 @@
       }
 
       paint(0);
-      if (quiet) paint(0);
-      else raf = requestAnimationFrame(loop);
+      if (!quiet) raf = requestAnimationFrame(loop);
 
       window.setParams = (c) => {
         Object.assign(CONFIG, c);
