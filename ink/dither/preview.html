@@ -18,13 +18,13 @@
       }
       canvas {
         display: block;
-        width: min(92%, 320px);
+        width: min(92%, 360px);
         height: auto;
       }
     </style>
   </head>
   <body>
-    <canvas id="c" width="320" height="180" aria-label="dithered sparkline"></canvas>
+    <canvas id="c" width="360" height="200" aria-label="dithered sparkline"></canvas>
     <script>
       const CONFIG = {
         density: 5,
@@ -32,71 +32,54 @@
       };
 
       const canvas = document.getElementById("c");
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      const BAYER = [
-        [0, 32, 8, 40, 2, 34, 10, 42],
-        [48, 16, 56, 24, 50, 18, 58, 26],
-        [12, 44, 4, 36, 14, 46, 6, 38],
-        [60, 28, 52, 20, 62, 30, 54, 22],
-        [3, 35, 11, 43, 1, 33, 9, 41],
-        [51, 19, 59, 27, 49, 17, 57, 25],
-        [15, 47, 7, 39, 13, 45, 5, 37],
-        [63, 31, 55, 23, 61, 29, 53, 21],
-      ];
-      const series = Array.from({ length: 72 }, (_, i) => {
-        const t = i / 71;
+      const ctx = canvas.getContext("2d");
+      const series = Array.from({ length: 48 }, (_, i) => {
+        const t = i / 47;
         return (
-          0.42 +
+          0.4 +
           0.22 * Math.sin(t * Math.PI * 2.2) +
           0.16 * Math.sin(t * Math.PI * 5.4 + 0.4) +
-          0.08 * Math.sin(t * 18)
+          0.08 * Math.sin(t * 16)
         );
       });
 
       function apply(c) {
-        const w = canvas.width;
-        const h = canvas.height;
-        const cell = Math.max(1, 9 - Math.round(c.density));
-        const bias = (Number(c.threshold) - 0.5) * 90;
-        ctx.fillStyle = "#f4f4f1";
-        ctx.fillRect(0, 0, w, h);
-        const off = document.createElement("canvas");
-        off.width = w;
-        off.height = h;
-        const o = off.getContext("2d");
-        o.fillStyle = "#f4f4f1";
-        o.fillRect(0, 0, w, h);
-        o.beginPath();
+        const density = Math.max(1, Math.min(8, Math.round(c.density)));
+        const sw = 28 + density * 10;
+        const sh = Math.round(sw * (200 / 360));
+        const small = document.createElement("canvas");
+        small.width = sw;
+        small.height = sh;
+        const s = small.getContext("2d");
+        s.fillStyle = "#f4f4f1";
+        s.fillRect(0, 0, sw, sh);
+        s.beginPath();
         series.forEach((v, i) => {
-          const x = (i / (series.length - 1)) * (w - 16) + 8;
-          const y = h - 18 - v * (h - 36);
-          if (i === 0) o.moveTo(x, h);
-          else if (i === 1) o.lineTo(x, y);
-          else o.lineTo(x, y);
+          const x = 1 + (i / (series.length - 1)) * (sw - 2);
+          const y = sh - 2 - v * (sh - 4);
+          if (i === 0) s.moveTo(x, sh);
+          s.lineTo(x, y);
         });
-        o.lineTo(w - 8, h);
-        o.closePath();
-        const grad = o.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, "#111");
-        grad.addColorStop(1, "#b8b4aa");
-        o.fillStyle = grad;
-        o.fill();
-        const img = o.getImageData(0, 0, w, h);
-        const out = ctx.createImageData(w, h);
-        for (let y = 0; y < h; y++) {
-          for (let x = 0; x < w; x++) {
-            const i = (y * w + x) * 4;
-            const gx = Math.floor(x / cell);
-            const gy = Math.floor(y / cell);
-            const g = img.data[i] * 0.3 + img.data[i + 1] * 0.59 + img.data[i + 2] * 0.11;
-            const t = (BAYER[gy & 7][gx & 7] / 64) * 255;
-            const on = g < t + bias;
-            const v = on ? 17 : 244;
-            out.data[i] = out.data[i + 1] = out.data[i + 2] = v;
-            out.data[i + 3] = 255;
-          }
+        s.lineTo(sw - 1, sh);
+        s.closePath();
+        s.fillStyle = "#111";
+        s.fill();
+
+        const img = s.getImageData(0, 0, sw, sh);
+        const cut = Number(c.threshold) * 255;
+        for (let i = 0; i < img.data.length; i += 4) {
+          const y =
+            img.data[i] * 0.3 + img.data[i + 1] * 0.59 + img.data[i + 2] * 0.11;
+          const v = y < cut ? 17 : 244;
+          img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+          img.data[i + 3] = 255;
         }
-        ctx.putImageData(out, 0, 0);
+        s.putImageData(img, 0, 0);
+
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = "#f4f4f1";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(small, 0, 0, canvas.width, canvas.height);
       }
 
       apply(CONFIG);

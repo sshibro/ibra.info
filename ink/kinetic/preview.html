@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>kinetic</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #f4f4f1;
+      }
+      canvas {
+        display: block;
+        width: min(90%, 280px);
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c" width="280" height="180" aria-label="kinetic letter"></canvas>
+    <script>
+      const CONFIG = {
+        letter: "s",
+        tiles: 8,
+        amount: 7
+      };
+
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let view = true;
+      let raf = 0;
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
+
+      function glyph(s) {
+        const t = String(s || "s").replace(/[^\x20-\x7E]/g, "").slice(0, 1);
+        return t || "s";
+      }
+
+      function drawLetter() {
+        const off = document.createElement("canvas");
+        off.width = canvas.width;
+        off.height = canvas.height;
+        const o = off.getContext("2d");
+        o.fillStyle = "#f4f4f1";
+        o.fillRect(0, 0, off.width, off.height);
+        o.fillStyle = "#111";
+        o.font = "700 140px ui-serif, Georgia, serif";
+        o.textAlign = "center";
+        o.textBaseline = "middle";
+        o.fillText(glyph(CONFIG.letter), off.width / 2, off.height / 2 + 8);
+        return off;
+      }
+
+      let src = drawLetter();
+
+      function paint(now) {
+        const n = Math.max(4, Math.min(16, Math.round(CONFIG.tiles)));
+        const amp = quiet ? 0 : Number(CONFIG.amount);
+        const tw = Math.floor(src.width / n);
+        const th = Math.floor(src.height / n);
+        const t = (now || 0) / 420;
+        ctx.fillStyle = "#f4f4f1";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        for (let j = 0; j < n; j++) {
+          for (let i = 0; i < n; i++) {
+            const sx = i * tw;
+            const sy = j * th;
+            const ox = Math.sin(t + i * 0.55 + j * 0.2) * amp;
+            const oy = Math.cos(t * 0.85 + j * 0.5) * amp * 0.7;
+            ctx.drawImage(src, sx, sy, tw, th, sx + ox, sy + oy, tw, th);
+          }
+        }
+      }
+
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
+        paint(now);
+        if (!quiet) raf = requestAnimationFrame(loop);
+      }
+
+      paint(0);
+      if (!quiet) raf = requestAnimationFrame(loop);
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        src = drawLetter();
+        paint(performance.now());
+      };
+    </script>
+  </body>
+</html>

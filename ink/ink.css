@@ -42,14 +42,10 @@ body {
 }
 
 main {
-  width: min(68rem, calc(100% - 3rem));
+  width: min(40rem, calc(100% - 3rem));
   margin: 0 auto;
   padding: 5.5rem 0 7rem;
   animation: fade 150ms ease-out;
-}
-
-main.doc {
-  width: min(42rem, calc(100% - 3rem));
 }
 
 @keyframes fade {
@@ -87,8 +83,8 @@ h1 {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr));
-  gap: 1.75rem 1.25rem;
+  grid-template-columns: 1fr;
+  gap: 2.75rem;
   margin-top: 3rem;
   list-style: none;
   padding: 0;
@@ -363,12 +359,8 @@ select:focus-visible {
 
 @media (min-width: 640px) {
   main {
-    width: min(68rem, calc(100% - 4rem));
-    padding: 7rem 0 9rem;
-  }
-
-  main.doc {
     width: min(42rem, calc(100% - 4rem));
+    padding: 7rem 0 9rem;
   }
 }
 

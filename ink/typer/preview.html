@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>typer</title>
     <style>
+      :root {
+        --typer-fg: #111;
+        --typer-bg: #f4f4f1;
+        --typer-accent: #c45c26;
+        --typer-radius: 999px;
+      }
       html,
       body {
         height: 100%;
@@ -14,50 +20,54 @@
         display: grid;
         place-items: center;
         overflow: hidden;
-        background: #f4f4f1;
+        background: var(--typer-bg);
+        color: var(--typer-fg);
         font-family: ui-sans-serif, system-ui, sans-serif;
       }
       .row {
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 2.4em;
-        font-size: clamp(1.6rem, 8vw, 2.35rem);
+        min-height: 2.5em;
+        font-size: clamp(1.7rem, 8vw, 2.4rem);
         letter-spacing: -0.04em;
         line-height: 1;
       }
       .l {
         display: inline-block;
-        padding: 0.14em 0.15em;
-        margin: 0 -1px;
+        padding: 0.16em 0.15em;
         visibility: hidden;
+        border-radius: var(--typer-radius);
       }
       .l.on {
         visibility: visible;
       }
       .l.fill {
-        background: var(--c, #c45c26);
-        color: #f4f4f1;
+        background: var(--typer-accent);
+        color: var(--typer-bg);
+      }
+      .l.hi {
+        background: color-mix(in srgb, var(--typer-accent) 28%, var(--typer-bg));
       }
       .l.edge {
-        box-shadow: inset 0 0 0 1.5px var(--c, #c45c26);
+        box-shadow: inset 0 0 0 1.5px var(--typer-accent);
       }
-      .l.solo {
-        border-radius: 999px;
+      .l.fill:has(+ .fill),
+      .l.hi:has(+ .hi),
+      .l.edge:has(+ .edge) {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
       }
-      .l.start {
-        border-radius: 999px 0 0 999px;
-      }
-      .l.mid {
-        border-radius: 0;
-      }
-      .l.end {
-        border-radius: 0 999px 999px 0;
+      .l.fill + .fill,
+      .l.hi + .hi,
+      .l.edge + .edge {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
       }
     </style>
   </head>
   <body>
-    <p class="row" id="line" aria-live="polite"></p>
+    <p class="row" id="row" aria-live="polite"></p>
     <script>
       const CONFIG = {
         text: "shibro",
@@ -65,103 +75,82 @@
         color: "#c45c26"
       };
 
-      const root = document.getElementById("line");
+      const row = document.getElementById("row");
       const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      let letters = [];
+      let view = true;
+      let raf = 0;
       let start = performance.now();
+      let letters = [];
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view && !raf) loop();
+        }
+      });
 
       function label(s) {
         return String(s || "shibro").replace(/[^\x20-\x7E]/g, "").slice(0, 16) || "shibro";
       }
 
-      function joinClass(states, i) {
-        const hot = states[i] === "fill" || states[i] === "edge";
-        if (!hot) return "";
-        const prev = states[i - 1] === states[i];
-        const next = states[i + 1] === states[i];
-        if (prev && next) return "mid";
-        if (prev) return "end";
-        if (next) return "start";
-        return "solo";
-      }
-
       function render(text) {
-        root.style.setProperty("--c", CONFIG.color);
-        root.textContent = "";
+        document.documentElement.style.setProperty("--typer-accent", CONFIG.color);
+        row.textContent = "";
         letters = [...text].map((ch) => {
-          const span = document.createElement("span");
-          span.className = "l";
-          span.textContent = ch === " " ? "\u00a0" : ch;
-          root.appendChild(span);
-          return span;
+          const el = document.createElement("span");
+          el.className = "l";
+          el.textContent = ch === " " ? "\u00a0" : ch;
+          row.appendChild(el);
+          return el;
         });
       }
 
-      function statesAt(text, t) {
+      function stateAt(i, typed, wave) {
+        if (i >= typed) return "off";
+        if (quiet || wave < 0) return "plain";
+        const d = wave - i;
+        if (d < 0.15) return "plain";
+        if (d < 1) return "fill";
+        if (d < 2.1) return "hi";
+        if (d < 3.2) return "edge";
+        return "plain";
+      }
+
+      function paint(text, t) {
         const n = text.length;
-        const typed = quiet ? n : Math.min(n, Math.floor(t / 0.09));
-        const waveT = t - n * 0.09;
-        const states = [];
-        for (let i = 0; i < n; i++) {
-          if (i >= typed) {
-            states[i] = "off";
-            continue;
-          }
-          if (quiet || waveT > n * 0.12 + 0.55) {
-            states[i] = "plain";
-            continue;
-          }
-          if (waveT < 0) {
-            states[i] = "plain";
-            continue;
-          }
-          const d = waveT / 0.1 - i;
-          if (d < -0.2) states[i] = "plain";
-          else if (d < 0.8) states[i] = "edge";
-          else if (d < 2.2) states[i] = "fill";
-          else if (d < 3.2) states[i] = "edge";
-          else states[i] = "plain";
-        }
-        return states;
-      }
-
-      function paint(states) {
+        const typed = quiet ? n : Math.min(n, Math.floor(t / 0.08));
+        const wave = (t - n * 0.08) / 0.11;
         letters.forEach((el, i) => {
-          const s = states[i];
-          el.className = "l" + (s === "off" ? "" : " on");
-          if (s === "fill" || s === "edge") {
-            el.classList.add(s, joinClass(states, i));
-          }
+          const s = stateAt(i, typed, wave);
+          el.className = "l" + (s === "off" ? "" : " on") + (s === "plain" || s === "off" ? "" : " " + s);
         });
       }
 
-      function cycleMs() {
-        const n = label(CONFIG.text).length;
-        return ((n * 0.09 + n * 0.12 + 1.4) * 1000) / CONFIG.speed;
-      }
-
-      function frame(now) {
+      function loop(now) {
+        raf = 0;
+        if (!view) return;
         const text = label(CONFIG.text);
-        if (letters.length !== text.length || root.dataset.text !== text) {
+        if (row.dataset.text !== text) {
           render(text);
-          root.dataset.text = text;
+          row.dataset.text = text;
         }
-        const len = cycleMs();
-        const t = quiet ? 99 : ((now - start) % len) / 1000 * CONFIG.speed;
-        paint(statesAt(text, t));
-        root.style.setProperty("--c", CONFIG.color);
-        requestAnimationFrame(frame);
+        const n = text.length;
+        const cycle = ((n * 0.08 + n * 0.11 + 1.35) * 1000) / CONFIG.speed;
+        const t = quiet ? 99 : (((now || performance.now()) - start) % cycle) / 1000 * CONFIG.speed;
+        paint(text, t);
+        document.documentElement.style.setProperty("--typer-accent", CONFIG.color);
+        if (!quiet) raf = requestAnimationFrame(loop);
       }
 
       render(label(CONFIG.text));
-      if (quiet) paint(statesAt(label(CONFIG.text), 99));
-      else requestAnimationFrame(frame);
+      if (quiet) paint(label(CONFIG.text), 99);
+      else raf = requestAnimationFrame(loop);
 
       window.setParams = (c) => {
         Object.assign(CONFIG, c);
         start = performance.now();
         render(label(CONFIG.text));
-        if (quiet) paint(statesAt(label(CONFIG.text), 99));
+        if (quiet) paint(label(CONFIG.text), 99);
       };
     </script>
   </body>

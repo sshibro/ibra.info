@@ -8,6 +8,8 @@
     { slug: "floor", knobs: true },
     { slug: "ransom", knobs: true },
     { slug: "dither", knobs: true },
+    { slug: "kinetic", knobs: true },
+    { slug: "color-depth", knobs: true },
     { slug: "orbs", knobs: false },
     { slug: "slots", knobs: false },
     { slug: "rim", knobs: false },
@@ -73,11 +75,10 @@
 
   function bake(source, params) {
     const json = JSON.stringify(params, null, 2);
-    const next = source.replace(
+    return source.replace(
       /const CONFIG = \{[\s\S]*?\n\};/,
       `const CONFIG = ${json};`
     );
-    return next;
   }
 
   function readKnobs(form) {
@@ -102,18 +103,22 @@
     }
   }
 
+  function tell(iframe, visible) {
+    try {
+      iframe.contentWindow.postMessage({ type: "ink-visible", value: visible }, "*");
+    } catch {
+      /* opaque or not ready */
+    }
+  }
+
   function mountGrid(root) {
     root.innerHTML = pieces
       .map((piece) => {
-        const src = `${piece.slug}/preview.html`;
         const copy = `<button type="button" class="copy-mini" data-copy-slug="${piece.slug}">copy</button>`;
+        const frame = `<span class="frame" data-src="${piece.slug}/preview.html" data-slug="${piece.slug}"></span>`;
         if (piece.knobs) {
           return `<li class="card">
-            <a class="hit" href="${piece.slug}/">
-              <span class="frame">
-                <iframe src="${src}" title="${piece.slug} preview" loading="lazy" tabindex="-1" sandbox="allow-scripts"></iframe>
-              </span>
-            </a>
+            <a class="hit" href="${piece.slug}/">${frame}</a>
             <div class="meta">
               <a class="title" href="${piece.slug}/">${piece.slug}</a>
               ${copy}
@@ -122,9 +127,7 @@
         }
         return `<li class="card">
           <button type="button" class="hit" data-copy-slug="${piece.slug}" aria-label="copy ${piece.slug}">
-            <span class="frame">
-              <iframe src="${src}" title="${piece.slug} preview" loading="lazy" tabindex="-1" sandbox="allow-scripts"></iframe>
-            </span>
+            ${frame}
           </button>
           <div class="meta">
             <span class="title">${piece.slug}</span>
@@ -140,16 +143,41 @@
       event.preventDefault();
       event.stopPropagation();
       try {
-        const text = await loadSnippet(btn.dataset.copySlug);
-        await copyText(text);
+        await copyText(await loadSnippet(btn.dataset.copySlug));
       } catch {
         toast("couldn't copy");
       }
     });
 
-    pieces.forEach((piece) => {
-      loadSnippet(piece.slug).catch(() => {});
-    });
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const frame = entry.target;
+          let iframe = frame.querySelector("iframe");
+          if (entry.isIntersecting) {
+            if (!iframe) {
+              iframe = document.createElement("iframe");
+              iframe.title = frame.dataset.slug + " preview";
+              iframe.tabIndex = -1;
+              iframe.setAttribute("sandbox", "allow-scripts");
+              iframe.addEventListener("load", () => tell(iframe, true), {
+                once: true,
+              });
+              iframe.src = frame.dataset.src;
+              frame.appendChild(iframe);
+            } else {
+              tell(iframe, true);
+            }
+            loadSnippet(frame.dataset.slug).catch(() => {});
+          } else if (iframe) {
+            tell(iframe, false);
+          }
+        }
+      },
+      { rootMargin: "160px 0px", threshold: 0.01 }
+    );
+
+    root.querySelectorAll(".frame").forEach((el) => io.observe(el));
   }
 
   function detail() {
@@ -185,8 +213,13 @@
 
     copyBtn.addEventListener("click", async () => {
       try {
-        const source = await loadSnippet(slug);
-        await copyText(bake(source, readKnobs(form)));
+        const params = readKnobs(form);
+        const win = iframe.contentWindow;
+        if (win && typeof win.snippet === "function") {
+          await copyText(win.snippet(params));
+          return;
+        }
+        await copyText(bake(await loadSnippet(slug), params));
       } catch {
         toast("couldn't copy");
       }

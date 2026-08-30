@@ -17,46 +17,65 @@
         background: #f4f4f1;
         font-family: ui-sans-serif, system-ui, sans-serif;
       }
+      .pair {
+        display: flex;
+        align-items: end;
+        gap: 1.75rem;
+      }
+      .col {
+        display: grid;
+        justify-items: center;
+        gap: 0.55rem;
+      }
       button {
         appearance: none;
         border: 0;
         margin: 0;
+        width: 7.25rem;
+        height: 7.25rem;
         color: #f4f4f1;
         background: #111;
-        font: 400 1.125rem/1 ui-sans-serif, system-ui, sans-serif;
+        font: 400 1.05rem/1 ui-sans-serif, system-ui, sans-serif;
         letter-spacing: -0.03em;
-        padding: 0.9rem 1.55rem;
         cursor: pointer;
       }
       button:focus-visible {
         outline: 1px solid #111;
         outline-offset: 4px;
       }
-      @media (prefers-reduced-motion: reduce) {
-        button {
-          transition: none;
-        }
+      .round {
+        border-radius: var(--r, 28px);
+      }
+      .note {
+        font-size: 0.7rem;
+        letter-spacing: 0.02em;
+        color: #5c5c57;
       }
     </style>
   </head>
   <body>
-    <button type="button" id="btn">shibro</button>
+    <div class="pair">
+      <div class="col">
+        <button type="button" class="round" id="round">shibro</button>
+        <span class="note">radius</span>
+      </div>
+      <div class="col">
+        <button type="button" id="smooth">shibro</button>
+        <span class="note">smooth</span>
+      </div>
+    </div>
     <script>
       const CONFIG = {
-        radius: 22,
-        smoothness: 2
+        smoothness: 0.72
       };
 
-      const btn = document.getElementById("btn");
-      const native =
-        typeof CSS !== "undefined" &&
-        (CSS.supports("corner-shape", "squircle") ||
-          CSS.supports("corner-shape", "superellipse(2)"));
+      const smooth = document.getElementById("smooth");
+      const round = document.getElementById("round");
 
-      function pathFor(w, h, r, k) {
+      function path(w, h, r, n) {
         r = Math.min(Math.max(0, r), w / 2, h / 2);
-        const p = 1 / Math.max(k, 0.25);
-        const steps = 20;
+        const p = 2 / n;
+        const steps = 22;
         const pts = [];
         const corners = [
           [w - r, r, -Math.PI / 2],
@@ -70,12 +89,9 @@
             const c = Math.cos(t);
             const s = Math.sin(t);
             pts.push(
-              [
-                cx + r * Math.sign(c) * Math.pow(Math.abs(c), p),
-                cy + r * Math.sign(s) * Math.pow(Math.abs(s), p),
-              ]
-                .map((n) => n.toFixed(2))
-                .join(" ")
+              (cx + r * Math.sign(c) * Math.pow(Math.abs(c), p)).toFixed(2) +
+                " " +
+                (cy + r * Math.sign(s) * Math.pow(Math.abs(s), p)).toFixed(2)
             );
           }
         }
@@ -83,22 +99,17 @@
       }
 
       function apply(c) {
-        const r = Number(c.radius);
-        const n = Number(c.smoothness);
-        btn.style.borderRadius = r + "px";
-        if (native) {
-          btn.style.cornerShape = `superellipse(${n})`;
-          btn.style.clipPath = "none";
-          return;
-        }
-        const w = btn.offsetWidth;
-        const h = btn.offsetHeight;
-        btn.style.borderRadius = "0";
-        btn.style.clipPath = `path("${pathFor(w, h, r, n)}")`;
+        const t = Math.max(0, Math.min(1, Number(c.smoothness)));
+        const n = 2 + t * 3.2;
+        const r = 28;
+        const w = smooth.offsetWidth;
+        const h = smooth.offsetHeight;
+        round.style.setProperty("--r", r + "px");
+        smooth.style.clipPath = `path("${path(w, h, r, n)}")`;
       }
 
       apply(CONFIG);
-      new ResizeObserver(() => apply(CONFIG)).observe(btn);
+      new ResizeObserver(() => apply(CONFIG)).observe(smooth);
       window.setParams = (c) => {
         Object.assign(CONFIG, c);
         apply(CONFIG);

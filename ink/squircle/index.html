@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>squircle — ink</title>
-    <meta name="description" content="superellipse corners on a live button." />
+    <meta name="description" content="superellipse beside a plain radius." />
     <link rel="canonical" href="https://ibra.info/ink/squircle/" />
     <meta name="theme-color" content="#f4f4f1" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
@@ -14,27 +14,22 @@
     <main class="doc">
       <p class="back"><a href="../">ink</a></p>
       <h1>squircle</h1>
-      <p class="lede">superellipse corners on a live button.</p>
+      <p class="lede">superellipse beside a plain radius.</p>
       <div class="stage">
         <iframe src="preview.html" title="squircle"></iframe>
       </div>
       <form class="knobs">
         <label class="knob">
-          <span>radius</span>
-          <input type="range" name="radius" min="8" max="48" value="22" />
-          <output data-output="radius">22</output>
-        </label>
-        <label class="knob">
           <span>smoothness</span>
           <input
             type="range"
             name="smoothness"
-            min="1"
-            max="4"
-            step="0.1"
-            value="2"
+            min="0"
+            max="1"
+            step="0.02"
+            value="0.72"
           />
-          <output data-output="smoothness">2</output>
+          <output data-output="smoothness">0.72</output>
         </label>
       </form>
       <p class="actions">
