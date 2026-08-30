@@ -52,24 +52,14 @@
 
       function stampPath(pts, hue, now) {
         if (pts.length < 2) return;
-        const min = Math.max(6, canvas.width * Number(CONFIG.spacing));
         const scatter = canvas.width * Number(CONFIG.scatter);
-        const size = canvas.width * Number(CONFIG.size);
-        let carry = 0;
-        for (let i = 1; i < pts.length; i++) {
-          const a = pts[i - 1];
-          const b = pts[i];
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const len = Math.hypot(dx, dy) || 0.001;
-          carry += len;
-          while (carry >= min) {
-            carry -= min;
-            const t = 1 - carry / len;
-            const jx = (Math.sin(now * 0.001 + i * 1.7 + hue) * 0.5) * scatter;
-            const jy = (Math.cos(now * 0.0013 + i * 2.1) * 0.5) * scatter;
-            stamp(a.x + dx * t + jx, a.y + dy * t + jy, size, hue);
-          }
+        const size = Math.max(3, canvas.width * Number(CONFIG.size));
+        const step = Math.max(1, Math.round(pts.length * Number(CONFIG.spacing) * 2));
+        for (let i = 0; i < pts.length; i += step) {
+          const p = pts[i];
+          const jx = Math.sin(now * 0.001 + i * 1.7 + hue) * scatter;
+          const jy = Math.cos(now * 0.0013 + i * 2.1) * scatter;
+          stamp(p.x + jx, p.y + jy, size, hue);
         }
       }
 
@@ -82,7 +72,7 @@
         const turns = 3.2;
         const max = Math.min(w, h) * 0.22;
         const rot = quiet ? i * 0.4 : (now / 2400) + i * 0.7;
-        for (let t = 0.12; t < turns; t += 0.055) {
+        for (let t = 0.12; t < turns; t += 0.08) {
           const r = (t / turns) * max;
           const a = t * Math.PI * 2 + rot;
           pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r * 0.86 });
@@ -92,6 +82,7 @@
 
       function paint(now) {
         fit();
+        if (canvas.width < 8 || canvas.height < 8) return;
         ctx.fillStyle = "#f4f4f1";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         hues.forEach((hue, i) => stampPath(spiral(now, i), hue, now));

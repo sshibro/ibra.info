@@ -284,7 +284,7 @@
 
     function attach(frame) {
       if (frame.querySelector("iframe")) return;
-      while (live.length >= 3) drop(live[0]);
+      while (live.length >= 2) drop(live[0]);
       const iframe = document.createElement("iframe");
       iframe.title = frame.dataset.slug + " preview";
       iframe.tabIndex = -1;
