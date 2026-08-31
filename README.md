@@ -4,9 +4,9 @@ Static personal site. No build step.
 
 GitHub Pages serves the files from the `main` branch root. `CNAME` is `ibra.info`.
 
-`/ink/` mirrors the complete Arlan Vault interaction collection with the section identity changed to **ink**. The landing page, all 41 prompt studies, all 18 named studies, their playgrounds, source panels, motion, fonts, and media run locally from this repository.
+`/motion/` is the public collection of motion and interaction studies. It preserves the complete Arlan Vault runtime: 41 prompt studies, 18 named studies, playgrounds, source panels, fonts, media, and animation code.
 
-The captured runtime lives in `/vault/`; `/ink/` adds local identity and route handling without replacing the original animation code. GitHub Pages needs the checked-in `.nojekyll` file so the mirrored `/_next/` assets are served.
+`/vault/` stores the source-compatible captured runtime and is excluded from indexing. `/ink/` contains compatibility redirects to the matching Motion routes. GitHub Pages needs the checked-in `.nojekyll` file so the mirrored `/_next/` assets are served.
 
 To refresh the mirror from Browser asset inventories:
 

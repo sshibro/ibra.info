@@ -1,4 +1,4 @@
-# Ink / Vault design QA
+# Motion / Vault design QA
 
 ## Final result
 
@@ -6,7 +6,7 @@ passed
 
 ## Source truth and implementation evidence
 
-The combined files place the Arlan Vault reference on the left and the local Ink implementation on the right.
+The combined files place the Arlan Vault reference on the left and the local Motion implementation on the right.
 
 | Surface | Source truth | Implementation | Combined comparison |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ The combined files place the Arlan Vault reference on the left and the local Ink
 - P1: none.
 - P2: none.
 - Layout, content order, margins, 528/342 px card widths, radii, borders, typography, colors, imagery, icons, and responsive behavior match the source at the tested viewports.
-- The only intentional landing difference is the requested `Vault` → `ink` heading and ibra.info metadata/routes.
+- The only intentional landing difference is the requested `Vault` → `Motion` heading and ibra.info metadata/routes.
 - No replacement CSS art, handcrafted SVG approximation, placeholder imagery, or substituted animation was introduced.
 
 ## Functional and accessibility checks
@@ -39,6 +39,7 @@ The combined files place the Arlan Vault reference on the left and the local Ink
 - Verified prompt controls, named-card navigation, detail-page close navigation, the Arcade playground, and its Remix control through visible browser interaction.
 - Source semantics, labels, alt text, keyboard-focus behavior, reduced-motion handling, and mobile control treatment are preserved because the original runtime is retained.
 - Browser inventories covered 849 observed asset references / 194 unique local files. The asset check reported zero missing files and zero remaining R2 hotlinks in the delivered HTML/runtime.
+- The static route contract passed for 19 canonical Motion routes and 19 legacy Ink redirects; `/vault/` is no-index and excluded by `robots.txt`.
 
 ## Iteration history
 
