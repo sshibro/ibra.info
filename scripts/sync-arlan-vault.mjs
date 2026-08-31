@@ -56,6 +56,35 @@ function localPathFor(assetUrl) {
   return null;
 }
 
+function withNoIndex(html) {
+  return html.replace("<head>", '<head><meta name="robots" content="noindex, nofollow">');
+}
+
+function withMotionShell(html, isIndex = false) {
+  const noscript = isIndex
+    ? '<noscript><style>main h1{font-size:0}main h1::after{content:"Motion";font-size:15px}</style></noscript>'
+    : '<noscript><p><a href="/motion/">Back to Motion</a></p></noscript>';
+  return html.replace(
+    "</body>",
+    `${noscript}<script src="/motion/motion-shell.js"></script></body>`
+  );
+}
+
+function redirectHtml(destination) {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="0; url=${destination}">
+    <meta name="robots" content="noindex">
+    <link rel="canonical" href="https://ibra.info${destination}">
+    <title>Moved to Motion</title>
+  </head>
+  <body><p>Moved to <a href="${destination}">Motion</a>.</p></body>
+</html>\n`;
+}
+
 async function download(url, destination) {
   const response = await fetch(url, {
     headers: { "user-agent": "ibra.info vault mirror" },
@@ -111,14 +140,16 @@ if (!sourceResponse.ok) {
 const html = await sourceResponse.text();
 const localizedHtml = html.replaceAll(r2Origin, "/r2");
 await mkdir(path.join(projectRoot, "vault"), { recursive: true });
-await writeFile(path.join(projectRoot, "vault", "index.html"), localizedHtml);
+await writeFile(path.join(projectRoot, "vault", "index.html"), withNoIndex(localizedHtml));
 
-const inkHtml = localizedHtml.replace(
-  "</body>",
-  '<script src="/ink/ink-shell.js"></script></body>'
+await mkdir(path.join(projectRoot, "motion"), { recursive: true });
+await writeFile(
+  path.join(projectRoot, "motion", "index.html"),
+  withMotionShell(localizedHtml, true)
 );
+
 await mkdir(path.join(projectRoot, "ink"), { recursive: true });
-await writeFile(path.join(projectRoot, "ink", "index.html"), inkHtml);
+await writeFile(path.join(projectRoot, "ink", "index.html"), redirectHtml("/motion/"));
 
 await Promise.all(
   detailCapture.pages.map(async ({ slug }) => {
@@ -132,16 +163,27 @@ await Promise.all(
 
     const sourceHtml = (await response.text()).replaceAll(r2Origin, "/r2");
     const localSlug = localStudySlugs[slug] || slug;
-    const localHtml = sourceHtml.replace(
-      "</body>",
-      '<script src="/ink/ink-shell.js"></script></body>'
-    );
+    const motionHtml = withMotionShell(sourceHtml);
+    const motionDestination = `/motion/${localSlug}/`;
 
     await mkdir(path.join(projectRoot, "vault", slug), { recursive: true });
-    await writeFile(path.join(projectRoot, "vault", slug, "index.html"), sourceHtml);
+    await writeFile(
+      path.join(projectRoot, "vault", slug, "index.html"),
+      withNoIndex(sourceHtml)
+    );
+    await mkdir(path.join(projectRoot, "motion", localSlug), { recursive: true });
+    await writeFile(path.join(projectRoot, "motion", localSlug, "index.html"), motionHtml);
     await mkdir(path.join(projectRoot, "ink", localSlug), { recursive: true });
-    await writeFile(path.join(projectRoot, "ink", localSlug, "index.html"), localHtml);
+    await writeFile(
+      path.join(projectRoot, "ink", localSlug, "index.html"),
+      redirectHtml(motionDestination)
+    );
   })
+);
+
+await writeFile(
+  path.join(projectRoot, "robots.txt"),
+  "User-agent: *\nDisallow: /vault/\n"
 );
 
 const textAssets = downloadable.filter((asset) => /\.(?:js|css)$/i.test(asset.destination));
@@ -160,7 +202,8 @@ console.log(
       mirroredAssets: downloadable.length,
       scripts: downloadable.filter((asset) => asset.destination.endsWith(".js")).length,
       sourceRuntime: path.join(projectRoot, "vault", "index.html"),
-      inkEntry: path.join(projectRoot, "ink", "index.html"),
+      motionEntry: path.join(projectRoot, "motion", "index.html"),
+      legacyRedirects: detailCapture.pages.length + 1,
       mirroredStudies: detailCapture.pages.length,
     },
     null,
