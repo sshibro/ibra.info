@@ -25,11 +25,9 @@
     if (element) element.setAttribute(attribute, value);
   }
 
-  function applyMotionIdentity() {
+  function applyMotionMetadata() {
     const heading = document.querySelector("main h1");
     const isIndex = window.location.pathname.replace(/\/+$/, "") === "/motion";
-    if (isIndex && heading && heading.textContent !== "Motion") heading.textContent = "Motion";
-
     document.title = isIndex
       ? "Motion — Ibragim Shirinov"
       : `${heading?.textContent || "Study"} — Motion`;
@@ -37,6 +35,28 @@
     setMeta('link[rel="canonical"]', "href", `https://ibra.info${window.location.pathname}`);
     setMeta('meta[property="og:title"]', "content", document.title);
     setMeta('meta[property="og:url"]', "content", `https://ibra.info${window.location.pathname}`);
+  }
+
+  function applyMotionIdentity() {
+    const heading = document.querySelector("main h1");
+    const isIndex = window.location.pathname.replace(/\/+$/, "") === "/motion";
+    if (isIndex && heading && heading.textContent !== "Motion") heading.textContent = "Motion";
+    document.querySelector("#motion-index-heading")?.remove();
+    applyMotionMetadata();
+  }
+
+  function applyAfterHydration() {
+    if (
+      document.readyState !== "complete" ||
+      document.querySelector("template[data-dgst]")
+    ) {
+      setTimeout(applyAfterHydration, 50);
+      return;
+    }
+
+    applyMotionIdentity();
+    setTimeout(applyMotionMetadata, 600);
+    setTimeout(applyMotionMetadata, 1800);
   }
 
   document.addEventListener(
@@ -58,6 +78,5 @@
     true
   );
 
-  setTimeout(applyMotionIdentity, 600);
-  setTimeout(applyMotionIdentity, 1800);
+  applyAfterHydration();
 })();

@@ -95,6 +95,12 @@ const shell = await read("motion/motion-shell.js");
 if (!shell.includes('"Motion — Ibragim Shirinov"')) {
   failures.push("Motion shell does not set the collection title");
 }
+if (shell.includes("setTimeout(applyMotionIdentity")) {
+  failures.push("Motion shell mutates React-managed content on a fixed hydration timer");
+}
+if (!shell.includes('template[data-dgst]')) {
+  failures.push("Motion shell does not wait for Next hydration markers to clear");
+}
 
 for (const [legacySlug, motionSlug] of Object.entries(routes)) {
   const suffix = motionSlug ? `${motionSlug}/` : "";
@@ -106,6 +112,9 @@ for (const [legacySlug, motionSlug] of Object.entries(routes)) {
 
   if (!motionHtml.includes('/motion/motion-shell.js')) {
     failures.push(`${motionPath} does not load the Motion shell`);
+  }
+  if (!motionSlug && !motionHtml.includes('id="motion-index-heading"')) {
+    failures.push(`${motionPath} does not render the Motion heading before hydration`);
   }
   const title = motionHtml.match(/<title>([^<]+)<\/title>/)?.[1];
   const validTitle = motionSlug

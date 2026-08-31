@@ -168,12 +168,15 @@ function withNoIndex(html) {
 }
 
 function withMotionShell(html, isIndex = false) {
+  const headingStyle = isIndex
+    ? '<style id="motion-index-heading">main h1{font-size:0}main h1::after{content:"Motion";font-size:15px}</style>'
+    : "";
   const noscript = isIndex
     ? '<noscript><style>main h1{font-size:0}main h1::after{content:"Motion";font-size:15px}</style></noscript>'
     : '<noscript><p><a href="/motion/">Back to Motion</a></p></noscript>';
   return html.replace(
     "</body>",
-    `${noscript}<script src="/motion/motion-shell.js"></script></body>`
+    `${headingStyle}${noscript}<script src="/motion/motion-shell.js"></script></body>`
   );
 }
 
