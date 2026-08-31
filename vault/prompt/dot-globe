@@ -1,0 +1,738 @@
+Build this: THREE rounded-cube solids side by side on one quiet grey, each tiled with a grid of rounded squares, each rocking on its own rhythm with a bright symbol painted onto its surface that is handed along the row. Reverse-engineered from three still frames of a tiled dome — an arrow, a plus, and one caught mid-change — and showing three at once is what turns that sequence into a row: what the source could only say one frame at a time, the card says all at once. THE TILES ARE PROJECTED QUADS, NOT SCALED AND ROTATED SQUARES — this is the thing to get right and the obvious implementation is wrong in a way that looks nearly correct. The reference does three things at once: tiles crowd together toward the edges, shrink to about half size at the limb, and visibly LEAN at the corners. The first two fall out of any sine-based placement. The lean does not, and adding it as a per-tile rotation fails outright — the rotation a sphere induces is zero along both axes through the centre and the tangent frame never actually twists. What leans is the tile's SHAPE: a patch spanning lon..lon+d, lat..lat+d projects to a TRAPEZOID whose two ends are different widths, and that asymmetry is what the eye reads as a lean. So draw each tile by projecting its four corners and joining them; crowding, foreshortening and lean then all come from the same three lines of trigonometry with no special cases. THE SOLID IS A SUPERQUADRIC, NOT A SPHERE. A sphere is curved equally everywhere, so its silhouette bulges as much along the flat middle of a side as at the corners and the shape has no faces. Raise the sine and cosine of the parameterisation to a power (keeping the sign) and the faces flatten while the curvature concentrates in the corners — the asymmetry that makes it read as an object with sides. NOTE THE DIRECTION, WHICH IS THE OPPOSITE OF THE IMPLICIT FORM: written |x|^n+|y|^n+|z|^n=1 a cube is n->infinity, so the instinct is to raise the number, but here the exponent lands on the trig instead and LOWERING it pushes points out toward the corners of the bounding box. 1 is a sphere, below 1 is boxy, above 1 pinches toward the axes into a star. Give the three globes DIFFERENT exponents, spread wide enough to read: curvature is a slow variable, and 0.62 against 0.80 differ by two percent at 60 degrees along a face, which nobody will notice side by side. Spanning ~0.42 to ~0.95 gives one nearly a cube, one clearly rounded, one all but spherical. Do not go below ~0.4 or the corners sharpen enough that the tile grid visibly creases. SOLVE THE ANGULAR SPAN FROM THE REFERENCE, NUMERICALLY. Corner tiles measure ~47% the width of centre ones, and since foreshortening scales by cos(theta) the tempting move is acos(0.47) = 62 degrees — but that treats a tile as a POINT. A tile is an interval, so its projected width is a DIFFERENCE OF SINES, sin(lon1)-sin(lon0), which shrinks more slowly near the centre than a cosine; solving the real expression gives 68.2 degrees, where 62 lands at 0.55 and reads as a visibly flatter dome. ORTHOGRAPHIC, NOT PERSPECTIVE: drop z after tilting. A perspective divide makes near tiles bulge by more than cosine alone and the field reads as a fisheye photograph rather than a flat graphic of a solid. Cull by the tile's CENTRE depth, never per corner — per-corner culling clips tiles in half at the limb, which reads as a rendering bug instead of something turning away. Apply the inter-tile gap in ANGLE rather than screen pixels so it foreshortens with the tile; a constant pixel gap stays fixed while tiles shrink and the field looks like it is dissolving toward the edge. Round the quads by walking the four corners and cutting each with a quadratic curve using the corner itself as the control point — roundRect cannot draw a sheared quad — and take the radius from the SHORTEST edge so squashed limb tiles round proportionally instead of turning into lozenges; below half a pixel skip the rounding entirely, since dozens of limb tiles are that small. IT ROCKS, IT DOES NOT SPIN, and the bound is arithmetic rather than taste. A continuous rotation spends most of its cycle showing the BACK, where the symbol is invisible and the card is just a field of grey tiles — the effect is off screen for longer than it is on. The grid spans 68.2 degrees either side of centre and a tile is culled once its longitude passes 90, so the surface can only turn 21.8 degrees before the outermost column starts vanishing; keep the rock (~14 degrees) well inside that and every tile is visible at every moment. Add a slower SECOND axis at a rate that is not a multiple of the first, so the pair never settles into a repeating figure and the motion is not a flat back-and-forth on one line. OFFSET PHASE, SYMBOL AND CURVATURE PER GLOBE. Three copies of one shape in three colours still read as a set of swatches; three different solids that share a construction read as a family. In lockstep they rock together and change together and the eye immediately groups them into one wide object cut into thirds — a third of a cycle apart they read as three separate things that happen to be alike. THE SYMBOL IS PAINTED IN GRID SPACE, NOT SCREEN SPACE: a tile's (col,row) never changes, only where it projects, so a lit cell rides the surface out to the limb and back as the solid rocks — which is what makes it read as a marked OBJECT rather than a pattern scrolling behind a mask. Symbols are 11x11 bitmaps (arrow, plus, cross, ring, dot) authored as strings so the shapes are legible in the source. The swap between them is a WAVE rather than a cut, so mid-transition the field is half one symbol and half the next — exactly the reference's third frame. MEASURE THE WAVE OVER THE SURFACE, NOT THE GRID: a front measured in (col,row) expands as a perfect circle however the solid is turned, which quietly contradicts the projection everything else obeys, and the change slides across the face like a decal. The tile's centre depth IS the cosine of its angle from the viewing axis, so acos of it gives great-circle distance from the point facing you; the front then crosses the middle of the face quickly and slows toward the limb, because the same angular step covers less and less screen there. COLOUR THE UNLIT TILES, NOT THE BACKDROP. Giving each globe its own coloured panel is the wrong trade: three saturated fields meeting at hard edges turn the card into a swatch chart and the globes stop being objects sitting in a room. On one shared quiet grey they read as three things on a shelf. Make each duo NEAR-COMPLEMENTS AT OPPOSITE LIGHTNESS — a muted body against a bright mark from the far side of the wheel (lime on aubergine, coral on petrol, acid yellow on cobalt); analogous pairs look tasteful and say nothing, and the wide lightness gap keeps them legible while they clash. DEPTH-SHADE THE OFF TILES ONLY, as a second slightly stronger fill over just the tiles above a depth threshold — not a gradient, so every tile stays a flat colour and none is ever a gradient in itself. Keep the two unlit values CLOSE: the small step is what gives the solid a front, and widening it turns the globe into two concentric rings. Leave the LIT tiles flat, since they carry the symbol and shading them trades graphic clarity for a rendering trick. Batch the unlit tiles into ONE path and fill once — they are the majority and share a colour — but draw lit tiles individually, since each needs its own swell and colour, which is affordable at ~25 per globe where it would not be for all 120. The pointer tilts on the VERTICAL axis only, eased toward the target so it has mass, and it ADDS to each globe's own rocking rather than replacing it, so the row leans as a whole while every globe keeps its own rhythm underneath. Lit tiles under the cursor swell about their OWN CENTROID — scaling keeps the tile seated on the surface where translating it would break the lattice and read as a sprite floating above — and the swell stays small enough that a tile never leaves its cell. THE THREE ARE A ROW, NOT A SET, which is the difference between a system and three ornaments. Running each globe on its own clock at an unrelated phase gives variety and nothing else: three objects changing at three arbitrary times have no relationship. Use ONE SHARED CLOCK and hand the mark down the line — globe g lags its left neighbour and sits one place behind it in the list — so a symbol ENTERS at the left and walks right in an order you can follow. Two details decide whether that reads. The lag must be a FRACTION OF THE SWAP (~0.35), not a whole cycle: at a full cycle each globe finishes long before the next starts and it looks like separate clocks again, where at a third the fronts overlap and the row reads as one movement passing along it. And the index must STEP BACK PER GLOBE, or the cascade is in time but not in content and all three show the same mark at once, which is worse than what it replaced. DRAW THE WAVE, DO NOT MERELY APPLY IT. The front already crosses the surface correctly, but if a tile just holds the old symbol and then the new one, all that care shows up as a result and never as a movement. Brighten tiles the front has passed, toward the mark colour and never all the way to it, and the swap becomes a visible ring expanding across the face. Light EVERY tile it crosses, lit or unlit — a front that brightened only the symbol appears in pieces wherever the glyph happens to be, and it is the sweep across the whole surface that shows the wave belongs to the ball rather than to the mark. Bucket the trail into a few quantised bands, one fill each, so the majority-unlit tiles keep their batched fill; per-tile blending here is exactly the cost the batching exists to avoid, and the banding is invisible because the ring is only a few tiles deep. ONE GLOBE, RARELY, TURNS ALL THE WAY ROUND. The case for rocking holds against CONSTANT rotation, not against rotation itself, and a rock can never show that the symbol is PAINTED ON A SOLID because nothing ever goes away. Every ~26 seconds a single globe — never the row, or the card empties out together and you are back to the spin the rock exists to avoid — turns once and settles back. Ease it with a SMOOTHSTEP, which ends at 1: a raised cosine (1-cos(2*pi*t))/2 is tempting because it eases at both ends, but it peaks halfway and returns to zero, so the globe winds up and unwinds instead of turning. A full turn is congruent with none, so it rejoins the rock exactly where it left. MAKE THE TURN CARRY THE SYMBOL CHANGE or it is a flourish with no consequence: the globe leaves with one mark and returns with the next, and the change is never seen happening. That advance must be PERMANENT, and deriving it from a term that applies only while the turn runs does not work — the count drops the moment the turn ends and the globe snaps back to its old mark. Shift the clock back by half a turn and count elapsed slots instead, which is monotonic by construction. THE CURSOR SHOULD CONFIRM THE SURFACE IS LIVE, NOT PERFORM. The swell under the pointer and the slide that opens the lattice around it close the SAME GAP between tiles, so they share one budget and must be solved together rather than tuned one at a time: on a 620px card the gap is 10.47px, a 0.55 swell alone takes 78% of it, and adding any slide overruns and collides. Keep the pair well under — 0.16 and 0.035 use a third of the gap. The horizontal lean has to fit in whatever the rock leaves of the 21.8-degree cull budget, but fitting is not the same as being right: 6 degrees fits and still reads as the globes TRACKING the cursor, competing with the marks, where 2.5 reads as them noticing you. RESIST THE DEPTH-OF-FIELD INSTINCT: varying the radii to place the globes at different distances does not read as perspective and simply looks like one is the wrong size, because depth needs several cues agreeing and this card has nowhere to put the others — orthographic by design, no ground plane, no overlap, no shadow. Keep the radii equal and let curvature, palette and phase carry the variety, since those read as intent. Framework-free Canvas 2D, no 3D library, no assets; DPR-capped at 2, time-based so it runs the same at any frame rate, pauses offscreen / when hidden / during route transitions, one static frame under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### dotglobe/sphere.ts
+```ts
+export interface Tile {
+
+  quad: number[];
+
+  z: number;
+
+  ux: number;
+  uy: number;
+  uz: number;
+
+  col: number;
+  row: number;
+}
+
+export interface Projection {
+
+  n: number;
+
+  span: number;
+
+  r: number;
+
+  cx: number;
+  cy: number;
+
+  spin: number;
+
+  tilt: number;
+
+  gap: number;
+
+  exp: number;
+}
+
+export function project(p: Projection): Tile[] {
+  const out: Tile[] = [];
+  const step = (p.span * 2) / p.n;
+
+  const inset = step * p.gap * 0.5;
+
+  const st = Math.sin(p.tilt);
+  const ct = Math.cos(p.tilt);
+
+  for (let row = 0; row < p.n; row++) {
+    for (let col = 0; col < p.n; col++) {
+      const lon0 = -p.span + col * step + inset + p.spin;
+      const lon1 = lon0 + step - inset * 2;
+      const lat0 = -p.span + row * step + inset;
+      const lat1 = lat0 + step - inset * 2;
+
+      const clat = (lat0 + lat1) * 0.5;
+      const clon = (lon0 + lon1) * 0.5;
+      const z = depth(clon, clat, st, ct, p.exp);
+      if (z <= 0.02) continue;
+
+      const quad = [
+        ...toScreen(lon0, lat0, p, st, ct),
+        ...toScreen(lon1, lat0, p, st, ct),
+        ...toScreen(lon1, lat1, p, st, ct),
+        ...toScreen(lon0, lat1, p, st, ct),
+      ];
+
+      const [ux0, uy0, uz0] = surface(clon, clat, p.exp);
+
+      out.push({
+        quad,
+        z,
+        ux: ux0,
+        uy: uy0 * ct + uz0 * st,
+        uz: z,
+        col,
+        row,
+      });
+    }
+  }
+
+  out.sort((a, b) => a.z - b.z);
+  return out;
+}
+
+function sp(v: number, e: number): number {
+  const a = Math.abs(v);
+  const r = Math.pow(a, e);
+  return v < 0 ? -r : r;
+}
+
+function surface(lon: number, lat: number, e: number): [number, number, number] {
+  const cl = sp(Math.cos(lat), e);
+  return [cl * sp(Math.sin(lon), e), sp(Math.sin(lat), e), cl * sp(Math.cos(lon), e)];
+}
+
+function depth(
+  lon: number,
+  lat: number,
+  st: number,
+  ct: number,
+  e: number,
+): number {
+  const [, y, z] = surface(lon, lat, e);
+
+  return z * ct - y * st;
+}
+
+function toScreen(
+  lon: number,
+  lat: number,
+  p: Projection,
+  st: number,
+  ct: number,
+): [number, number] {
+  const [x, y, z] = surface(lon, lat, p.exp);
+
+  const yt = y * ct + z * st;
+
+  return [p.cx + x * p.r, p.cy + yt * p.r];
+}
+
+```
+
+### dotglobe/glyphs.ts
+```ts
+const N = 11;
+
+const RAW: Record<string, string[]> = {
+
+  arrow: [
+    "...##......",
+    "....##.....",
+    ".....##....",
+    "......##...",
+    "###########",
+    "......##...",
+    ".....##....",
+    "....##.....",
+    "...##......",
+    "...........",
+    "...........",
+  ],
+
+  plus: [
+    ".....#.....",
+    "....#.#....",
+    "...#...#...",
+    "..#.....#..",
+    ".#.......#.",
+    "#.........#",
+    ".#.......#.",
+    "..#.....#..",
+    "...#...#...",
+    "....#.#....",
+    ".....#.....",
+  ],
+  cross: [
+    "#.........#",
+    ".#.......#.",
+    "..#.....#..",
+    "...#...#...",
+    "....#.#....",
+    ".....#.....",
+    "....#.#....",
+    "...#...#...",
+    "..#.....#..",
+    ".#.......#.",
+    "#.........#",
+  ],
+
+  chevron: [
+    "..#....#...",
+    "...#....#..",
+    "....#....#.",
+    ".....#....#",
+    "......#....",
+    ".....#....#",
+    "....#....#.",
+    "...#....#..",
+    "..#....#...",
+    "...........",
+    "...........",
+  ],
+
+  slash: [
+    ".......###.",
+    "......###..",
+    ".....###...",
+    "....###....",
+    "...###.....",
+    "..###......",
+    ".###.......",
+    "###........",
+    "##.........",
+    "...........",
+    "...........",
+  ],
+
+  square: [
+    "..#######..",
+    "..#.....#..",
+    "..#.....#..",
+    "..#.....#..",
+    "..#.....#..",
+    "..#.....#..",
+    "..#.....#..",
+    "..#.....#..",
+    "..#######..",
+    "...........",
+    "...........",
+  ],
+};
+
+export const NAMES = Object.keys(RAW);
+
+const MASKS: Record<string, boolean[]> = {};
+for (const [k, rows] of Object.entries(RAW)) {
+  const m = new Array<boolean>(N * N).fill(false);
+  rows.forEach((line, row) => {
+    for (let col = 0; col < Math.min(N, line.length); col++) {
+      m[row * N + col] = line[col] === "#";
+    }
+  });
+  MASKS[k] = m;
+}
+
+export const GRID = N;
+
+export function lit(name: string, col: number, row: number): boolean {
+  const m = MASKS[name];
+  if (!m) return false;
+  return m[row * N + col] === true;
+}
+
+```
+
+### dotglobe/DotGlobeCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { project } from "./sphere";
+import { GRID, NAMES, lit } from "./glyphs";
+import { onTransitionChange } from "../../lib/view-transition";
+
+const GROUND = "#f4f4f4";
+
+interface Duo {
+
+  off: string;
+
+  offNear: string;
+
+  on: string;
+
+  hot: string;
+}
+
+const DUOS: Duo[] = [
+
+  { off: "#6e4b78", offNear: "#553260", on: "#b6f042", hot: "#d3f68e" },
+
+  { off: "#4f8d96", offNear: "#33707a", on: "#f66751", hot: "#faaa9e" },
+
+  { off: "#5f7ed6", offNear: "#3a5cc0", on: "#fadf2e", hot: "#fceb7e" },
+];
+
+const SPAN = (68.2 * Math.PI) / 180;
+
+const COUNT = 3;
+
+const RADIUS = 0.3;
+
+const EXPS = [0.42, 0.66, 0.95];
+
+const SCALES = [1, 1, 1];
+
+const RECEDE = [0, 0, 0];
+
+const GAP = 0.26;
+
+const ROUND = 0.3;
+
+const WOBBLE = (14 * Math.PI) / 180;
+
+const WOBBLE_RATE = 0.7;
+
+const TILT_MAX = 0.42;
+
+const TILT_EASE = 0.06;
+
+const LEAN_MAX = (2.5 * Math.PI) / 180;
+
+const FIELD_RATIO = 0.3;
+
+const LIFT = 0.16;
+
+const OPEN = 0.035;
+
+const TURN_EVERY_S = 26;
+
+const TURN_S = 2.6;
+
+const HOLD_S = 4.2;
+
+const SWAP_S = 1.1;
+
+const HANDOFF = 0.35;
+
+const TRAIL = 0.22;
+
+const TRAIL_REACH = 0.55;
+
+const TRAIL_BANDS = 4;
+
+export function DotGlobeCard({ bare = false }: { bare?: boolean } = {}) {
+  void bare;
+  const hostRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    const canvas = canvasRef.current;
+    if (!host || !canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let w = 0;
+    let h = 0;
+    let raf = 0;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    let tilt = 0;
+    let tiltTarget = 0;
+
+    let lean = 0;
+    let leanTarget = 0;
+
+    let ptr: { x: number; y: number } | null = null;
+    let last = 0;
+
+    let clock = 0;
+
+    const resize = () => {
+      w = host.clientWidth;
+      h = host.clientHeight;
+      if (!w || !h) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    const roundQuad = (q: number[], k: number) => {
+      let min = Infinity;
+      for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4;
+        const d = Math.hypot(q[j * 2] - q[i * 2], q[j * 2 + 1] - q[i * 2 + 1]);
+        if (d < min) min = d;
+      }
+      const r = min * k;
+      if (r < 0.4) {
+
+        ctx.moveTo(q[0], q[1]);
+        for (let i = 1; i < 4; i++) ctx.lineTo(q[i * 2], q[i * 2 + 1]);
+        ctx.closePath();
+        return;
+      }
+
+      for (let i = 0; i < 4; i++) {
+        const p = (i + 3) % 4;
+        const n = (i + 1) % 4;
+        const cx = q[i * 2];
+        const cy = q[i * 2 + 1];
+
+        const toP = edgePoint(cx, cy, q[p * 2], q[p * 2 + 1], r);
+        const toN = edgePoint(cx, cy, q[n * 2], q[n * 2 + 1], r);
+
+        if (i === 0) ctx.moveTo(toP[0], toP[1]);
+        else ctx.lineTo(toP[0], toP[1]);
+
+        ctx.quadraticCurveTo(cx, cy, toN[0], toN[1]);
+      }
+      ctx.closePath();
+    };
+
+    const draw = () => {
+      if (!w || !h) return;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const r = h * RADIUS;
+      const FIELD = h * FIELD_RATIO;
+
+      ctx.fillStyle = GROUND;
+      ctx.fillRect(0, 0, w, h);
+
+      for (let g = 0; g < COUNT; g++) {
+
+        const base = DUOS[g % DUOS.length];
+        const back = RECEDE[g % RECEDE.length];
+        const duo: Duo = back
+          ? {
+              off: mix(base.off, GROUND, back),
+              offNear: mix(base.offNear, GROUND, back),
+              on: mix(base.on, GROUND, back),
+              hot: mix(base.hot, GROUND, back),
+            }
+          : base;
+
+        const cx = (w * (g + 0.5)) / COUNT;
+
+        const leanG = ptr
+          ? Math.max(-1, Math.min(1, (ptr.x - cx) / (w / COUNT))) * LEAN_MAX
+          : 0;
+
+        const slot = Math.floor(clock / TURN_EVERY_S);
+        const intoSlot = clock % TURN_EVERY_S;
+        const mine = slot % COUNT === g;
+
+        const t = mine && intoSlot < TURN_S ? intoSlot / TURN_S : 0;
+        const turn = t > 0 ? t * t * (3 - 2 * t) : 0;
+
+        const shifted = clock - TURN_S * 0.5;
+        const turnsDone =
+          shifted < 0
+            ? 0
+            : Math.floor((Math.floor(shifted / TURN_EVERY_S) - g + COUNT) / COUNT);
+
+        const spinG =
+          Math.sin(clock * WOBBLE_RATE) * WOBBLE +
+          lean * leanG +
+          turn * Math.PI * 2;
+
+        const tiltG = tilt + Math.sin(clock * 0.41) * WOBBLE * 0.28;
+
+        const rg = r * SCALES[g % SCALES.length];
+
+        const tiles = project({
+          n: GRID,
+          span: SPAN,
+          r: rg,
+          cx,
+          cy: h / 2,
+          spin: spinG,
+          tilt: tiltG,
+          gap: GAP,
+          exp: EXPS[g % EXPS.length],
+        });
+
+        const cycle = HOLD_S + SWAP_S;
+        const local = clock - g * SWAP_S * HANDOFF;
+        const step = Math.floor(local / cycle);
+
+        const raw = step - g + turnsDone;
+        const idx = ((raw % NAMES.length) + NAMES.length) % NAMES.length;
+
+        const into = (((local % cycle) + cycle) % cycle) - HOLD_S;
+        const from = NAMES[idx];
+        const to = NAMES[(idx + 1) % NAMES.length];
+
+        const turning = turn > 0;
+        const wave = turning ? 0 : into <= 0 ? 0 : into / SWAP_S;
+
+        const mark = from;
+
+        const isOn = (t: (typeof tiles)[number]) => {
+          if (wave <= 0) return lit(mark, t.col, t.row);
+          if (wave >= 1) return lit(to, t.col, t.row);
+
+          const ang = Math.acos(Math.max(-1, Math.min(1, t.uz)));
+          const d = ang / (Math.PI * 0.5);
+          return d < wave ? lit(to, t.col, t.row) : lit(from, t.col, t.row);
+        };
+
+        const front = (t: (typeof tiles)[number]) => {
+          if (wave <= 0 || wave >= 1) return 0;
+          const ang = Math.acos(Math.max(-1, Math.min(1, t.uz)));
+          const d = ang / (Math.PI * 0.5);
+
+          const age = wave - d;
+          if (age < 0 || age > TRAIL) return 0;
+          const k = 1 - age / TRAIL;
+          return k * k;
+        };
+
+        const push = (t: (typeof tiles)[number]) => {
+          if (!ptr || lean <= 0.002) return 0;
+          const dx = t.quad[0] - ptr.x;
+          const dy = t.quad[1] - ptr.y;
+          const d = Math.hypot(dx, dy);
+          if (d > FIELD) return 0;
+          const k = 1 - d / FIELD;
+
+          return k * k * lean;
+        };
+
+        const cell = (2 * SPAN * rg) / GRID;
+        const moved = tiles.map((t) => {
+          const p = push(t);
+          if (p <= 0.01 || !ptr) return t;
+          const dx = t.quad[0] - ptr.x;
+          const dy = t.quad[1] - ptr.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const k = p * OPEN * cell;
+          const ox = (dx / d) * k;
+          const oy = (dy / d) * k;
+          const q = t.quad.slice();
+          for (let i = 0; i < 4; i++) {
+            q[i * 2] += ox;
+            q[i * 2 + 1] += oy;
+          }
+          return { ...t, quad: q };
+        });
+
+        ctx.beginPath();
+        for (const t of moved) {
+          if (isOn(t)) continue;
+
+          roundQuad(t.quad, ROUND);
+        }
+        ctx.fillStyle = duo.off;
+        ctx.fill();
+
+        ctx.beginPath();
+        for (const t of moved) {
+          if (isOn(t)) continue;
+          if (t.z < 0.55) continue;
+          roundQuad(t.quad, ROUND);
+        }
+        ctx.fillStyle = duo.offNear;
+        ctx.fill();
+
+        if (wave > 0 && wave < 1) {
+          for (let b = 0; b < TRAIL_BANDS; b++) {
+            const lo = b / TRAIL_BANDS;
+            const hi = (b + 1) / TRAIL_BANDS;
+            ctx.beginPath();
+            let any = false;
+            for (const t of moved) {
+              if (isOn(t)) continue;
+              const f = front(t);
+              if (f <= lo || f > hi) continue;
+              roundQuad(t.quad, ROUND);
+              any = true;
+            }
+            if (!any) continue;
+
+            ctx.fillStyle = mix(duo.offNear, duo.on, hi * TRAIL_REACH);
+            ctx.fill();
+          }
+        }
+
+        for (const t of moved) {
+          if (!isOn(t)) continue;
+          const p = Math.max(push(t), front(t));
+          ctx.beginPath();
+          if (p > 0.01) {
+
+            const q = scaleQuad(t.quad, 1 + p * LIFT);
+            roundQuad(q, ROUND);
+          } else {
+            roundQuad(t.quad, ROUND);
+          }
+          ctx.fillStyle = p > 0.01 ? duo.hot : duo.on;
+          ctx.fill();
+        }
+      }
+    };
+
+    const frame = (now: number) => {
+      raf = 0;
+      if (!running()) return;
+
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+      last = now;
+      clock += dt;
+      tilt += (tiltTarget - tilt) * TILT_EASE;
+
+      lean += (leanTarget - lean) * (TILT_EASE * 0.7);
+
+      draw();
+      raf = requestAnimationFrame(frame);
+    };
+
+    const running = () => onScreen && !hidden && !inTransition && !reduced;
+
+    const sync = () => {
+      if (running()) {
+        if (!raf) {
+          last = 0;
+          raf = requestAnimationFrame(frame);
+        }
+      } else if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+
+    resize();
+    draw();
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es.some((e) => e.isIntersecting);
+        sync();
+      },
+      { rootMargin: "200px" },
+    );
+    io.observe(host);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    const fine = window.matchMedia("(pointer: fine)").matches;
+    const onMove = (e: PointerEvent) => {
+      const r = host.getBoundingClientRect();
+
+      const v = (e.clientY - r.top) / r.height - 0.5;
+      tiltTarget = Math.max(-1, Math.min(1, v * 2)) * TILT_MAX;
+      ptr = { x: e.clientX - r.left, y: e.clientY - r.top };
+      leanTarget = 1;
+    };
+    const onLeave = () => {
+      tiltTarget = 0;
+      leanTarget = 0;
+
+    };
+    if (fine) {
+      host.addEventListener("pointermove", onMove);
+      host.addEventListener("pointerleave", onLeave);
+    }
+
+    const ro = new ResizeObserver(() => {
+      resize();
+      draw();
+    });
+    ro.observe(host);
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      io.disconnect();
+      ro.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      if (fine) {
+        host.removeEventListener("pointermove", onMove);
+        host.removeEventListener("pointerleave", onLeave);
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      ref={hostRef}
+      data-canvas-card
+      role="img"
+      aria-label="Three rounded-cube forms side by side on one grey ground, coloured lime on aubergine, coral on petrol teal, and acid yellow on cobalt. Each is tiled with a grid of rounded squares that crowd together and shrink toward the edges as the surface curves away, rocks gently on its own rhythm, and carries a bright symbol painted onto its surface — an arrow, a diamond, a cross, a chevron, a slash, a square. The marks pass along the row from left to right, each arriving as a bright wave spreading across the face, and now and then one form turns all the way round and comes back carrying the next mark. Moving the pointer leans the forms toward it and opens the tiles underneath."
+      className="relative aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)]"
+      style={{ background: GROUND }}
+    >
+      <canvas ref={canvasRef} className="block h-full w-full" />
+    </div>
+  );
+}
+
+const RGB = new Map<string, [number, number, number]>();
+const MIXED = new Map<string, string>();
+
+function rgb(hex: string): [number, number, number] {
+  const hit = RGB.get(hex);
+  if (hit) return hit;
+  const n = parseInt(hex.slice(1), 16);
+  const v: [number, number, number] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  RGB.set(hex, v);
+  return v;
+}
+
+function mix(a: string, b: string, k: number): string {
+  const key = `${a}${b}${k.toFixed(3)}`;
+  const hit = MIXED.get(key);
+  if (hit) return hit;
+  const [ar, ag, ab] = rgb(a);
+  const [br, bg, bb] = rgb(b);
+  const r = Math.round(ar + (br - ar) * k);
+  const g = Math.round(ag + (bg - ag) * k);
+  const bl = Math.round(ab + (bb - ab) * k);
+  const out = `rgb(${r},${g},${bl})`;
+  MIXED.set(key, out);
+  return out;
+}
+
+function scaleQuad(q: number[], k: number): number[] {
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < 4; i++) {
+    cx += q[i * 2];
+    cy += q[i * 2 + 1];
+  }
+  cx /= 4;
+  cy /= 4;
+  const out: number[] = new Array(8);
+  for (let i = 0; i < 4; i++) {
+    out[i * 2] = cx + (q[i * 2] - cx) * k;
+    out[i * 2 + 1] = cy + (q[i * 2 + 1] - cy) * k;
+  }
+  return out;
+}
+
+function edgePoint(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  d: number,
+): [number, number] {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.hypot(dx, dy) || 1;
+  const t = Math.min(d / len, 0.5);
+  return [ax + dx * t, ay + dy * t];
+}
+
+```

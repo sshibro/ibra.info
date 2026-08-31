@@ -1,0 +1,635 @@
+Build this: a staircase of CODE FRAGMENTS on brightly coloured bars, trailing the pointer across a plain plate. Rows stack down-and-left at about -35deg with NO gap between them — the bars touch, and the newest laps over the one behind it, so the stack reads as layered paper rather than a tiled grid. THE STACK IS A CHAIN, NOT A RECORD OF THE PATH, and this is the decision the whole effect rests on: each row eases toward the row ABOVE it, not toward where the cursor was when it spawned. Stamp rows at the pointer instead and a zigzag path gives you a zigzag stack — the ribbon is then only ever as tidy as the person moving the mouse, where chaining makes it resolve into a clean staircase no matter how badly you move. It also buys the whip through a turn for free: the head changes direction and the tail arrives late, so the ribbon curves like something with weight. Ramp the chase rate DOWN the chain (about 0.34 at the head to 0.16 at the tail) — one rate for every row makes the stack move as a single rigid object, and the gradient is what makes it feel dragged. Walk the list front to back each frame so every row reads its parent's already-updated position, or the lag never accumulates and the whole chain is uniformly one frame behind. PUSH ROWS BY DISTANCE, NEVER BY TIME: a new row appears once the head has travelled a set fraction of the card's width, so a still pointer cannot bury the stack under itself on one spot, and a fast sweep lays a longer ribbon than a slow one with no explicit speed term anywhere. A ROW IS A RUN OF BADGES, NOT ONE BADGE — 1 to 3 fragments butted edge to edge with zero gap, so a single line of code is visibly assembled out of differently-coloured pieces; that seam through the middle of a line is what makes it look like torn source instead of a list of tags. Vary the badge count as a SPINDLE by depth (a sine over the stack: 1 at the head, up to 3 through the belly, 1 at the tail) so the ribbon has a shape rather than being a rectangle sheared over, and anchor each row by its RIGHT edge so runs grow leftward and clip off the frame — the clipping is what makes the card feel like a window onto something larger. THE COLOURS ARE PAIRS, AND THE PAIR IS THE DESIGN. The obvious move is a vivid background with black or white text; that is legible, and it looks like a tag component. What makes this read the way it does is that the text is ANOTHER SATURATED COLOUR sitting where it has no business sitting: orange on lavender, dark red on mint, blue on tomato, yellow on navy, pale cyan on sky. Store combinations, never two independent random rolls — independent rolls give mud most of the time and a good accident occasionally, where a curated list gives the good accident every time. Legibility should be UNEVEN on purpose: some pairs comfortable, some nearly unreadable, because the eye is meant to land on two or three bars and read the rest as colour and texture. Tune every pair to the same contrast and you flatten exactly that. Step through the palette with a stride COPRIME to its length rather than indexing randomly (two adjacent blues merge into one bar and you lose a badge boundary), and underline maybe one badge in seven — on every badge an underline stops being an accent and becomes a border. THE CODE IS TWO LANGUAGES AT ONCE: half GLSL (fbm, curl(noise, vec3, sin(time), trailing semicolons) and half Python (def with type hints, # comments, .copy(), trailing colons), all in one domain — noise, flow fields, pixel buffers, hue, time — so however the bag shuffles, a row looks like it came from one project. AND THEY MUST BE FRAGMENTS, NOT LINES: cut mid-expression, an open paren that never closes, an operator with nothing after it. That is what lets any two butt together and still look like source that got sliced; complete balanced statements laid end to end read as a list. Draw from a shuffled BAG without replacement, not a per-draw random pick — independent rolls repeat far more often than people expect and one string appearing twice in a visible stack kills the illusion instantly. Monospace, sized as a FRACTION OF CARD WIDTH (about w/42) so it holds at every size, with the bar height barely over the cap height (~1.24x the font) and tight horizontal padding — any leading at all shows up immediately as a gap between rows. MEASURE the real character advance from the live font instead of assuming a ratio: the badges in a row touch, so a wrong measurement surfaces as a hairline seam of background between two bars. FOR THE RESTING STATE use STRAIGHT RUNS AND HARD TURNS, not a Lissajous. A smooth looping curve is the obvious way to drift something and it is wrong here for a specific reason: the chain always bends toward wherever the head went, so a path that is always curving gives a ribbon that is always curved and the clean diagonal staircase — the thing this is actually about — never appears. Travel in a straight line at CONSTANT SPEED (derive each run's duration from its length, or the head races on long runs and crawls on short ones), then pause a beat on arrival so the tail catches up and the stack compresses into a tight stair before the next run pulls it out again. Constant motion never lets it resolve. Hand the drift the pointer's last position when the cursor leaves, so the head continues from there instead of snapping to the middle. Build it as DOM, not canvas: ~30 elements that only ever move, so the mono text is crisp at any DPR for free and the underlines and padding are just CSS. Write transforms straight to element style in the rAF loop — routing per-frame positions through component state reconciles every node 60 times a second to change two numbers. Recycle a FIXED pool of rows (regenerate the oldest as the new head) so the element count never changes and nothing mounts or unmounts while it runs. Pauses offscreen / when hidden / during route transitions; rebuilds its metrics on resize; under reduced motion it renders one static resolved staircase and never moves.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### code-trail/fragments.ts
+```ts
+export type Slot =
+
+  | "expr"
+
+  | "free"
+
+  | "end";
+
+export interface Fragment {
+  text: string;
+
+  in: Slot;
+
+  out: Slot;
+
+  comment?: boolean;
+}
+
+export const FRAGMENTS: Fragment[] = [
+
+  { text: "field = curl(noise", in: "free", out: "expr" },
+  { text: "z = fbm(vec3", in: "free", out: "expr" },
+  { text: "(uv * 3.0)", in: "expr", out: "free" },
+  { text: " * 0.01)", in: "expr", out: "free" },
+  { text: "(target - pos)", in: "free", out: "free" },
+  { text: " * sin(time)", in: "free", out: "expr" },
+  { text: "warp += noise(p)", in: "free", out: "expr" },
+  { text: " * 0.02;", in: "expr", out: "end" },
+  { text: "uv = gl_FragCoord", in: "free", out: "expr" },
+  { text: " / u_resolution;", in: "expr", out: "end" },
+  { text: "float d = length(p", in: "free", out: "expr" },
+  { text: " - center);", in: "expr", out: "end" },
+  { text: "p = fract(p * 2.31", in: "free", out: "expr" },
+  { text: "n = snoise(p * 0.6", in: "free", out: "expr" },
+  { text: " + t * 0.15);", in: "expr", out: "end" },
+  { text: "col = mix(a, b,", in: "free", out: "expr" },
+  { text: " smoothstep(0.0, 1.0", in: "expr", out: "expr" },
+  { text: "gl_FragColor = vec4(", in: "free", out: "expr" },
+  { text: "col, 1.0);", in: "expr", out: "end" },
+  { text: "normalize(grad)", in: "free", out: "free" },
+  { text: "dot(n, l)", in: "free", out: "expr" },
+  { text: " * 0.5 + 0.5;", in: "expr", out: "end" },
+  { text: "flow = rot(angle)", in: "free", out: "expr" },
+  { text: " * vel;", in: "expr", out: "end" },
+  { text: "uniform float t;", in: "free", out: "end" },
+
+  { text: "w, h = im", in: "free", out: "expr" },
+  { text: ".size", in: "expr", out: "free" },
+  { text: "pos: float", in: "free", out: "free" },
+  { text: "hue = (time * 20.0)", in: "free", out: "expr" },
+  { text: " % 360.0", in: "expr", out: "free" },
+  { text: "def sample(x, y):", in: "free", out: "end" },
+  { text: "def update(dt):", in: "free", out: "end" },
+  { text: "[x][y]", in: "expr", out: "free" },
+  { text: " = base.copy()", in: "expr", out: "free" },
+  { text: "for y in range(h):", in: "free", out: "end" },
+  { text: "px = img.load()", in: "free", out: "free" },
+  { text: "buf = np.zeros(", in: "free", out: "expr" },
+  { text: ", dtype=float)", in: "expr", out: "free" },
+  { text: "arr[y, x] = int(", in: "free", out: "expr" },
+  { text: "v * 255)", in: "expr", out: "free" },
+  { text: "return arr.astype(", in: "free", out: "expr" },
+  { text: '"uint8")', in: "expr", out: "free" },
+  { text: "with Image.open(", in: "free", out: "expr" },
+  { text: "path) as im:", in: "expr", out: "end" },
+  { text: "np.clip(v, 0.0, 1.0)", in: "free", out: "free" },
+  { text: "seed = random()", in: "free", out: "free" },
+
+  { text: "# Map 0..255", in: "free", out: "end", comment: true },
+  { text: "# clamp to the grid", in: "free", out: "end", comment: true },
+  { text: "# 0..1", in: "free", out: "end", comment: true },
+  { text: "// one octave", in: "free", out: "end", comment: true },
+  { text: "// keep it in gamut", in: "free", out: "end", comment: true },
+];
+
+export function makeBag<T>(items: T[]): () => T {
+  let pool: T[] = [];
+  return () => {
+    if (!pool.length) {
+      pool = items.slice();
+
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+    }
+    return pool.pop() as T;
+  };
+}
+
+export function drawMatching(
+  next: () => Fragment,
+  need: Slot,
+  tries = 6,
+): Fragment {
+  let f = next();
+  for (let i = 0; i < tries && (f.in !== need || f.comment); i++) f = next();
+  return f;
+}
+
+```
+
+### code-trail/palette.ts
+```ts
+export interface Pair {
+
+  bg: string;
+
+  fg: string;
+
+  underline?: boolean;
+}
+
+export const PAIRS: Pair[] = [
+
+  { bg: "#E8452F", fg: "#2B35C9", underline: true },
+  { bg: "#A9A0F5", fg: "#E8722F" },
+  { bg: "#6EE87A", fg: "#7A1F14", underline: true },
+  { bg: "#4BA3F0", fg: "#BFE6FF" },
+  { bg: "#2B35C9", fg: "#E8C93A" },
+  { bg: "#1E4620", fg: "#7DE88A" },
+  { bg: "#F07838", fg: "#A9A0F5" },
+  { bg: "#8FD8FF", fg: "#3A6FE0" },
+
+  { bg: "#F5D93A", fg: "#C2381F", underline: true },
+  { bg: "#C94FA8", fg: "#F5E86E" },
+  { bg: "#2FA88A", fg: "#F2B5D4" },
+  { bg: "#5B45D9", fg: "#79E8C4" },
+];
+
+export const UNDERLINE_EVERY = 7;
+
+export function makeStepper(len: number, stride = 5) {
+  let i = Math.floor(Math.random() * len);
+  return () => {
+    i = (i + stride) % len;
+    return i;
+  };
+}
+
+```
+
+### code-trail/engine.ts
+```ts
+import { FRAGMENTS, drawMatching, makeBag, type Fragment } from "./fragments";
+import { PAIRS, UNDERLINE_EVERY, makeStepper } from "./palette";
+
+export interface Vec {
+  x: number;
+  y: number;
+}
+
+export interface Badge {
+  text: string;
+  bg: string;
+  fg: string;
+  underline: boolean;
+  comment: boolean;
+
+  hot: boolean;
+}
+
+export interface Row {
+  id: number;
+  badges: Badge[];
+
+  anchorIndex: number;
+
+  pos: Vec;
+
+  slot: number;
+}
+
+export const ROWS = 22;
+
+export const FONT_RATIO = 1 / 42;
+
+export const LINE_RATIO = 1.24;
+
+export const PAD_RATIO = 0.12;
+
+export const STEP_RATIO = 1.4;
+
+export const MAX_BADGES = 3;
+
+const CHASE = 0.24;
+
+export function chaseRate(): number {
+  return CHASE;
+}
+
+export function badgeCount(index: number, total: number): number {
+  void total;
+  if (index === 0) return 1;
+  if (index === 1) return 2;
+  return MAX_BADGES;
+}
+
+export function presence(index: number, total: number): number {
+  const t = total <= 1 ? 0 : index / (total - 1);
+
+  const START = 0.62;
+  const fade = 1 - Math.max(0, (t - START) / (1 - START)) ** 1.6;
+  return Math.max(0, Math.min(1, fade));
+}
+
+const HOT_EVERY = 19;
+const HOT_COLORS = [
+  { bg: "#0B0B0B", fg: "#F5F5F5" },
+  { bg: "#FFFFFF", fg: "#111111" },
+];
+
+export function makeRowFactory() {
+  const nextFragment = makeBag(FRAGMENTS);
+  const nextPair = makeStepper(PAIRS.length);
+  let id = 0;
+  let sinceUnderline = 0;
+  let sinceHot = 0;
+
+  const paint = (text: string, comment: boolean): Badge => {
+    const pair = PAIRS[nextPair()];
+    sinceUnderline++;
+    sinceHot++;
+    const underline =
+      pair.underline === true || sinceUnderline >= UNDERLINE_EVERY;
+    if (underline) sinceUnderline = 0;
+    const hot = sinceHot >= HOT_EVERY;
+    if (hot) sinceHot = 0;
+    const shock = HOT_COLORS[id % HOT_COLORS.length];
+    return {
+      text,
+      bg: hot ? shock.bg : pair.bg,
+      fg: hot ? shock.fg : pair.fg,
+      underline,
+      comment,
+      hot,
+    };
+  };
+
+  return function buildRow(): Row {
+    const badges: Badge[] = [];
+
+    let need: Fragment["in"] = "free";
+    for (let i = 0; i < MAX_BADGES; i++) {
+      const f: Fragment =
+        i === 0 ? nextFragment() : drawMatching(nextFragment, need);
+      badges.push(paint(f.text, f.comment === true));
+      need = f.out === "end" ? "free" : f.out;
+
+      if (f.comment) break;
+    }
+
+    return {
+      id: id++,
+      badges,
+
+      anchorIndex: badges.length,
+      pos: { x: 0, y: 0 },
+      slot: 0,
+    };
+  };
+}
+
+export class Drift {
+  private at: Vec = { x: 0, y: 0 };
+
+  private dir: Vec = { x: 1, y: 0 };
+  private target: Vec = { x: 0, y: 0 };
+  private started = false;
+
+  private speed = 0.34;
+
+  private turn = 0.0042;
+
+  constructor(
+    private w: number,
+    private h: number,
+  ) {}
+
+  resize(w: number, h: number) {
+    this.w = w;
+    this.h = h;
+  }
+
+  reseed(at: Vec) {
+    this.at = { ...at };
+    this.started = true;
+    this.retarget();
+  }
+
+  private retarget() {
+
+    const m = 0.2;
+    this.target = {
+      x: (m + Math.random() * (1 - m * 2)) * this.w,
+      y: (m + Math.random() * (1 - m * 2)) * this.h,
+    };
+  }
+
+  step(dt: number): Vec {
+    if (!this.started) {
+      this.at = { x: this.w * 0.5, y: this.h * 0.5 };
+      this.started = true;
+      this.retarget();
+    }
+
+    const bx = this.target.x - this.at.x;
+    const by = this.target.y - this.at.y;
+    const bl = Math.hypot(bx, by) || 1;
+    const k = Math.min(1, this.turn * dt);
+    this.dir.x += (bx / bl - this.dir.x) * k;
+    this.dir.y += (by / bl - this.dir.y) * k;
+    const dl = Math.hypot(this.dir.x, this.dir.y) || 1;
+    this.dir.x /= dl;
+    this.dir.y /= dl;
+
+    this.at.x += this.dir.x * this.speed * dt;
+    this.at.y += this.dir.y * this.speed * dt;
+
+    if (bl < Math.min(this.w, this.h) * 0.22) this.retarget();
+
+    const pad = 0.2;
+    const near =
+      this.at.x < this.w * pad ||
+      this.at.x > this.w * (1 - pad) ||
+      this.at.y < this.h * pad ||
+      this.at.y > this.h * (1 - pad);
+    if (near) this.target = { x: this.w * 0.5, y: this.h * 0.5 };
+
+    this.at.x = Math.max(0, Math.min(this.w, this.at.x));
+    this.at.y = Math.max(0, Math.min(this.h, this.at.y));
+
+    return { ...this.at };
+  }
+}
+
+```
+
+### code-trail/CodeTrailCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { onTransitionChange } from "../../lib/view-transition";
+import {
+  Drift,
+  FONT_RATIO,
+  LINE_RATIO,
+  PAD_RATIO,
+  ROWS,
+  STEP_RATIO,
+  badgeCount,
+  chaseRate,
+  makeRowFactory,
+  presence,
+  type Row,
+} from "./engine";
+
+const MIN_TRAVEL_RATIO = 0.055;
+
+export function CodeTrailCard({ bare = false }: { bare?: boolean } = {}) {
+  void bare;
+  const hostRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [rows, setRows] = useState<Row[]>([]);
+  const rowsRef = useRef<Row[]>([]);
+  const [metrics, setMetrics] = useState({ font: 14, line: 18, pad: 2 });
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let w = host.clientWidth;
+    let h = host.clientHeight;
+    let font = 14;
+    let line = 18;
+    let step = 26;
+
+    const buildRow = makeRowFactory();
+    const drift = new Drift(w, h);
+
+    const resize = () => {
+      w = host.clientWidth;
+      h = host.clientHeight;
+      font = Math.max(10, w * FONT_RATIO);
+      line = font * LINE_RATIO;
+      step = line * STEP_RATIO;
+      drift.resize(w, h);
+      setMetrics({ font, line, pad: font * PAD_RATIO });
+    };
+
+    resize();
+
+    const seed: Row[] = [];
+    for (let i = 0; i < ROWS; i++) {
+      const r = buildRow();
+      r.slot = i;
+      r.pos = reduced
+        ? { x: w * 0.72 - i * step, y: h * 0.16 + i * line }
+        : { x: w * 0.62 - i * step, y: h * 0.28 + i * line };
+      seed.push(r);
+    }
+    rowsRef.current = seed;
+    setRows(seed);
+
+    let headTarget = { x: w * 0.62, y: h * 0.28 };
+    let pointerInside = false;
+    let lastPush = { ...headTarget };
+
+    let raf = 0;
+    let last = 0;
+    let running = false;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const push = () => {
+      const born = buildRow();
+      born.pos = { ...headTarget };
+      born.slot = 0;
+      const next: Row[] = [born];
+      for (const r of rowsRef.current) {
+        if (r.slot + 1 >= ROWS) continue;
+        r.slot += 1;
+        next.push(r);
+      }
+      rowsRef.current = next;
+      setRows(next);
+    };
+
+    const frame = (now: number) => {
+      raf = 0;
+      const dt = last ? Math.min(64, now - last) : 16;
+      last = now;
+
+      if (!pointerInside) headTarget = drift.step(dt);
+
+      const list = rowsRef.current;
+
+      for (let i = 0; i < list.length; i++) {
+        const r = list[i];
+        if (i === 0) {
+          const k = chaseRate();
+          r.pos.x += (headTarget.x - r.pos.x) * k;
+          r.pos.y += (headTarget.y - r.pos.y) * k;
+          continue;
+        }
+        const p = list[i - 1];
+
+        const tx = p.pos.x - step;
+        const ty = p.pos.y + line;
+        const k = chaseRate();
+        r.pos.x += (tx - r.pos.x) * k;
+        r.pos.y += (ty - r.pos.y) * k;
+      }
+
+      for (const r of list) {
+        const el = rowRefs.current.get(r.id);
+        if (!el) continue;
+        el.style.transform = `translate3d(${r.pos.x.toFixed(2)}px, ${r.pos.y.toFixed(2)}px, 0)`;
+
+        const pr = presence(r.slot, ROWS);
+        el.style.opacity = pr.toFixed(3);
+        el.style.filter = `saturate(${(0.5 + pr * 0.5).toFixed(3)})`;
+        el.style.zIndex = String(ROWS - r.slot);
+      }
+
+      const travelled = Math.hypot(
+        headTarget.x - lastPush.x,
+        headTarget.y - lastPush.y,
+      );
+      if (travelled >= w * MIN_TRAVEL_RATIO) {
+        lastPush = { ...headTarget };
+        push();
+      }
+
+      if (running) raf = requestAnimationFrame(frame);
+    };
+
+    const sync = () => {
+      const should = onScreen && !hidden && !inTransition && !reduced;
+      if (should === running) return;
+      running = should;
+      if (should) {
+        last = 0;
+        raf = requestAnimationFrame(frame);
+      } else if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+
+    const onPointer = (e: PointerEvent) => {
+      if (reduced) return;
+      const rect = host.getBoundingClientRect();
+      pointerInside = true;
+      headTarget = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+    const onLeave = () => {
+      pointerInside = false;
+
+      drift.reseed(headTarget);
+    };
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es.some((e) => e.isIntersecting);
+        sync();
+      },
+      { rootMargin: "200px" },
+    );
+    io.observe(host);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((a) => {
+      inTransition = a;
+      sync();
+    });
+
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(host);
+
+    host.addEventListener("pointermove", onPointer);
+    host.addEventListener("pointerleave", onLeave);
+
+    return () => {
+      running = false;
+      if (raf) cancelAnimationFrame(raf);
+      io.disconnect();
+      ro.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      host.removeEventListener("pointermove", onPointer);
+      host.removeEventListener("pointerleave", onLeave);
+    };
+  }, []);
+
+  const badgeStyle = (
+    b: Row["badges"][number],
+    first: boolean,
+  ): React.CSSProperties => ({
+    background: b.bg,
+    color: b.fg,
+    height: metrics.line,
+    lineHeight: `${metrics.line}px`,
+    fontSize: metrics.font,
+    padding: `0 ${metrics.pad}px`,
+
+    opacity: b.comment ? 0.72 : 1,
+    fontStyle: b.comment ? "italic" : undefined,
+    textDecoration: b.underline ? "underline" : undefined,
+    textDecorationThickness: b.underline ? "2px" : undefined,
+    fontFamily: "var(--font-neue-mono), ui-monospace, monospace",
+    whiteSpace: "pre",
+    flex: "0 0 auto",
+
+    boxShadow: first ? "0 1px 2px rgba(16, 22, 40, 0.16)" : undefined,
+  });
+
+  return (
+    <div
+      ref={hostRef}
+      data-canvas-card
+      role="img"
+      aria-label="A trail of code fragments on brightly coloured bars, stacked into a staircase that follows the pointer across the card"
+      className="relative aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)] bg-[var(--bg-hover)]"
+    >
+      {rows.map((r) => {
+        const shown = badgeCount(r.slot, ROWS);
+        const visible = r.badges.slice(0, Math.max(1, shown));
+
+        const before = visible.slice(0, r.anchorIndex);
+        const after = visible.slice(r.anchorIndex);
+        return (
+          <div
+            key={r.id}
+            ref={(el) => {
+              if (el) rowRefs.current.set(r.id, el);
+              else rowRefs.current.delete(r.id);
+            }}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              display: "flex",
+              transform: `translate3d(${r.pos.x.toFixed(2)}px, ${r.pos.y.toFixed(2)}px, 0)`,
+              zIndex: ROWS - r.slot,
+              willChange: "transform, opacity",
+            }}
+          >
+            {}
+            <div
+              style={{
+                display: "flex",
+                position: "absolute",
+                right: 0,
+                top: 0,
+              }}
+            >
+              {before.map((b, j) => (
+                <span key={`b${j}`} style={badgeStyle(b, j === 0)}>
+                  {b.text}
+                </span>
+              ))}
+            </div>
+            {}
+            <div style={{ display: "flex" }}>
+              {after.map((b, j) => (
+                <span
+                  key={`a${j}`}
+                  style={badgeStyle(b, j === 0 && before.length === 0)}
+                >
+                  {b.text}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+```

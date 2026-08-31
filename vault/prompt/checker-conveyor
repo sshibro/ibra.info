@@ -1,0 +1,579 @@
+Build this: a checkerboard world where flat scenes replace each other by CONVEYOR, rebuilt from a 540x304, 346-frame, 30fps GIF that loops seamlessly in 11.53 seconds (final frame verified pixel-identical to the first). THE WHOLE PIECE IS ONE MECHANISM: each of the nine rows is a strip of checker cells, and three times per loop every row slides by exactly one full screen width; the strip during a pulse is simply [current scene row][next scene row] laid end to end, so the next scene rides in from the edge, seam and all. There is no fade, no masking, no recolour of anything already on screen — what reads as colour sweeping across the board is the seam between scenes passing at peak velocity. THREE SCENES, ONE LAYOUT: a 12x5 checkered rectangle spanning rows 2-6, inset two cells each side, on a checkered ground. Scene A is the ground alone; scene B keeps that ground and fills the rectangle; scene C swaps every colour at once. A to B to C and back. CHECKER CONTINUITY BREAKS AT THE SEAM — where two scenes meet, two lights or two darks can touch — that is in the source frames and is kept, because scenes are absolute patterns, not carried state. But WITHIN a scene the rectangle border must never repeat a colour: adjacent ground and rectangle cells always have OPPOSITE parity, so ground.even must differ from rect.odd and ground.odd from rect.even, or the two merge into blobs and the checker visibly breaks. Audit every palette for this — it is the single easiest thing to get wrong. SIX PALETTES, cycling every ~2.3s: the measured original (cyan/blue ground, red/pink rectangle, then a full orange/black/magenta/cream swap) plus five more — a two-ink risograph, a warm plaster set where the ground turns over on every pulse, a hueless monochrome value study, an acid chartreuse/violet, and a dark-first dusk. A palette is always exactly THREE scenes, because three is structural, not cosmetic: the timing tables carry three pulse durations and three rows of nine fitted row starts, so any other count desyncs the measurement. THE PALETTE CHANGE IS THE ONE TRUE RECOLOUR IN THE PIECE, and it is deliberately unlike the conveyor: every tile on the board crossfades from its old colour to its new one AT THE SAME MOMENT, over ~0.34s, sRGB-lerped and quantised to 1/24 so the blend strings cache instead of being rebuilt per tile per frame. It fires ONLY while the board is at rest — every row idle between pulses — and its duration must stay under the SHORTEST rest, or it bleeds into a pulse and recolours tiles that are mid-flight, which is exactly the artifact the conveyor exists to avoid. Per-row palette handoffs were tried (each row taking the new world as it starts moving) and abandoned: they repaint the outgoing half of a strip that is still on screen, which reads as a glitch. THE FLAG-WAVE LOOK IS ONLY THE CASCADE: horizontal grid lines never move; row r starts ~120ms after row r-1, and rows shearing against each other while mid-flight is the entire undulation. Get the stagger wrong and it reads as a wipe, not a wave. The stagger is NOT uniform — each row's start was least-squares fitted against its own seam trajectory and the source carries +-0.2-frame hand jitter around a ~3.6-frame cascade, so the fitted per-row start times ship verbatim as tables (a two-parameter fit of start AND duration per row was tried and scored WORSE across the loop — it buys accuracy on the heavily-sampled slow tails at the cost of the whip frames, where all the visible error lives). THE EASING IS A WHIP AND NO CLOSED FORM FIT IT: ~24 frames of windup to 23% of the distance, then HALF THE TRAVEL IN 2-4 FRAMES (peak measured ~134px/frame on a 540px image — four cells a frame), then ~24 frames of exponential settle. Expo.inOut is close but the measured curve is sharper in the middle with fatter tails, so the measurements themselves are shipped as a 26-point lookup table with MONOTONE (Fritsch-Carlson) cubic interpolation — plain Hermite tangents overshoot at the cliff between k=0.48 and k=0.52 where the table jumps 0.23 to 0.73 in one step, and an overshooting ease makes rows overrun their landing cell and snap back. DIRECTION IS PER-PALETTE: left, right, or SPLIT, where odd rows conveyor right while even rows go left so neighbouring rows tear against each other instead of merely lagging — the shear the cascade only implies becomes explicit. Some palettes also read the stagger table bottom-up so the wave rises instead of falling. Direction and cascade come from the palette the row is LEAVING, so a row never changes trajectory mid-flight. TIMING IS TIME-WARPED, NOT RETIMED: the measured loop is 34% dead air, which suits a GIF you stare at and drags in a scrolling list. A piecewise-linear map from clock time to measured time compresses ONLY the still stretches (to ~42%) and plays the pulses at a fixed multiple (~1.45x) — the whip curve, the per-row stagger and the three relative durations are untouched, so every row follows the same measured trajectory and lands one full screen width along, just sooner. Verify the map is monotone and that its endpoints land exactly on 0 and the period, or the loop will stutter at the seam. Dwells are still perfectly still and still load-bearing — the piece reads as posters punctuated by violence, not as continuous motion. THE EXIT PULSE IS MEASURABLY SNAPPIER than the other two, and flattening the three to one duration loses the loop's accelerating feel. HOW THE MEASUREMENT NEARLY WENT WRONG, KEPT AS A WARNING: per-row cross-correlation between consecutive frames reported each row travelling only 6-9 cells per pulse, a clean S-curve, entirely plausible — and completely wrong. A checkerboard is 2-cell periodic, so during the whip frames the correlator locked onto the nearest alias and silently under-reported by more than half. The colour timeline exposed it: a row mid-pulse read the OLD scene's right border followed by the NEW scene's left border, a conveyor seam, impossible under the 6-9 cell model. The fix was to track the seam itself, a unique feature that cannot alias, and the seam says every row travels exactly one screen width, always. Measure periodic patterns by their defects, not their bodies. ADAPTED FOR THE WIDE CARD, the one deviation: the GIF is 16:9, the card is 1344/620, so rows stay nine and set the cell size, the rectangle stays centred (on the FRACTIONAL visible width — rounding to the padded column count drifts it half a cell off-centre), the viewport just sees more ground columns, and travel is 'all visible columns' so the conveyor is width-independent. Cell edges are drawn crisp on device pixels with shared rounded boundaries (the GIF's soft 2-6px edges are downscale artifacts, not design). Framework-free Canvas 2D, ~200 fillRects a frame, no assets; DPR-capped at 2, pauses offscreen / tab-hidden / during route transitions, one static frame in a pinned palette under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### checker-conveyor/params.ts
+```ts
+export const ROWS = 9;
+
+export const REF_COLS = 16;
+
+export const RECT_ROW_START = 2;
+export const RECT_ROW_END = 6;
+export const RECT_COLS = 12;
+
+export interface Scene {
+
+  ground: readonly [string, string];
+
+  rect: readonly [string, string];
+}
+
+export type Direction = "left" | "right" | "split";
+
+export interface Palette {
+  id: string;
+  name: string;
+  scenes: readonly [Scene, Scene, Scene];
+  direction: Direction;
+
+  reverseCascade?: boolean;
+}
+
+export const PALETTES: readonly Palette[] = [
+  {
+
+    id: "arcade",
+    name: "Arcade",
+    direction: "left",
+    scenes: [
+      { ground: ["#0066fd", "#63ecff"], rect: ["#0066fd", "#63ecff"] },
+      { ground: ["#0066fd", "#63ecff"], rect: ["#ffbaf1", "#ff0100"] },
+      { ground: ["#ffb800", "#000000"], rect: ["#ff57bb", "#f2edd9"] },
+    ],
+  },
+  {
+
+    id: "risograph",
+    name: "Risograph",
+    direction: "left",
+    scenes: [
+      { ground: ["#f4f1e8", "#ff48b0"], rect: ["#f4f1e8", "#ff48b0"] },
+      { ground: ["#f4f1e8", "#ff48b0"], rect: ["#1a3fd4", "#0a1f7a"] },
+      { ground: ["#1a3fd4", "#f4f1e8"], rect: ["#ff48b0", "#1a1a1a"] },
+    ],
+  },
+  {
+
+    id: "plaster",
+    name: "Plaster",
+    direction: "right",
+    scenes: [
+      { ground: ["#e5dcc8", "#c96a4b"], rect: ["#e5dcc8", "#c96a4b"] },
+      { ground: ["#9aa87c", "#e5dcc8"], rect: ["#3d4a2f", "#e5dcc8"] },
+      { ground: ["#2b2a26", "#d8c9a8"], rect: ["#c96a4b", "#f0e9d8"] },
+    ],
+  },
+  {
+
+    id: "monochrome",
+    name: "Monochrome",
+    direction: "split",
+    scenes: [
+      { ground: ["#111111", "#e8e8e8"], rect: ["#111111", "#e8e8e8"] },
+      { ground: ["#111111", "#e8e8e8"], rect: ["#7a7a7a", "#e8e8e8"] },
+      { ground: ["#e8e8e8", "#111111"], rect: ["#5a5a5a", "#c8c8c8"] },
+    ],
+  },
+  {
+
+    id: "acid",
+    name: "Acid",
+    direction: "left",
+    reverseCascade: true,
+    scenes: [
+      { ground: ["#2d1b4e", "#c6f24e"], rect: ["#2d1b4e", "#c6f24e"] },
+      { ground: ["#2d1b4e", "#c6f24e"], rect: ["#7b2ff7", "#e9ff70"] },
+      { ground: ["#0d1b3d", "#3ddbff"], rect: ["#c6f24e", "#7b2ff7"] },
+    ],
+  },
+  {
+
+    id: "dusk",
+    name: "Dusk",
+    direction: "split",
+    reverseCascade: true,
+    scenes: [
+      { ground: ["#131a42", "#5f74c9"], rect: ["#131a42", "#5f74c9"] },
+      { ground: ["#131a42", "#5f74c9"], rect: ["#8e2f6d", "#ff85a8"] },
+      { ground: ["#3a1f2e", "#ffab4a"], rect: ["#ffd98a", "#8c3a2f"] },
+    ],
+  },
+] as const;
+
+export const PALETTE_SECONDS = 2.2;
+
+export const DWELL_SCALE = 0.42;
+
+export const PULSE_RATE = 1.45;
+
+export const FADE_SECONDS = 0.34;
+
+export const PULSE_WINDOWS = [
+  [(36.7 - 1) / 30, (65.6 - 1) / 30 + 51 / 30],
+  [(158.28 - 1) / 30, (187.26 - 1) / 30 + 50 / 30],
+  [(266.4 - 1) / 30, (294.96 - 1) / 30 + 42 / 30],
+] as const;
+
+export const PERIOD = 346 / 30;
+
+export const PULSE_DUR = [51 / 30, 50 / 30, 42 / 30] as const;
+export const ROW_START_FRAME = [
+  [36.7, 40.3, 43.92, 47.46, 51.32, 54.9, 58.38, 62.0, 65.6],
+  [158.28, 161.54, 165.4, 169.26, 172.52, 176.3, 179.54, 183.4, 187.26],
+  [266.4, 269.92, 273.42, 276.96, 280.88, 284.42, 287.92, 291.42, 294.96],
+] as const;
+
+export const EASE_LUT = [
+  0, 0.0024, 0.0056, 0.0098, 0.0153, 0.0226, 0.0322, 0.0448, 0.0667, 0.087,
+  0.124, 0.165, 0.233, 0.73, 0.819, 0.867, 0.907, 0.93, 0.946, 0.963, 0.974,
+  0.981, 0.989, 0.994, 0.998, 1,
+] as const;
+
+```
+
+### checker-conveyor/engine.ts
+```ts
+import {
+  ROWS,
+  REF_COLS,
+  RECT_ROW_START,
+  RECT_ROW_END,
+  RECT_COLS,
+  PERIOD,
+  PULSE_DUR,
+  ROW_START_FRAME,
+  EASE_LUT,
+  PALETTES,
+  PALETTE_SECONDS,
+  DWELL_SCALE,
+  PULSE_RATE,
+  FADE_SECONDS,
+  PULSE_WINDOWS,
+  type Palette,
+} from "./params";
+
+const LUT_N = EASE_LUT.length;
+const TANGENTS: number[] = (() => {
+  const h = 1 / (LUT_N - 1);
+  const d: number[] = [];
+  for (let i = 0; i < LUT_N - 1; i++) d.push((EASE_LUT[i + 1] - EASE_LUT[i]) / h);
+  const m: number[] = [d[0]];
+  for (let i = 1; i < LUT_N - 1; i++) m.push((d[i - 1] + d[i]) / 2);
+  m.push(d[LUT_N - 2]);
+  for (let i = 0; i < LUT_N - 1; i++) {
+    if (d[i] === 0) {
+      m[i] = 0;
+      m[i + 1] = 0;
+    } else {
+      const a = m[i] / d[i];
+      const b = m[i + 1] / d[i];
+      const s = a * a + b * b;
+      if (s > 9) {
+        const t = 3 / Math.sqrt(s);
+        m[i] = t * a * d[i];
+        m[i + 1] = t * b * d[i];
+      }
+    }
+  }
+  return m;
+})();
+
+function ease(k: number): number {
+  if (k <= 0) return 0;
+  if (k >= 1) return 1;
+  const x = k * (LUT_N - 1);
+  const i = Math.min(LUT_N - 2, Math.floor(x));
+  const t = x - i;
+  const h = 1 / (LUT_N - 1);
+  const y0 = EASE_LUT[i];
+  const y1 = EASE_LUT[i + 1];
+  const m0 = TANGENTS[i] * h;
+  const m1 = TANGENTS[i + 1] * h;
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (
+    (2 * t3 - 3 * t2 + 1) * y0 +
+    (t3 - 2 * t2 + t) * m0 +
+    (-2 * t3 + 3 * t2) * y1 +
+    (t3 - t2) * m1
+  );
+}
+
+interface Seg {
+  c0: number;
+  c1: number;
+  m0: number;
+  rate: number;
+}
+
+const { SEGMENTS, WARPED_PERIOD } = (() => {
+  const segs: Seg[] = [];
+  let c = 0;
+  let m = 0;
+  const push = (mEnd: number, rate: number) => {
+    const span = (mEnd - m) / rate;
+    segs.push({ c0: c, c1: c + span, m0: m, rate });
+    c += span;
+    m = mEnd;
+  };
+  for (const [p0, p1] of PULSE_WINDOWS) {
+    push(p0, 1 / DWELL_SCALE);
+    push(p1, PULSE_RATE);
+  }
+  push(PERIOD, 1 / DWELL_SCALE);
+  return { SEGMENTS: segs, WARPED_PERIOD: c };
+})();
+
+function toMeasured(ct: number): number {
+  for (let i = 0; i < SEGMENTS.length; i++) {
+    const s = SEGMENTS[i];
+    if (ct < s.c1 || i === SEGMENTS.length - 1) return s.m0 + (ct - s.c0) * s.rate;
+  }
+  return ct;
+}
+
+const RGB_CACHE = new Map<string, [number, number, number]>();
+function rgb(hex: string): [number, number, number] {
+  let v = RGB_CACHE.get(hex);
+  if (!v) {
+    const n = parseInt(hex.slice(1), 16);
+    v = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    RGB_CACHE.set(hex, v);
+  }
+  return v;
+}
+
+const MIX_CACHE = new Map<string, string>();
+
+function mix(a: string, b: string, q: number): string {
+  if (q <= 0) return a;
+  if (q >= 1) return b;
+  const key = a + b + q;
+  let out = MIX_CACHE.get(key);
+  if (!out) {
+    const [r1, g1, b1] = rgb(a);
+    const [r2, g2, b2] = rgb(b);
+
+    const r = Math.round(r1 + (r2 - r1) * q);
+    const g = Math.round(g1 + (g2 - g1) * q);
+    const bl = Math.round(b1 + (b2 - b1) * q);
+    out = `rgb(${r},${g},${bl})`;
+    MIX_CACHE.set(key, out);
+  }
+  return out;
+}
+
+export class CheckerConveyor {
+  ok = false;
+
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D | null;
+  private raf = 0;
+  private running = false;
+
+  private elapsed = 0;
+  private base = 0;
+
+  private W = 0;
+  private H = 0;
+  private cell = 1;
+  private cols = 1;
+  private rectStart = 0;
+
+  private paletteIdx = 0;
+  private palette: Palette = PALETTES[0];
+  private fadeFrom: Palette | null = null;
+  private fadeQ = 1;
+  private heldFor = 0;
+  private lastT = 0;
+  private lastWall = 0;
+  private cycle = true;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    if (!this.ctx) return;
+    this.ok = true;
+    this.measure();
+    this.drawAt(0);
+  }
+
+  private measure() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
+    this.canvas.width = w;
+    this.canvas.height = h;
+    this.W = w;
+    this.H = h;
+    this.cell = h / ROWS;
+    this.cols = Math.max(REF_COLS, Math.ceil(w / this.cell));
+
+    this.rectStart = Math.round((w / this.cell - RECT_COLS) / 2);
+  }
+
+  resize() {
+    if (!this.ok) return;
+    this.measure();
+    this.drawAt(toMeasured(this.now()));
+  }
+
+  private colorAt(pal: Palette, scene: number, r: number, c: number): string {
+    const even = (r + c) % 2 === 0;
+    const inRect =
+      r >= RECT_ROW_START &&
+      r <= RECT_ROW_END &&
+      c >= this.rectStart &&
+      c < this.rectStart + RECT_COLS;
+    const sc = pal.scenes[scene];
+    const pair = inRect ? sc.rect : sc.ground;
+    const to = even ? pair[0] : pair[1];
+    if (!this.fadeFrom) return to;
+
+    const fsc = this.fadeFrom.scenes[scene];
+    const fpair = inRect ? fsc.rect : fsc.ground;
+    return mix(even ? fpair[0] : fpair[1], to, this.fadeQ);
+  }
+
+  private rowState(r: number, t: number, pal: Palette): { scene: number; k: number } {
+
+    const row = pal.reverseCascade ? ROWS - 1 - r : r;
+    let scene = 0;
+    for (let p = 0; p < PULSE_DUR.length; p++) {
+      const t0 = (ROW_START_FRAME[p][row] - 1) / 30;
+      if (t >= t0 + PULSE_DUR[p]) {
+        scene = p + 1;
+      } else if (t >= t0) {
+        return { scene: p, k: (t - t0) / PULSE_DUR[p] };
+      }
+    }
+    return { scene: scene % 3, k: 0 };
+  }
+
+  private drawAt(t: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const { cell, cols, W, H } = this;
+    const out = this.palette;
+    for (let r = 0; r < ROWS; r++) {
+      const y0 = Math.round(r * cell);
+      const y1 = r === ROWS - 1 ? H : Math.round((r + 1) * cell);
+
+      const { scene, k } = this.rowState(r, t, out);
+      const next = (scene + 1) % 3;
+
+      const rightward =
+        out.direction === "right" || (out.direction === "split" && r % 2 === 1);
+
+      const off = ease(k) * cols * cell;
+      const shift = rightward ? -off : off;
+      let j = Math.floor(shift / cell);
+      for (; j * cell - shift < W; j++) {
+        const x0 = Math.max(0, Math.round(j * cell - shift));
+        const x1 = Math.min(W, Math.round((j + 1) * cell - shift));
+        if (x1 <= x0) continue;
+        const inFirst = rightward ? j >= 0 : j < cols;
+        const col = ((j % cols) + cols) % cols;
+        ctx.fillStyle = inFirst
+          ? this.colorAt(out, scene, r, col)
+          : this.colorAt(out, next, r, col);
+        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      }
+    }
+  }
+
+  private now(): number {
+    return this.running
+      ? (((performance.now() / 1000 - this.base) % WARPED_PERIOD) + WARPED_PERIOD) %
+          WARPED_PERIOD
+      : this.elapsed;
+  }
+
+  private advancePalette(ct: number, t: number) {
+    if (!this.cycle || PALETTES.length < 2) return;
+    let dt = ct - this.lastT;
+    if (dt < 0) dt += WARPED_PERIOD;
+    if (dt > 0.25) dt = 0;
+    this.lastT = ct;
+
+    this.heldFor += dt;
+    if (this.heldFor < PALETTE_SECONDS) return;
+    for (let r = 0; r < ROWS; r++) {
+      if (this.rowState(r, t, this.palette).k > 0) return;
+    }
+    this.fadeFrom = this.palette;
+    this.fadeQ = 0;
+    this.paletteIdx = (this.paletteIdx + 1) % PALETTES.length;
+    this.palette = PALETTES[this.paletteIdx];
+    this.heldFor = 0;
+  }
+
+  private advanceFade(dt: number) {
+    if (!this.fadeFrom) return;
+    const step = dt / FADE_SECONDS;
+    const raw = Math.min(1, this.fadeQ + step);
+    this.fadeQ = Math.round(raw * 24) / 24;
+    if (raw >= 1) {
+      this.fadeFrom = null;
+      this.fadeQ = 1;
+    }
+  }
+
+  private tick = () => {
+    if (!this.running) return;
+
+    const wall = performance.now() / 1000;
+    const dt = this.lastWall ? Math.min(0.1, wall - this.lastWall) : 0;
+    this.lastWall = wall;
+
+    const ct = this.now();
+    const t = toMeasured(ct);
+    this.advancePalette(ct, t);
+    this.advanceFade(dt);
+    this.drawAt(t);
+    this.raf = requestAnimationFrame(this.tick);
+  };
+
+  start() {
+    if (!this.ok || this.running) return;
+    this.running = true;
+    this.base = performance.now() / 1000 - this.elapsed;
+    this.lastT = this.now();
+    this.lastWall = 0;
+    this.raf = requestAnimationFrame(this.tick);
+  }
+
+  stop() {
+    if (!this.running) return;
+    this.elapsed = this.now();
+    this.running = false;
+    cancelAnimationFrame(this.raf);
+  }
+
+  renderStill(paletteId?: string) {
+    if (!this.ok) return;
+    this.cycle = false;
+    if (paletteId) this.setPalette(paletteId);
+    this.elapsed = (ROW_START_FRAME[1][0] - 1) / 30 - 0.5;
+    this.drawAt(this.elapsed);
+  }
+
+  setPalette(id: string) {
+    const i = PALETTES.findIndex((p) => p.id === id);
+    if (i < 0) return;
+    this.paletteIdx = i;
+    this.palette = PALETTES[i];
+    this.fadeFrom = null;
+    this.fadeQ = 1;
+    this.heldFor = 0;
+    if (!this.running) this.drawAt(toMeasured(this.elapsed));
+  }
+
+  setCycling(on: boolean) {
+    this.cycle = on;
+    this.heldFor = 0;
+  }
+
+  destroy() {
+    this.stop();
+    this.ctx = null;
+    this.ok = false;
+  }
+}
+
+```
+
+### checker-conveyor/CheckerConveyorCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { CheckerConveyor } from "./engine";
+import { onTransitionChange } from "../../lib/view-transition";
+
+export function CheckerConveyorCard({
+  bare = false,
+  viewTransitionName,
+}: {
+  bare?: boolean;
+  viewTransitionName?: string;
+} = {}) {
+  void bare;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let engine: CheckerConveyor | null = null;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const sync = () => {
+      if (!engine || reduced) return;
+      if (onScreen && !hidden && !inTransition) engine.start();
+      else engine.stop();
+    };
+
+    const raf = requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
+      engine = new CheckerConveyor(canvas);
+      if (!engine.ok) return;
+      if (reduced) engine.renderStill("arcade");
+      else sync();
+    });
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es[0]?.isIntersecting ?? false;
+        sync();
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(canvas);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    let rt = 0;
+    const onResize = () => {
+      window.clearTimeout(rt);
+      rt = window.setTimeout(() => engine?.resize(), 120);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(rt);
+      engine?.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      data-canvas-card
+      role="img"
+      aria-label="A checkerboard of nine rows. Row by row the whole board whips sideways and a new checkered scene slides in from the edge, seam and all: the ground and the rectangle at its centre change colour together. Every few seconds the palette changes to a different colour world, and some of them tear odd rows against even ones."
+      style={viewTransitionName ? { viewTransitionName } : undefined}
+      className="relative mx-auto aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)] bg-[#63ecff]"
+    >
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
+  );
+}
+
+```

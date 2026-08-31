@@ -1,0 +1,1004 @@
+Build this: a seamless two-color loop where a pen writes a thick cursive scribble, the scribble floods the frame, and its ink becomes the background the next scribble is written on. Built as a SCENE ENGINE: the renderer holds no numbers, and every look — the measured rebuild of a reference clip, three authored palettes, a procedurally generated scribble — is one Scene object fed to the same code path. THE STROKE IS THE PEN'S TRAIL, NOT A REVEALED PATH. The dot is a round brush whose radius breathes as it writes, fat in the valley bottoms and thin over the crests, and the ink is simply every dab it has laid. Get this wrong (uniform width, then a mask wipe) and the scribble loses the hand. The default scene proves it rather than asserting it: stamping discs along the dot's tracked per-frame centroid rebuilds the finished scribble at IoU 0.96 against a 540x540, 25fps, 144-frame reference GIF, once two corrections are read off the data — the true centerline sits 6px BELOW the visible dot (it rides slightly high on its own stroke), and the resting stroke bulges fatter than the pen in the valleys, so the spine carries the local half-width measured off the resting scribble's distance-transform ridge, not the tip radius. THE FLOOD IS TWO CURVES AT ONCE, and both single-mechanism readings fail against the masks: a pure zoom about center tops out at 82% coverage because the notches between humps survive any magnification (only width kills them), and pure width-swell misses every early frame. What fits is a zoom (1 to 3.94) with the stroke width MULTIPLYING on its own late curve (k = 1 for the first 60% of the flood, then climbing) — multiplying, not adding a constant, because the fat valleys visibly swell faster than the thin crests; the additive fit loses at every readable frame (IoU 0.93-1.00 from mid-flood on). THE SPARKS ARE THROWN OFF, NOT PAINTED ON: two dots pop into the scribble's middle notches, point-symmetric about center, and during the flood they fly outward on a THIRD, FASTER curve (divergence 1 to 6.12 while the ink zooms to 3.94) at constant radius — they do NOT scale with the scene, which is exactly why they read as sparks off the wave. Between keyframes a fast dot travels far enough that a plain circle strobes, so dots are drawn as a CAPSULE from where they just were to where they are, centered on the moment (half a frame each way) — the clip's own frame-blending, reproduced. A trailing smear would put the centroid behind the truth. THE WORD IS A HOLE IN THE INK, NOT A CAPTION. Text is knocked out with destination-out compositing on a separate ink layer, so letters show whatever field lies beneath and are REVEALED BY the flood rather than drawn over it — where the ink has not yet reached, the letters do not exist yet. It stretches on the flood's own clock (0.82 to 2.35 wide) while the vertical squashes slightly against it and tracking opens, so the word reads as dragged by the wave rather than zoomed. Two traps here, both silent: canvas ctx.font IGNORES CSS variables (the assignment fails and the context keeps 10px sans-serif, so the word renders as a speck and nothing reports an error), so var(--font-x) must be resolved through getComputedStyle first; and a size fitted before the webfont loads is wrong forever, so the fit cache is keyed on document.fonts.status. THE LOOP IS A COLOR SWAP, NOT A RESET: each half ends as a flat field of its ink color, which is precisely the background the mirrored second half draws on (verified: half two is half one flipped horizontally at IoU 0.978, palette swapped) — so the flood is never a transition between scenes, the drawing becomes the room the next drawing happens in. One scene definition, one flip transform, zero duplicated data. EASINGS ARE MONOTONIC BY RULE. Nothing overshoots and nothing bounces: ink spreading across a surface has no restoring force, so a spring reads as a mistake on sight. Character comes from ASYMMETRY instead — 'drift' is nearly flat for its first third then commits (ink creeping to the edge of a fibre before it wicks), 'surge' takes the frame immediately then eases over a long tail. Tables measured off a clip are read LINEARLY and the curve is named 'measured' rather than 'linear', because the name is what stops someone smoothing it into motion the reference never had. GENERATING A SCRIBBLE, when there is no footage to measure: a plain cosine is the trap — evenly spaced humps of equal height read as a 'W' or a graph, never as handwriting. Build humps one at a time, each with its own height (+/-40%) and its own share of the width, each with its peak skewed off-center so the up-stroke and down-stroke have different slopes. Then WIDTH FOLLOWS SPEED, INVERTED — a real pen lays more ink where the hand slows, and the valleys of a cursive stroke are both the slowest and the fattest point, so sampling at constant arc length and deriving radius from local speed is most of the hand in one rule. Distribute frames by eased cumulative arc length, not by index, because the pen accelerates out of valleys and coasts over crests. Match the reference's proportions (87% of the square wide, ~31 mean half-width) or the flood stalls mid-card at the same zoom. Seeded hash noise, never Math.random, so a scene renders identically everywhere. Palettes are three flat fills and the two fields must be legible AGAINST EACH OTHER, since each becomes the other's background half a cycle later — two mid-tone colors of similar luminance turn to mud on the swap. The reference square maps onto the wide card's height, centered, uniform scale — DO NOT stretch the path to the card, this is handwriting and stretching mangles it; the flat background plus the flood own the extra width, and the ONE invented number in the piece pushes the final swell past the measured value so the boundary's last sweep reaches the wide card's corners instead of leaving slivers for the flat fill to snap over. Dab spacing is tied to the local radius (0.4r keeps boundary ripple under 2% of r), so the flood never multiplies the dab count as it scales. Framework-free Canvas 2D, no assets; DPR-capped at 2, time-based, pauses offscreen / when hidden / during route transitions, one static frame (the resting scribble) under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### ink-flood/scene.ts
+```ts
+export type SpineSample = readonly [x: number, y: number, r: number, frame: number];
+
+export type TipSample = readonly [x: number, y: number, r: number];
+
+export type EaseName =
+  | "linear"
+  | "measured"
+  | "expoOut"
+  | "expoIn"
+  | "quintInOut"
+  | "sineInOut"
+  | "drift"
+  | "surge";
+
+export interface Palette {
+
+  fields: readonly [string, string];
+
+  dot: string;
+
+  accent?: string;
+}
+
+export interface FloodSpec {
+
+  at: number;
+
+  end: number;
+
+  scale: readonly number[];
+
+  swell: readonly number[];
+
+  ease: EaseName;
+}
+
+export interface SparkSpec {
+
+  offset: readonly [number, number];
+
+  popAt: number;
+
+  pop: readonly number[];
+
+  radius: number;
+
+  diverge: readonly number[];
+
+  shrinkAt: number;
+  shrink: readonly number[];
+  ease: EaseName;
+}
+
+export interface Scene {
+  id: string;
+  name: string;
+
+  ref: number;
+  fps: number;
+
+  half: number;
+  palette: Palette;
+
+  spine: readonly SpineSample[];
+
+  tip?: readonly TipSample[];
+  tipAt: number;
+  flood: FloodSpec;
+  sparks?: SparkSpec;
+
+  restAt: number;
+}
+
+```
+
+### ink-flood/ease.ts
+```ts
+import type { EaseName } from "./scene";
+
+export type EaseFn = (t: number) => number;
+
+const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t);
+
+export const EASINGS: Record<EaseName, EaseFn> = {
+  linear: clamp01,
+
+  measured: clamp01,
+
+  expoOut: (t) => {
+    const x = clamp01(t);
+    return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+  },
+
+  expoIn: (t) => {
+    const x = clamp01(t);
+    return x <= 0 ? 0 : Math.pow(2, 10 * (x - 1));
+  },
+
+  quintInOut: (t) => {
+    const x = clamp01(t);
+    return x < 0.5 ? 16 * x * x * x * x * x : 1 - Math.pow(-2 * x + 2, 5) / 2;
+  },
+
+  sineInOut: (t) => -(Math.cos(Math.PI * clamp01(t)) - 1) / 2,
+
+  drift: (t) => {
+    const x = clamp01(t);
+    const head = Math.pow(x, 2.6);
+    const tail = 1 - Math.pow(1 - x, 2.2);
+    return head * (1 - x) + tail * x;
+  },
+
+  surge: (t) => {
+    const x = clamp01(t);
+    return 1 - Math.pow(1 - x, 3.4);
+  },
+};
+
+export function easeFn(name: EaseName | undefined): EaseFn {
+  return EASINGS[name ?? "measured"] ?? EASINGS.measured;
+}
+
+export function sampleTable(
+  table: readonly number[],
+  base: number,
+  u: number,
+  ease: EaseFn = EASINGS.measured,
+): number {
+  if (table.length === 0) return 0;
+  const k = u - base;
+  if (k <= 0) return table[0];
+  if (k >= table.length - 1) return table[table.length - 1];
+  const i = Math.floor(k);
+  return table[i] + (table[i + 1] - table[i]) * ease(k - i);
+}
+
+export function mix(a: number, b: number, t: number, ease: EaseFn = EASINGS.measured): number {
+  return a + (b - a) * ease(t);
+}
+
+```
+
+### ink-flood/generate.ts
+```ts
+import type { SpineSample, TipSample } from "./scene";
+
+export interface ScribbleSpec {
+
+  ref: number;
+
+  humps: number;
+
+  amplitude: number;
+
+  span: number;
+
+  crestR: number;
+  valleyR: number;
+
+  drift: number;
+
+  jitter: number;
+
+  from: number;
+  to: number;
+
+  samples: number;
+  seed: number;
+}
+
+export const SCRIBBLE_DEFAULTS: ScribbleSpec = {
+  ref: 540,
+  humps: 3,
+  amplitude: 0.19,
+  span: 0.87,
+  crestR: 26,
+  valleyR: 45,
+  drift: 0.35,
+  jitter: 0.06,
+  from: 3,
+  to: 32,
+  samples: 84,
+  seed: 1,
+};
+
+function rnd(seed: number, i: number): number {
+  const x = Math.sin(seed * 127.1 + i * 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function wander(seed: number, t: number, octaves = 2): number {
+  let v = 0;
+  let amp = 1;
+  let freq = 1;
+  let norm = 0;
+  for (let o = 0; o < octaves; o++) {
+    const x = t * freq;
+    const i = Math.floor(x);
+    const f = x - i;
+    const s = f * f * (3 - 2 * f);
+    const a = rnd(seed + o * 17, i) * 2 - 1;
+    const b = rnd(seed + o * 17, i + 1) * 2 - 1;
+    v += (a + (b - a) * s) * amp;
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2.1;
+  }
+  return v / (norm || 1);
+}
+
+function pointAt(spec: ScribbleSpec, t: number): [number, number] {
+  const { ref, humps, amplitude, span, drift, seed } = spec;
+  const x0 = (ref - ref * span) / 2;
+  const x = x0 + ref * span * t;
+
+  const shares: number[] = [];
+  let sum = 0;
+  for (let i = 0; i < humps; i++) {
+    const s = 0.72 + rnd(seed + 41, i) * 0.62;
+    shares.push(s);
+    sum += s;
+  }
+
+  let acc = 0;
+  let idx = humps - 1;
+  let local = 1;
+  for (let i = 0; i < humps; i++) {
+    const w0 = shares[i] / sum;
+    if (t <= acc + w0 || i === humps - 1) {
+      idx = i;
+      local = w0 > 0 ? Math.min(1, Math.max(0, (t - acc) / w0)) : 0;
+      break;
+    }
+    acc += w0;
+  }
+
+  const height = ref * amplitude * (0.6 + rnd(seed + 7, idx) * 0.8);
+  const skew = 0.32 + rnd(seed + 19, idx) * 0.36;
+
+  const ss = (v: number) => v * v * (3 - 2 * v);
+  const y =
+    local < skew
+      ? -height * ss(local / Math.max(1e-4, skew))
+      : -height * (1 - ss((local - skew) / Math.max(1e-4, 1 - skew)));
+
+  const w = wander(seed, t * 2.3) * ref * amplitude * drift;
+  const tilt = (t - 0.5) * ref * amplitude * 0.22;
+
+  return [x, ref / 2 + y + height * 0.5 + w + tilt];
+}
+
+export function generateSpine(input: Partial<ScribbleSpec> = {}): SpineSample[] {
+  const spec = { ...SCRIBBLE_DEFAULTS, ...input };
+  const n = Math.max(8, Math.round(spec.samples));
+
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= n; i++) pts.push(pointAt(spec, i / n));
+
+  const seg: number[] = [0];
+  for (let i = 1; i <= n; i++) {
+    seg.push(Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  }
+  const cum: number[] = [0];
+  for (let i = 1; i <= n; i++) cum.push(cum[i - 1] + seg[i]);
+  const total = cum[n] || 1;
+
+  const speeds = seg.map((s) => s);
+  const maxS = Math.max(...speeds.slice(1)) || 1;
+  const minS = Math.min(...speeds.slice(1)) || 0;
+  const range = maxS - minS || 1;
+
+  const out: SpineSample[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const [x, y] = pts[i];
+
+    const s0 = speeds[Math.max(1, i)];
+    const s1 = speeds[Math.min(n, Math.max(1, i + 1))];
+    const sp = ((s0 + s1) / 2 - minS) / range;
+    const r = spec.valleyR + (spec.crestR - spec.valleyR) * sp;
+
+    const dx = pts[Math.min(n, i + 1)][0] - pts[Math.max(0, i - 1)][0];
+    const dy = pts[Math.min(n, i + 1)][1] - pts[Math.max(0, i - 1)][1];
+    const len = Math.hypot(dx, dy) || 1;
+    const j = (rnd(spec.seed, i) * 2 - 1) * r * spec.jitter;
+    const jx = (-dy / len) * j;
+    const jy = (dx / len) * j;
+
+    const u = cum[i] / total;
+    const eased = u * 0.82 + (u * u * (3 - 2 * u)) * 0.18;
+    const frame = spec.from + (spec.to - spec.from) * eased;
+
+    const endTaper = Math.min(1, Math.min(t, 1 - t) / 0.06);
+    const rr = Math.max(2, r * (0.35 + 0.65 * endTaper));
+
+    out.push([
+      Math.round((x + jx) * 10) / 10,
+      Math.round((y + jy) * 10) / 10,
+      Math.round(rr * 10) / 10,
+      Math.round(frame * 100) / 100,
+    ]);
+  }
+  return out;
+}
+
+export function generateTip(
+  spine: readonly SpineSample[],
+  opts: { rise?: number; radiusScale?: number; fps?: number } = {},
+): { tip: TipSample[]; tipAt: number } {
+  const rise = opts.rise ?? 6;
+  const rs = opts.radiusScale ?? 0.92;
+  if (spine.length === 0) return { tip: [], tipAt: 0 };
+
+  const first = Math.floor(spine[0][3]);
+  const last = Math.ceil(spine[spine.length - 1][3]);
+  const tip: TipSample[] = [];
+
+  for (let f = first; f <= last; f++) {
+
+    let i = 0;
+    while (i < spine.length - 1 && spine[i + 1][3] < f) i++;
+    const a = spine[i];
+    const b = spine[Math.min(spine.length - 1, i + 1)];
+    const span = b[3] - a[3];
+    const t = span > 0 ? Math.min(1, Math.max(0, (f - a[3]) / span)) : 0;
+    const x = a[0] + (b[0] - a[0]) * t;
+    const y = a[1] + (b[1] - a[1]) * t;
+    const r = (a[2] + (b[2] - a[2]) * t) * rs;
+    tip.push([Math.round(x * 10) / 10, Math.round((y - rise) * 10) / 10, Math.round(r * 10) / 10]);
+  }
+
+  const head: TipSample[] = [];
+  const p0 = tip[0];
+  for (let i = 0; i < 3; i++) head.push([p0[0], p0[1], +(p0[2] * ((i + 1) / 4)).toFixed(1)]);
+  const tail: TipSample[] = [];
+  const pn = tip[tip.length - 1];
+  for (let i = 0; i < 4; i++) tail.push([pn[0], pn[1], +(pn[2] * (1 - (i + 1) / 4)).toFixed(1)]);
+
+  return { tip: [...head, ...tip, ...tail], tipAt: Math.max(0, first - 3) };
+}
+
+export function generateFlood(
+  frames: number,
+  opts: { scale?: number; swell?: number; holdFrac?: number } = {},
+): { scale: number[]; swell: number[] } {
+  const n = Math.max(2, Math.round(frames));
+  const maxS = opts.scale ?? 3.94;
+  const maxK = opts.swell ?? 2.4;
+  const hold = opts.holdFrac ?? 0.6;
+
+  const scale: number[] = [];
+  const swell: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+
+    const z = Math.pow(t, 2.6) * (1 - t) + (1 - Math.pow(1 - t, 2.2)) * t;
+    scale.push(+(1 + (maxS - 1) * z).toFixed(3));
+
+    const kt = t <= hold ? 0 : (t - hold) / (1 - hold);
+    swell.push(+(1 + (maxK - 1) * Math.pow(kt, 1.7)).toFixed(3));
+  }
+  return { scale, swell };
+}
+
+```
+
+### ink-flood/halftone.ts
+```ts
+export function makeHalftoneTile(
+  pitch: number,
+  radius: number,
+  dpr: number,
+): HTMLCanvasElement {
+
+  const side = Math.max(2, Math.round(pitch * Math.SQRT2 * dpr));
+
+  const c = document.createElement("canvas");
+  c.width = side;
+  c.height = side;
+  const g = c.getContext("2d")!;
+
+  g.fillStyle = "#808080";
+  g.fillRect(0, 0, side, side);
+  g.fillStyle = "#4a4a4a";
+
+  const r = radius * dpr;
+  const pts: [number, number][] = [
+    [0, 0],
+    [side, 0],
+    [0, side],
+    [side, side],
+    [side / 2, side / 2],
+  ];
+  for (const [x, y] of pts) {
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+  }
+  return c;
+}
+
+export interface HalftoneOptions {
+
+  pitch: number;
+
+  radius: number;
+
+  alpha: number;
+}
+
+export const HALFTONE_DEFAULTS: HalftoneOptions = {
+  pitch: 5,
+  radius: 1.6,
+  alpha: 0.12,
+};
+
+export function drawHalftone(
+  ctx: CanvasRenderingContext2D,
+  tile: HTMLCanvasElement,
+  W: number,
+  H: number,
+  dpr: number,
+  alpha: number,
+) {
+  const pattern = ctx.createPattern(tile, "repeat");
+  if (!pattern) return;
+
+  ctx.save();
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = "overlay";
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = pattern;
+  ctx.fillRect(0, 0, W * dpr, H * dpr);
+  ctx.restore();
+}
+
+```
+
+### ink-flood/presets/measured.ts
+```ts
+import type { Scene } from "../scene";
+
+export const MEASURED: Scene = {
+  id: "measured",
+  name: "Reference",
+  ref: 540,
+  fps: 25,
+  half: 72,
+  restAt: 40,
+
+  palette: {
+    fields: ["#5d47e2", "#373500"],
+    dot: "#89f8fe",
+  },
+
+  tipAt: 1,
+  tip: [
+  [100, 182, 1.4], [100, 182, 7.2], [100, 182, 11.1], [96, 186, 14.4],
+  [82, 202, 19.6], [54, 247, 27.2], [46, 339, 35.4], [127, 333, 38.4],
+  [172, 287, 35.3], [200, 251, 30.4], [219, 225, 27.7], [233, 205, 26.5],
+  [239, 200, 26.1], [235, 219, 26.8], [231, 247, 29.2], [238, 290, 34.5],
+  [295, 296, 42.4], [329, 253, 35.2], [350, 218, 29.5], [366, 190, 26.2],
+  [381, 167, 24.6], [395, 155, 24.1], [397, 180, 24.8], [398, 208, 27.2],
+  [399, 242, 32.5], [422, 256, 40.4], [455, 229, 33.2], [481, 199, 25.9],
+  [500, 173, 20.9], [512, 154, 17.5], [518, 143, 15.3], [522, 137, 13.6],
+  [523, 135, 12.4], [523, 135, 10.9], [523, 135, 8.5], [523, 135, 4.9],
+  [523, 135, 0],
+],
+
+  spine: [
+  [99, 177, 3, 3.0], [97, 184, 8, 3.4], [94, 190, 12, 3.8],
+  [90, 196, 15, 4.1], [86, 200, 17, 4.2], [77, 211, 19, 4.33], [69, 222, 20, 5.0],
+  [64, 230, 21, 5.25], [60, 237, 21, 5.5], [52, 253, 22, 5.75],
+  [47, 266, 22, 6.0], [44, 276, 23, 6.13], [41, 290, 24, 6.27],
+  [40, 301, 25, 6.4], [40, 316, 27, 6.53], [42, 328, 30, 6.67],
+  [47, 340, 35, 6.8], [54, 352, 41, 6.93], [59, 358, 45, 7.08],
+  [58, 357, 44, 7.23], [63, 356, 42, 7.38], [92, 355, 40, 7.54],
+  [95, 354, 40, 7.69], [100, 352, 39, 7.85], [114, 344, 37, 8.0],
+  [126, 335, 36, 8.2], [132, 330, 36, 8.4], [140, 323, 35, 8.6],
+  [149, 314, 34, 8.8], [161, 301, 33, 9.0], [192, 268, 33, 9.29],
+  [202, 261, 35, 9.57], [210, 257, 39, 9.86], [217, 254, 42, 10.2],
+  [217, 254, 42, 10.6], [220, 245, 37, 11.0], [224, 235, 33, 11.5],
+  [228, 225, 28, 12.0], [228, 226, 28, 13.33], [223, 239, 34, 14.0],
+  [219, 253, 40, 14.5], [217, 254, 42, 15.0], [219, 255, 41, 15.29],
+  [226, 263, 36, 15.57], [251, 295, 35, 15.86], [258, 302, 40, 16.11],
+  [263, 306, 42, 16.33], [263, 306, 42, 16.56], [268, 305, 40, 16.78],
+  [281, 299, 36, 17.0], [288, 295, 33, 17.22], [296, 288, 31, 17.44],
+  [303, 280, 29, 17.67], [311, 270, 28, 17.89], [318, 261, 27, 18.17],
+  [325, 251, 26, 18.5], [352, 215, 27, 18.83], [367, 204, 32, 19.2],
+  [373, 200, 36, 19.6], [377, 198, 38, 20.0], [377, 198, 38, 20.5],
+  [380, 187, 33, 21.0], [382, 179, 30, 21.67], [381, 181, 31, 22.25],
+  [382, 193, 32, 22.75], [383, 204, 33, 23.25], [383, 204, 33, 23.75],
+  [384, 206, 32, 24.2], [410, 248, 34, 24.6], [413, 253, 37, 25.0],
+  [414, 253, 37, 25.5], [414, 253, 37, 26.0], [417, 253, 36, 26.29],
+  [426, 251, 32, 26.57], [437, 246, 28, 26.86], [445, 241, 26, 27.17],
+  [454, 233, 23, 27.5], [463, 224, 22, 27.83], [473, 211, 21, 28.2],
+  [480, 201, 20, 28.6], [486, 192, 19, 29.0], [495, 179, 17, 29.67],
+  [503, 167, 16, 30.5], [510, 156, 13, 32.0],
+],
+
+  flood: {
+    at: 49,
+    end: 70,
+    scale: [
+  1.0, 1.08, 1.18, 1.31, 1.47, 1.68, 1.95, 2.28, 2.65, 3.05, 3.35,
+  3.55, 3.65, 3.72, 3.78, 3.83, 3.87, 3.9, 3.92, 3.93, 3.94, 3.94,
+],
+
+    swell: [
+  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.1, 1.33, 1.59,
+  1.7, 1.75, 1.79, 1.8, 1.81, 1.82, 1.84, 1.88, 1.94, 2.02, 2.4,
+],
+    ease: "measured",
+  },
+
+  sparks: {
+    offset: [33.8, -34.2],
+    popAt: 43,
+    pop: [3.4, 15.3, 21.6, 25.2, 27.4, 28.8],
+    radius: 30,
+    diverge: [
+  1.0, 1.06, 1.15, 1.26, 1.47, 1.73, 2.15, 2.73, 3.56, 4.64, 5.23,
+  5.59, 5.79, 5.91, 6.0, 6.06, 6.09, 6.1, 6.12, 6.12, 6.12, 6.12,
+],
+    shrinkAt: 65,
+    shrink: [28.6, 26.4, 22.8, 17.8, 10.6, 0],
+    ease: "measured",
+  },
+};
+
+```
+
+### ink-flood/presets/authored.ts
+```ts
+import { generateFlood, generateSpine, generateTip } from "../generate";
+import type { Scene } from "../scene";
+
+const REF = 540;
+const HALF = 72;
+const FLOOD_AT = 49;
+const FLOOD_END = 70;
+const FLOOD_FRAMES = FLOOD_END - FLOOD_AT + 1;
+
+function authored(opts: {
+  id: string;
+  name: string;
+  fields: readonly [string, string];
+  dot: string;
+  scribble?: Parameters<typeof generateSpine>[0];
+  flood?: Parameters<typeof generateFlood>[1];
+  ease?: Scene["flood"]["ease"];
+}): Scene {
+  const spine = generateSpine({ ref: REF, from: 3, to: 32, ...opts.scribble });
+  const { tip, tipAt } = generateTip(spine);
+  const { scale, swell } = generateFlood(FLOOD_FRAMES, opts.flood);
+
+  return {
+    id: opts.id,
+    name: opts.name,
+    ref: REF,
+    fps: 25,
+    half: HALF,
+    restAt: 40,
+    palette: { fields: opts.fields, dot: opts.dot },
+    spine,
+    tip,
+    tipAt,
+    flood: {
+      at: FLOOD_AT,
+      end: FLOOD_END,
+      scale,
+      swell,
+      ease: opts.ease ?? "drift",
+    },
+    sparks: {
+      offset: [33.8, -34.2],
+      popAt: 43,
+      pop: [3.4, 15.3, 21.6, 25.2, 27.4, 28.8],
+      radius: 30,
+
+      diverge: [
+        1.0, 1.06, 1.15, 1.26, 1.47, 1.73, 2.15, 2.73, 3.56, 4.64, 5.23,
+        5.59, 5.79, 5.91, 6.0, 6.06, 6.09, 6.1, 6.12, 6.12, 6.12, 6.12,
+      ],
+      shrinkAt: 65,
+      shrink: [28.6, 26.4, 22.8, 17.8, 10.6, 0],
+      ease: "surge",
+    },
+  };
+}
+
+export const GRAPHITE = authored({
+  id: "graphite",
+  name: "Graphite",
+
+  fields: ["#fafafa", "#111111"],
+  dot: "#8c8c8c",
+  scribble: { humps: 3, amplitude: 0.2, crestR: 22, valleyR: 46, seed: 3 },
+  ease: "drift",
+});
+
+export const SULPHUR = authored({
+  id: "sulphur",
+  name: "Sulphur",
+  fields: ["#d8e600", "#14161a"],
+  dot: "#7de2ff",
+  scribble: { humps: 3, amplitude: 0.22, crestR: 20, valleyR: 48, seed: 11 },
+  ease: "surge",
+});
+
+export const TIDE = authored({
+  id: "tide",
+  name: "Tide",
+  fields: ["#0b2b3f", "#39d0c4"],
+  dot: "#eafff4",
+  scribble: { humps: 4, amplitude: 0.17, crestR: 18, valleyR: 40, seed: 7 },
+  ease: "quintInOut",
+});
+
+export const AUTHORED: Scene[] = [GRAPHITE, SULPHUR, TIDE];
+
+```
+
+### ink-flood/presets/index.ts
+```ts
+import { MEASURED } from "./measured";
+import { AUTHORED, GRAPHITE, SULPHUR, TIDE } from "./authored";
+import type { Scene } from "../scene";
+
+export { MEASURED, GRAPHITE, SULPHUR, TIDE };
+
+export const VAULT_SCENE: Scene = {
+  ...GRAPHITE,
+  spine: MEASURED.spine,
+  tip: MEASURED.tip,
+  tipAt: MEASURED.tipAt,
+  flood: MEASURED.flood,
+  sparks: MEASURED.sparks,
+};
+
+export const DEFAULT_SCENE = VAULT_SCENE;
+
+export const SCENES: Scene[] = [MEASURED, ...AUTHORED];
+
+export function sceneById(id: string): Scene | undefined {
+  return SCENES.find((s) => s.id === id);
+}
+
+```
+
+### ink-flood/engine.ts
+```ts
+import { easeFn, sampleTable } from "./ease";
+import {
+  HALFTONE_DEFAULTS,
+  drawHalftone,
+  makeHalftoneTile,
+} from "./halftone";
+import { MEASURED } from "./presets/measured";
+import type { Scene } from "./scene";
+
+export class InkFlood {
+  private ctx: CanvasRenderingContext2D | null;
+  private raf = 0;
+  private t0 = 0;
+  private running = false;
+  private dpr = 1;
+  private scene: Scene;
+
+  private tile: HTMLCanvasElement | null = null;
+
+  readonly ok: boolean;
+
+  constructor(
+    private canvas: HTMLCanvasElement,
+    scene: Scene = MEASURED,
+  ) {
+    this.scene = scene;
+    this.ctx = canvas.getContext("2d");
+    this.ok = !!this.ctx;
+    if (this.ok) this.resize();
+  }
+
+  setScene(scene: Scene) {
+    this.scene = scene;
+    this.t0 = performance.now();
+    if (!this.running) this.renderStill();
+  }
+
+  resize() {
+    const c = this.canvas;
+    const r = c.getBoundingClientRect();
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.round(r.width * this.dpr);
+    c.height = Math.round(r.height * this.dpr);
+    this.tile = null;
+    if (!this.running) this.renderStill();
+  }
+
+  start() {
+    if (this.running || !this.ok) return;
+    this.running = true;
+    this.t0 = performance.now();
+    const tick = (now: number) => {
+      if (!this.running) return;
+      this.draw((now - this.t0) / 1000);
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  stop() {
+    this.running = false;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+  }
+
+  renderStill() {
+    if (this.ok) this.draw(this.scene.restAt / this.scene.fps);
+  }
+
+  destroy() {
+    this.stop();
+    this.ctx = null;
+    this.tile = null;
+  }
+
+  private capsule(
+    ctx: CanvasRenderingContext2D,
+    x0: number, y0: number, x1: number, y1: number, r: number,
+  ) {
+    if (r <= 0) return;
+    ctx.beginPath();
+    if (Math.hypot(x1 - x0, y1 - y0) < 0.5) {
+      ctx.arc(x1, y1, r, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.lineWidth = r * 2;
+      ctx.lineCap = "round";
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+  }
+
+  private stampInk(ctx: CanvasRenderingContext2D, u: number, k: number) {
+    const { spine } = this.scene;
+    for (let i = 0; i < spine.length - 1; i++) {
+      const [ax, ay, ar, af] = spine[i];
+      if (af > u) break;
+      const [bx, by, br, bf] = spine[i + 1];
+
+      const seg = bf <= u ? 1 : (u - af) / (bf - af);
+      const dist = Math.hypot(bx - ax, by - ay);
+      const n = Math.max(1, Math.ceil((dist * seg) / Math.max(2, ar * k * 0.4)));
+      for (let j = 0; j <= n; j++) {
+        const t = (j / n) * seg;
+        const r = (ar + (br - ar) * t) * k;
+        ctx.beginPath();
+        ctx.arc(ax + (bx - ax) * t, ay + (by - ay) * t, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  private toScene(ctx: CanvasRenderingContext2D, W: number, H: number, flip: boolean) {
+    const { ref } = this.scene;
+    ctx.translate(W / 2, H / 2);
+    if (flip) ctx.scale(-1, 1);
+    const hs = H / ref;
+    ctx.scale(hs, hs);
+    ctx.translate(-ref / 2, -ref / 2);
+  }
+
+  private screen(ctx: CanvasRenderingContext2D, W: number, H: number) {
+    const o = HALFTONE_DEFAULTS;
+    if (!this.tile) this.tile = makeHalftoneTile(o.pitch, o.radius, this.dpr);
+    drawHalftone(ctx, this.tile, W, H, this.dpr, o.alpha);
+  }
+
+  private draw(time: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const s = this.scene;
+    const { dpr } = this;
+    const W = this.canvas.width / dpr;
+    const H = this.canvas.height / dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const halfSecs = s.half / s.fps;
+    const total = time % (halfSecs * 2);
+    const second = total >= halfSecs;
+    const u = (total - (second ? halfSecs : 0)) * s.fps;
+    const [fieldA, fieldB] = s.palette.fields;
+    const bg = second ? fieldB : fieldA;
+    const ink = second ? fieldA : fieldB;
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    if (u >= s.flood.end) {
+      ctx.fillStyle = ink;
+      ctx.fillRect(0, 0, W, H);
+      this.screen(ctx, W, H);
+      return;
+    }
+
+    const flooding = u >= s.flood.at;
+    const fe = easeFn(s.flood.ease);
+    const zoom = flooding ? sampleTable(s.flood.scale, s.flood.at, u, fe) : 1;
+    const k = flooding ? sampleTable(s.flood.swell, s.flood.at, u, fe) : 1;
+
+    ctx.save();
+    this.toScene(ctx, W, H, second);
+    ctx.translate(s.ref / 2, s.ref / 2);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-s.ref / 2, -s.ref / 2);
+    ctx.fillStyle = ink;
+    this.stampInk(ctx, u, k);
+    ctx.restore();
+
+    ctx.save();
+    this.toScene(ctx, W, H, second);
+    ctx.fillStyle = s.palette.dot;
+    ctx.strokeStyle = s.palette.dot;
+
+    const sp = s.sparks;
+    if (sp && u >= sp.popAt) {
+      const se = easeFn(sp.ease);
+      const rNow =
+        u < s.flood.at
+          ? sampleTable(sp.pop, sp.popAt, u, se)
+          : u < sp.shrinkAt
+            ? sp.radius
+            : sampleTable(sp.shrink, sp.shrinkAt, u, se);
+
+      const div = (v: number) =>
+        v < s.flood.at ? 1 : sampleTable(sp.diverge, s.flood.at, v, se);
+      const now = div(u + 0.5);
+      const was = div(Math.max(u - 0.5, sp.popAt));
+      const c = s.ref / 2;
+      for (const sign of [1, -1]) {
+        this.capsule(
+          ctx,
+          c + sign * sp.offset[0] * was,
+          c + sign * sp.offset[1] * was,
+          c + sign * sp.offset[0] * now,
+          c + sign * sp.offset[1] * now,
+          rNow,
+        );
+      }
+    }
+
+    if (s.tip && u >= s.tipAt && u < s.tipAt + s.tip.length) {
+      const [x, y, r] = this.tipAt(u);
+      if (r > 0) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+
+    this.screen(ctx, W, H);
+  }
+
+  private tipAt(u: number): [number, number, number] {
+    const tip = this.scene.tip!;
+    const k = Math.min(Math.max(u - this.scene.tipAt, 0), tip.length - 1);
+    const i = Math.min(Math.floor(k), tip.length - 2);
+    const t = k - i;
+    const a = tip[i];
+    const b = tip[i + 1];
+    return [
+      a[0] + (b[0] - a[0]) * t,
+      a[1] + (b[1] - a[1]) * t,
+      a[2] + (b[2] - a[2]) * t,
+    ];
+  }
+
+}
+
+```
+
+### ink-flood/InkFloodCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { InkFlood } from "./engine";
+import { DEFAULT_SCENE } from "./presets";
+import type { Scene } from "./scene";
+import { onTransitionChange } from "../../lib/view-transition";
+
+export function InkFloodCard({
+  bare = false,
+  viewTransitionName,
+  scene = DEFAULT_SCENE,
+}: {
+  bare?: boolean;
+  viewTransitionName?: string;
+
+  scene?: Scene;
+} = {}) {
+  void bare;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<InkFlood | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let engine: InkFlood | null = null;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const sync = () => {
+      if (!engine || reduced) return;
+      if (onScreen && !hidden && !inTransition) engine.start();
+      else engine.stop();
+    };
+
+    const raf = requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
+      engine = new InkFlood(canvas, scene);
+      engineRef.current = engine;
+      if (!engine.ok) return;
+      if (reduced) engine.renderStill();
+      else sync();
+    });
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es[0]?.isIntersecting ?? false;
+        sync();
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(canvas);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    let rt = 0;
+    const onResize = () => {
+      window.clearTimeout(rt);
+      rt = window.setTimeout(() => engine?.resize(), 120);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(rt);
+      engineRef.current = null;
+      engine?.destroy();
+    };
+
+  }, []);
+
+  const mountedScene = useRef(scene);
+  useEffect(() => {
+    if (mountedScene.current === scene) return;
+    mountedScene.current = scene;
+    engineRef.current?.setScene(scene);
+  }, [scene]);
+
+  return (
+    <div
+      data-canvas-card
+      role="img"
+      aria-label="A grey dot writes a thick black scribble across a white field, the scribble swells until its ink floods the whole card, and the drawing starts again in the opposite colours — each pass painting the background the next one is drawn on."
+      style={{
+        ...(viewTransitionName ? { viewTransitionName } : null),
+        backgroundColor: scene.palette.fields[0],
+      }}
+      className="relative mx-auto aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)]"
+    >
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
+  );
+}
+
+```
