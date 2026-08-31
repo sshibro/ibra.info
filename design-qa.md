@@ -38,8 +38,9 @@ The combined files place the Arlan Vault reference on the left and the local Mot
 - Loaded and scrolled all 18 mirrored study pages from clean navigations; every page rendered its expected heading with zero console errors.
 - Verified prompt controls, named-card navigation, detail-page close navigation, the Arcade playground, and its Remix control through visible browser interaction.
 - Source semantics, labels, alt text, keyboard-focus behavior, reduced-motion handling, and mobile control treatment are preserved because the original runtime is retained.
-- Browser inventories covered 849 observed asset references / 194 unique local files. The asset check reported zero missing files and zero remaining R2 hotlinks in the delivered HTML/runtime.
+- Browser inventories covered 849 observed asset references / 194 unique local files. The mirror also includes six declared VP9/MP4 fallbacks that the capture browser did not select. The asset check reported zero missing files and zero remaining R2 hotlinks in the delivered HTML/runtime.
 - The static route contract passed for 19 canonical Motion routes and 19 legacy Ink redirects; `/vault/` is no-index and excluded by `robots.txt`.
+- All 41 prompt-copy payloads are served locally, and server-rendered titles, canonical URLs, authorship, and structured data identify the public collection as Motion.
 
 ## Iteration history
 

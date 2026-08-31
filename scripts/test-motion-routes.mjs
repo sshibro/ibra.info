@@ -25,6 +25,7 @@ const routes = {
 };
 
 const failures = [];
+const checkedMedia = new Set();
 
 async function read(relativePath) {
   try {
@@ -61,6 +62,30 @@ function verifyFlightTextRecords(relativePath, html) {
   }
 }
 
+function promptSlugsFrom(html) {
+  const marker = '\\"promptSlugs\\":';
+  const start = html.indexOf(marker);
+  if (start === -1) return [];
+  const valueStart = start + marker.length;
+  const valueEnd = html.indexOf("]", valueStart) + 1;
+  return JSON.parse(html.slice(valueStart, valueEnd).replaceAll('\\"', '"'));
+}
+
+async function verifyDeclaredMedia(relativePath, html) {
+  const references = [...html.matchAll(/\/r2\/[^"'<>\\\s]+\.(?:webm|mp4)(?:\?[^"'<>\\\s]*)?/g)]
+    .map((match) => match[0].split("?")[0]);
+
+  for (const reference of references) {
+    if (checkedMedia.has(reference)) continue;
+    checkedMedia.add(reference);
+    try {
+      await access(path.join(root, decodeURIComponent(reference).replace(/^\/+/, "")));
+    } catch {
+      failures.push(`${relativePath} references missing media ${reference}`);
+    }
+  }
+}
+
 const homepage = await read("index.html");
 if (!homepage.includes('href="/motion/">motion</a>')) {
   failures.push("homepage does not link the word motion to /motion/");
@@ -82,10 +107,33 @@ for (const [legacySlug, motionSlug] of Object.entries(routes)) {
   if (!motionHtml.includes('/motion/motion-shell.js')) {
     failures.push(`${motionPath} does not load the Motion shell`);
   }
+  const title = motionHtml.match(/<title>([^<]+)<\/title>/)?.[1];
+  const validTitle = motionSlug
+    ? title?.endsWith(" — Motion")
+    : title === "Motion — Ibragim Shirinov";
+  if (!validTitle) {
+    failures.push(`${motionPath} does not expose a server-rendered Motion title`);
+  }
+  if (!motionHtml.includes(`rel="canonical" href="https://ibra.info${destination}"`)) {
+    failures.push(`${motionPath} does not expose the Motion canonical URL`);
+  }
+  if (!motionHtml.includes('name="author" content="Ibragim Shirinov"')) {
+    failures.push(`${motionPath} does not expose the Motion author`);
+  }
   verifyFlightTextRecords(motionPath, motionHtml);
+  await verifyDeclaredMedia(motionPath, motionHtml);
   if (!inkHtml.includes(`url=${destination}`) || !inkHtml.includes(`href="${destination}"`)) {
     failures.push(`${inkPath} does not redirect and link to ${destination}`);
   }
+}
+
+const promptSlugs = promptSlugsFrom(await read("motion/index.html"));
+if (promptSlugs.length !== 41) {
+  failures.push(`expected 41 prompt payloads, found ${promptSlugs.length}`);
+}
+for (const slug of promptSlugs) {
+  const prompt = await read(`vault/prompt/${slug}`);
+  if (prompt.length < 100) failures.push(`vault/prompt/${slug} is not a complete prompt payload`);
 }
 
 const robots = await read("robots.txt");

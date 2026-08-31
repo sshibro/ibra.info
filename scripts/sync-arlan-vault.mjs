@@ -91,6 +91,78 @@ function localizeHtml(html) {
   return localized;
 }
 
+function escapeAttribute(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function withMotionMetadata(html, pathname, isIndex = false) {
+  const sourceTitle = html.match(/<title>([^<]+)<\/title>/)?.[1] || "Study";
+  const title = isIndex ? "Motion — Ibragim Shirinov" : `${sourceTitle} — Motion`;
+  const canonical = `https://ibra.info${pathname}`;
+  const description = "Motion and interaction studies by Ibragim Shirinov.";
+  const structuredData = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": isIndex ? "CollectionPage" : "CreativeWork",
+    name: isIndex ? "Motion" : sourceTitle,
+    url: canonical,
+    author: {
+      "@type": "Person",
+      name: "Ibragim Shirinov",
+      url: "https://ibra.info/",
+    },
+    ...(isIndex
+      ? {}
+      : {
+          isPartOf: {
+            "@type": "CollectionPage",
+            name: "Motion",
+            url: "https://ibra.info/motion/",
+          },
+        }),
+  });
+
+  let updated = html
+    .replace(/<title>[^<]+<\/title>/, `<title>${escapeAttribute(title)}</title>`)
+    .replace(/<link rel="author"[^>]*>/, '<link rel="author" href="https://ibra.info/"/>')
+    .replace(/<meta name="author"[^>]*>/, '<meta name="author" content="Ibragim Shirinov"/>')
+    .replace(/<meta name="creator"[^>]*>/, '<meta name="creator" content="Ibragim Shirinov"/>')
+    .replace(/<meta name="publisher"[^>]*>/, '<meta name="publisher" content="Ibragim Shirinov"/>')
+    .replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${canonical}"/>`)
+    .replace(/<meta property="og:title"[^>]*>/, `<meta property="og:title" content="${escapeAttribute(title)}"/>`)
+    .replace(/<meta property="og:url"[^>]*>/, `<meta property="og:url" content="${canonical}"/>`)
+    .replace(/<meta name="twitter:title"[^>]*>/, `<meta name="twitter:title" content="${escapeAttribute(title)}"/>`);
+
+  if (/<meta name="description"[^>]*>/.test(updated)) {
+    updated = updated.replace(
+      /<meta name="description"[^>]*>/,
+      `<meta name="description" content="${description}"/>`
+    );
+  } else {
+    updated = updated.replace(
+      "<head>",
+      `<head><meta name="description" content="${description}"/>`
+    );
+  }
+
+  return updated.replace(
+    "<head>",
+    `<head><script type="application/ld+json">${structuredData}</script>`
+  );
+}
+
+function promptSlugsFrom(html) {
+  const marker = '\\"promptSlugs\\":';
+  const start = html.indexOf(marker);
+  if (start === -1) return [];
+  const valueStart = start + marker.length;
+  const valueEnd = html.indexOf("]", valueStart) + 1;
+  return JSON.parse(html.slice(valueStart, valueEnd).replaceAll('\\"', '"'));
+}
+
 function withNoIndex(html) {
   return html.replace("<head>", '<head><meta name="robots" content="noindex, nofollow">');
 }
@@ -133,6 +205,61 @@ async function download(url, destination) {
   await writeFile(destination, Buffer.from(await response.arrayBuffer()));
 }
 
+const declaredMediaDownloads = new Map();
+const declaredMediaDestinations = new Set();
+
+async function mirrorDeclaredMedia(html) {
+  const escapedOrigin = r2Origin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const candidates = [
+    ...html.matchAll(new RegExp(`${escapedOrigin}/[^"'<>\\\\\\s]+`, "g")),
+  ]
+    .map((match) => match[0].replaceAll("\\u0026", "&"))
+    .filter((url) => /\.(?:webm|mp4)(?:\?|$)/i.test(url));
+
+  await Promise.all(
+    [...new Set(candidates)].map((url) => {
+      if (!declaredMediaDownloads.has(url)) {
+        const destination = localPathFor(url);
+        declaredMediaDestinations.add(destination);
+        declaredMediaDownloads.set(url, download(url, destination));
+      }
+      return declaredMediaDownloads.get(url);
+    })
+  );
+}
+
+async function mirrorPromptPayloads(html) {
+  const slugs = promptSlugsFrom(html);
+  const queue = [...slugs];
+  const promptFailures = [];
+  const destination = path.join(projectRoot, "vault", "prompt");
+  await mkdir(destination, { recursive: true });
+
+  async function promptWorker() {
+    while (queue.length) {
+      const slug = queue.shift();
+      const url = `${sourceUrl}/prompt/${slug}`;
+      try {
+        const response = await fetch(url, {
+          headers: { "user-agent": "ibra.info vault mirror" },
+        });
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        await writeFile(path.join(destination, slug), await response.text());
+      } catch (error) {
+        promptFailures.push({ url, message: error.message });
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: 8 }, promptWorker));
+  if (promptFailures.length) {
+    throw new Error(
+      `Failed to mirror ${promptFailures.length} prompt payloads:\n${JSON.stringify(promptFailures, null, 2)}`
+    );
+  }
+  return slugs.length;
+}
+
 const downloadable = capturedAssets
   .filter((asset) =>
     ["script", "font", "image", "stylesheet", "video"].includes(asset.kind) ||
@@ -173,14 +300,16 @@ if (!sourceResponse.ok) {
 }
 
 const html = await sourceResponse.text();
+await mirrorDeclaredMedia(html);
 const localizedHtml = localizeHtml(html);
 await mkdir(path.join(projectRoot, "vault"), { recursive: true });
+const mirroredPrompts = await mirrorPromptPayloads(html);
 await writeFile(path.join(projectRoot, "vault", "index.html"), withNoIndex(localizedHtml));
 
 await mkdir(path.join(projectRoot, "motion"), { recursive: true });
 await writeFile(
   path.join(projectRoot, "motion", "index.html"),
-  withMotionShell(localizedHtml, true)
+  withMotionShell(withMotionMetadata(localizedHtml, "/motion/", true), true)
 );
 
 await mkdir(path.join(projectRoot, "ink"), { recursive: true });
@@ -196,10 +325,14 @@ await Promise.all(
       throw new Error(`Failed to fetch ${sourceUrl}/${slug}: ${response.status}`);
     }
 
-    const sourceHtml = localizeHtml(await response.text());
+    const rawHtml = await response.text();
+    await mirrorDeclaredMedia(rawHtml);
+    const sourceHtml = localizeHtml(rawHtml);
     const localSlug = localStudySlugs[slug] || slug;
-    const motionHtml = withMotionShell(sourceHtml);
     const motionDestination = `/motion/${localSlug}/`;
+    const motionHtml = withMotionShell(
+      withMotionMetadata(sourceHtml, motionDestination)
+    );
 
     await mkdir(path.join(projectRoot, "vault", slug), { recursive: true });
     await writeFile(
@@ -234,7 +367,12 @@ for (const asset of textAssets) {
 console.log(
   JSON.stringify(
     {
-      mirroredAssets: downloadable.length,
+      mirroredAssets: new Set([
+        ...downloadable.map((asset) => asset.destination),
+        ...declaredMediaDestinations,
+      ]).size,
+      declaredMediaAssets: declaredMediaDestinations.size,
+      mirroredPrompts,
       scripts: downloadable.filter((asset) => asset.destination.endsWith(".js")).length,
       sourceRuntime: path.join(projectRoot, "vault", "index.html"),
       motionEntry: path.join(projectRoot, "motion", "index.html"),

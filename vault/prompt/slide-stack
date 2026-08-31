@@ -1,0 +1,683 @@
+Build this: five identical dark blocks on a light ground, sliding between a left and a right stop, each row a beat behind the one above it so the motion runs through the stack as a wave — with the orange accent BEHIND them not drawn as a shape at all but derived entirely from where the blocks are. EVERY NUMBER IN THE BASE COMPOSITION IS MEASURED off the reference clip and expressed as a fraction, never eyeballed, and the two times that rule was broken it cost a rebuild. Block 214x121 of a 720 square, rows at an even 132.5 pitch leaving an 11.5px gutter — that gutter is deliberately thin so the stack reads as ONE MASS WITH SLOTS CUT IN IT rather than five separate bars floating on a field. Stops inset 46 on both sides, so travel is exactly symmetric. TIMING, FITTED NOT GUESSED: traverse 0.306s, dwell 0.316s. Eyeballing the per-frame deltas gave 0.36/0.16 and was 43% out; re-fitting against a 24-frame trace scored 2% RMS but the trace was truncated mid-return, so it had bought accuracy on a partial cycle at the cost of everything after — only an 81-frame window spanning whole cycles gives values that hold. The result is that THE PAUSE IS VERY SLIGHTLY LONGER THAN THE MOVE, and that near-parity is the entire rhythm: the piece reads as a sequence of ARRIVALS rather than as continuous sliding, and skewing it either way loses that (busy with a short dwell, leaden with a long one). STAGGER IS THE WHOLE PIECE and it is -0.083 of a cycle: five identical blocks doing an identical move are nothing, five doing it out of step is a wave. Fitted across all five rows over six frames, thirty measurements, 2.3% RMS, and two things fell out that guessing had wrong — it is NEGATIVE (each row runs slightly AHEAD of the one below, so the wave CLIMBS the stack; flip the sign and the leading diagonal leans the other way and stops matching), and it is small, about a twelfth of a cycle rather than a fifth, because the wave only reads as one gesture while neighbouring rows still overlap in flight. THE ACCENT IS THE CONVEX HULL OF ALL TWENTY BLOCK CORNERS, and three wrong models were killed by measurement before this one. It is NOT anchored to the frame — row 0's orange was measured sitting entirely to the LEFT of its own block, at 211..311 against a block at 314..527. It is NOT a rigid parallelogram sheared between the first and last rows, because that ignores the three rows between, so a bulge mid-stack leaves the shape untouched. And it is NOT a chain joining each block to its neighbour: that makes the boundary zigzag in and out at every row, so the shape becomes a run of local links rather than one body — the first and last blocks have to be joined DIRECTLY, across everything between them, even when they sit at opposite stops. A hull spans the extremes and lets the middle rows sit INSIDE the span instead of cutting notches into it, which is what makes the stack read as one leaning mass at every angle including mid-cascade. Drawn per-row instead you get five orange bars and lose the diagonal entirely. THE LABELS NAME THE DESTINATION AND FLIP ON ARRIVAL — a block parked at the left reads RIGHT because right is where it goes next; that is the joke and it only works because the words are directions. The label also SLIDES across the block's face on the same eased curve as the block, with its own measured width subtracted from the range so it lands flush in either corner: snapping it at the turnaround jumps the type inside an object that is itself moving smoothly, which is the one place the eye is guaranteed to be looking. THE MOVE IS ASYMMETRIC, NOT A BOUNCE, and this is where the piece departs from the reference on purpose. The measured curve is a sine ease-in-out, honest and also the most ordinary easing there is. Overshoot is the obvious alternative and it is wrong here: these are heavy blocks arriving at hard stops, and one that passes its stop and returns is a light block on a rubber band — the rhythm is arrivals, and an arrival you wait out twice is not an arrival. So the character goes into the shape instead: 1-(1-smoothstep(k))^2, which leaves smoothly, peaks about a third of the way through, and spends the whole back half closing a gap that is already nearly shut, so the block stops because it has run out of DISTANCE rather than because its timer expired. Note the construction that does NOT work — sin^n(pi*k/2) is the tempting one and sweeping n proves it does the opposite, pushing the speed peak LATER (0.41 to 0.71) because raising a curve to a power suppresses it most where it is smallest, which is the beginning: lazy start, rushed finish, exactly backwards. Speed is read from the DERIVATIVE of that curve rather than differenced frame to frame — differencing is noisy at low speed and spikes on the frame a row wraps — and blur, hue and label-split all read the same value so they cannot disagree about what fast means. LAYERS ON TOP, all invented rather than measured and kept in a separate block of the params file so nobody later 'corrects' a taste call to match a fitted number. Motion blur smears each block BACK along the distance it just covered at falling alpha, drawn BEFORE the block so the leading edge stays perfectly hard and only the tail is soft — that asymmetry is what reads as speed, blurring both edges just reads as out of focus, and the dwell staying razor sharp is the entire point. HUE DRIFT IS A QUADRATIC BEZIER THROUGH THREE COLOURS, NOT A LERP BETWEEN TWO, and it took three attempts to see why that matters: a straight cold-to-hot ramp is ONE AXIS, so the only adjustment is volume — quiet enough not to dominate is also quiet enough to be invisible, and there is no setting that is both calm and interesting. Bending the path through a control point OFF that axis means a row passes through a colour that is not on the line between its endpoints, so the drift stays legible even when the distance travelled is small. Strength is a SEPARATE parameter from the three colours; welding them together is what made every earlier version either garish or absent. The drift is near-silent across the card and opens up only under the cursor, which is what lets the colours be genuinely bright — they never have to be tame enough to live with permanently. Under the pointer the colour additionally sweeps with the block's POSITION rather than only its speed, so a hovered row is doing something structurally different from its neighbours (theirs is a pulse tied to the traverse, its is a travelling colour tied to where the block actually is) — a highlight rather than a spotlight. A WAKE IS A HAIRLINE, NOT A FILLED SHAPE: a lagged copy of the hull filled at a third alpha put a SECOND orange body on the card and the eye began reading two overlapping silhouettes instead of the one leaning mass the hull exists to produce, so it is stroked thin, lagged about eleven frames, and hidden completely behind the live hull whenever the stack is parked — there should be no wake when nothing is moving. Grain is one STATIC seeded-noise tile over everything: the palette is three flat colours across large flat areas, which is exactly where canvas looks cheap, and animated grain would read as video noise fighting the hard-edged geometry — the target is paper, which does not move. TWO LAYERS WERE BUILT AND CUT, both for the same reason. An arrival kick that nudged neighbouring rows perpendicular when a block landed: the stack's premise is five blocks on FIXED RAILS, and knocking rows off their line to dramatise a landing made the piece look loose rather than coupled. And a hover state that lifted the block under the cursor to an off-white with its label inverting to stay legible: it worked, and it was wrong, because the five dark blocks are the constant the whole composition is measured against — turning one light does not highlight a row, it rearranges the card, and the eye goes to the new white shape instead of to the motion. THE PIECE FILLS THE CARD rather than sitting as a square in the middle of it: the square left about 360px of flat grey doing nothing on each side of a 1344x620 card, nearly half the frame empty. Horizontal measurements are fractions of WIDTH and vertical ones fractions of the square, so the blocks stretch and the travel lengthens while row height, pitch and type size keep the reference's proportions. Carrying the reference's block-to-frame fraction straight onto a wide card gives 650px slabs with nowhere to move — what is preserved instead is the RATIO OF BLOCK TO TRAVEL (~0.5), which is what keeps consecutive rows overlapping in flight so the wave stays one gesture. A small margin is kept rather than running the blocks clean off both edges, because the stops are what the piece is about and a block has to be seen ARRIVING somewhere. Framework-free Canvas 2D, no assets, no library; DPR-capped at 2, pauses offscreen / when hidden / during route transitions, one static frame under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### slide-stack/params.ts
+```ts
+export const BLOCK_W = 214 / 720;
+
+export const BLOCK_SPAN = 0.29;
+
+export const BLOCK_H = 121 / 720;
+
+export const PITCH = 132.5 / 720;
+
+export const TOP = 34 / 720;
+
+export const INSET = 46 / 720;
+
+export const MARGIN = 0.035;
+
+export const ROWS = 5;
+
+export const TRAVERSE = 0.306;
+export const DWELL = 0.316;
+
+export const CYCLE = (TRAVERSE + DWELL) * 2;
+
+export const STAGGER = -0.083;
+
+export const GROUND = "#dedede";
+export const BLOCK = "#191919";
+export const ACCENT = "#f0461e";
+
+export const BLUR_TAPS = 5;
+export const BLUR_REACH = 0.85;
+export const BLUR_MIN_SPEED = 0.06;
+
+export const HUE_COLD = "#f0461e";
+export const HUE_MID = "#ff2d6f";
+export const HUE_HOT = "#ffd84a";
+
+export const HUE_BASE = 0.12;
+export const HUE_HOVER = 1;
+
+export const HUE_TRAVEL = 0.75;
+
+export const HUE_PUSH = 1.28;
+
+export const HUE_REACH = 0.26;
+
+export const HUE_EASE = 0.055;
+
+export const WAKE_LAG = 11;
+export const WAKE_ALPHA = 0.16;
+export const WAKE_WIDTH = 1.25;
+export const WAKE_TINT = "#8f1f0a";
+
+export const MAG_REACH = 0.45;
+export const MAG_PULL = 0.028;
+export const MAG_EASE = 0.075;
+
+export const PARALLAX_SCALE = 0.055;
+export const PARALLAX_SHIFT = 0.012;
+
+export const SPLIT_MAX = 0.9;
+export const SPLIT_WARM = "#ff8a5a";
+export const SPLIT_COOL = "#5ad4ff";
+
+export const GRAIN_ALPHA = 0.055;
+export const GRAIN_TILE = 128;
+
+export const FONT = 26 / 720;
+export const LABEL_PAD_X = 18 / 720;
+export const LABEL_PAD_Y = 16 / 720;
+
+export const LABEL_TO_RIGHT = "RIGHT";
+export const LABEL_TO_LEFT = "LEFT";
+
+```
+
+### slide-stack/engine.ts
+```ts
+import {
+  ACCENT,
+  BLOCK,
+  BLOCK_H,
+  BLOCK_SPAN,
+  BLUR_MIN_SPEED,
+  BLUR_REACH,
+  BLUR_TAPS,
+  CYCLE,
+  DWELL,
+  FONT,
+  GRAIN_ALPHA,
+  GRAIN_TILE,
+  GROUND,
+  HUE_BASE,
+  HUE_COLD,
+  HUE_EASE,
+  HUE_HOT,
+  HUE_HOVER,
+  HUE_MID,
+  HUE_PUSH,
+  HUE_REACH,
+  HUE_TRAVEL,
+  LABEL_PAD_X,
+  LABEL_PAD_Y,
+  LABEL_TO_LEFT,
+  LABEL_TO_RIGHT,
+  MARGIN,
+  MAG_EASE,
+  MAG_PULL,
+  MAG_REACH,
+  PARALLAX_SCALE,
+  PARALLAX_SHIFT,
+  PITCH,
+  ROWS,
+  SPLIT_COOL,
+  SPLIT_MAX,
+  SPLIT_WARM,
+  STAGGER,
+  TOP,
+  TRAVERSE,
+  WAKE_ALPHA,
+  WAKE_LAG,
+  WAKE_TINT,
+  WAKE_WIDTH,
+} from "./params";
+
+const SETTLE = 2;
+const smoothstep = (k: number) => k * k * (3 - 2 * k);
+const ease = (k: number) => 1 - Math.pow(1 - smoothstep(k), SETTLE);
+
+const rawSpeed = (k: number) =>
+  SETTLE * Math.pow(1 - smoothstep(k), SETTLE - 1) * (6 * k * (1 - k));
+
+const SPEED_PEAK = (() => {
+  let m = 0;
+  for (let i = 0; i <= 1000; i++) m = Math.max(m, rawSpeed(i / 1000));
+  return m || 1;
+})();
+
+const easeSpeed = (k: number) => Math.min(1, rawSpeed(k) / SPEED_PEAK);
+
+type RGB = [number, number, number];
+
+const hexToRgb = (hex: string): RGB => {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+
+const HOT = hexToRgb(HUE_HOT);
+const MID = hexToRgb(HUE_MID);
+const COLD = hexToRgb(HUE_COLD);
+
+const ACCENT_RGB = hexToRgb(ACCENT);
+
+function heat(speed: number, slide: number, lit: number): string {
+
+  const k = Math.max(
+    0,
+    Math.min(1, speed + (slide - speed) * (HUE_TRAVEL * lit)),
+  );
+
+  const m = 1 - k;
+
+  const a = m * m;
+  const b = 2 * m * k;
+  const c = k * k;
+  const r = a * COLD[0] + b * MID[0] + c * HOT[0];
+  const g = a * COLD[1] + b * MID[1] + c * HOT[1];
+  const bl = a * COLD[2] + b * MID[2] + c * HOT[2];
+
+  const amount = (HUE_BASE + (HUE_HOVER - HUE_BASE) * lit) * (1 + (HUE_PUSH - 1) * lit);
+
+  const ch = (v: number, base: number) =>
+    Math.max(0, Math.min(255, Math.round(base + (v - base) * amount)));
+  return `rgb(${ch(r, ACCENT_RGB[0])},${ch(g, ACCENT_RGB[1])},${ch(bl, ACCENT_RGB[2])})`;
+}
+
+interface RowState {
+
+  x: number;
+
+  label: string;
+
+  slide: number;
+
+  speed: number;
+}
+
+function rowState(row: number, t: number, left: number, right: number): RowState {
+  const u = (((t / CYCLE + row * STAGGER) % 1) + 1) % 1;
+  const legs = TRAVERSE + DWELL;
+  const a = TRAVERSE / CYCLE;
+  const b = legs / CYCLE;
+  const c = (legs + TRAVERSE) / CYCLE;
+
+  if (u < a) {
+
+    const p = u / a;
+    const k = ease(p);
+    return {
+      x: left + (right - left) * k,
+      label: LABEL_TO_RIGHT,
+      slide: k,
+      speed: easeSpeed(p),
+    };
+  }
+  if (u < b) {
+
+    return { x: right, label: LABEL_TO_LEFT, slide: 1, speed: 0 };
+  }
+  if (u < c) {
+    const p = (u - b) / (c - b);
+    const k = ease(p);
+    return {
+      x: right - (right - left) * k,
+      label: LABEL_TO_LEFT,
+      slide: 1 - k,
+      speed: easeSpeed(p),
+    };
+  }
+
+  return { x: left, label: LABEL_TO_RIGHT, slide: 0, speed: 0 };
+}
+
+function convexHull(pts: [number, number][]): [number, number][] {
+  const cross = (o: [number, number], a: [number, number], b: [number, number]) =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+
+  const s = pts.slice().sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  const lower: [number, number][] = [];
+  for (const p of s) {
+    while (
+      lower.length >= 2 &&
+      cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0
+    )
+      lower.pop();
+    lower.push(p);
+  }
+  const upper: [number, number][] = [];
+  for (let i = s.length - 1; i >= 0; i--) {
+    const p = s[i];
+    while (
+      upper.length >= 2 &&
+      cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0
+    )
+      upper.pop();
+    upper.push(p);
+  }
+  return lower.slice(0, -1).concat(upper.slice(0, -1));
+}
+
+export class SlideStack {
+  private ctx: CanvasRenderingContext2D | null;
+  private raf = 0;
+  private t0 = 0;
+  private running = false;
+  private size = 0;
+  private dpr = 1;
+  private family = "sans-serif";
+
+  private prevX: (number | null)[] = new Array(ROWS).fill(null);
+  private prevAt = 0;
+
+  private wake: [number, number][][] = [];
+
+  private pointer: { x: number; y: number } | null = null;
+  private magX = 0;
+  private magY = 0.5;
+  private magAmt = 0;
+
+  private lit: number[] = new Array(ROWS).fill(0);
+
+  private grain: HTMLCanvasElement | null = null;
+
+  readonly ok: boolean;
+
+  constructor(private canvas: HTMLCanvasElement) {
+    this.ctx = canvas.getContext("2d");
+    this.ok = !!this.ctx;
+    if (this.ok) {
+      this.buildGrain();
+      this.resize();
+    }
+  }
+
+  setFont(family: string) {
+    this.family = family;
+    if (!this.running) this.renderStill();
+  }
+
+  setPointer(p: { x: number; y: number } | null) {
+    this.pointer = p;
+  }
+
+  resize() {
+    const c = this.canvas;
+    const r = c.getBoundingClientRect();
+
+    this.size = Math.max(1, Math.min(r.width, r.height));
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.round(r.width * this.dpr);
+    c.height = Math.round(r.height * this.dpr);
+
+    this.prevX.fill(null);
+    this.wake.length = 0;
+    if (!this.running) this.renderStill();
+  }
+
+  start() {
+    if (this.running || !this.ok) return;
+    this.running = true;
+    this.t0 = performance.now();
+    this.prevAt = 0;
+    this.prevX.fill(null);
+    const tick = (now: number) => {
+      if (!this.running) return;
+      this.draw((now - this.t0) / 1000);
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  stop() {
+    this.running = false;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+  }
+
+  renderStill() {
+    if (this.ok) this.draw(0, true);
+  }
+
+  destroy() {
+    this.stop();
+    this.ctx = null;
+    this.grain = null;
+  }
+
+  private buildGrain() {
+    const n = GRAIN_TILE;
+    const c = document.createElement("canvas");
+    c.width = n;
+    c.height = n;
+    const g = c.getContext("2d");
+    if (!g) return;
+    const img = g.createImageData(n, n);
+    const d = img.data;
+
+    let seed = 0x2f6e2b1;
+    for (let i = 0; i < d.length; i += 4) {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      const v = seed >>> 24;
+      d[i] = d[i + 1] = d[i + 2] = v;
+      d[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    this.grain = c;
+  }
+
+  private draw(t: number, still = false) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const { dpr, size: S } = this;
+    const W = this.canvas.width / dpr;
+    const H = this.canvas.height / dpr;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = GROUND;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.translate(0, (H - S) / 2);
+
+    const bh = BLOCK_H * S;
+
+    const bw = BLOCK_SPAN * W;
+    const left = MARGIN * W;
+    const right = W - MARGIN * W - bw;
+
+    const wantX = this.pointer ? this.pointer.x - 0.5 : 0;
+    const wantY = this.pointer ? this.pointer.y : 0.5;
+    const wantAmt = this.pointer ? 1 : 0;
+    if (still) {
+      this.magX = wantX;
+      this.magY = wantY;
+      this.magAmt = wantAmt;
+    } else {
+      this.magX += (wantX - this.magX) * MAG_EASE;
+      this.magY += (wantY - this.magY) * MAG_EASE;
+      this.magAmt += (wantAmt - this.magAmt) * MAG_EASE;
+    }
+
+    const states: RowState[] = [];
+    for (let i = 0; i < ROWS; i++) states.push(rowState(i, t, left, right));
+
+    for (let i = 0; i < ROWS; i++) {
+      const rowMid = (TOP + i * PITCH) + BLOCK_H / 2;
+      const dy = this.pointer ? Math.abs(rowMid - this.pointer.y) : Infinity;
+      const near = (reach: number) => {
+        const f = Math.max(0, 1 - dy / reach);
+        return f * f;
+      };
+      const wantLit = this.pointer ? near(HUE_REACH) : 0;
+      if (still) this.lit[i] = wantLit;
+      else this.lit[i] += (wantLit - this.lit[i]) * HUE_EASE;
+    }
+
+    const depth = (i: number) => i / (ROWS - 1);
+    const scaleOf = (i: number) => 1 - PARALLAX_SCALE * (1 - depth(i));
+
+    const shiftOf = (i: number) => PARALLAX_SHIFT * W * (1 - depth(i));
+
+    const placed = states.map((s, i) => {
+      const sc = scaleOf(i);
+      const w = bw * sc;
+      const h = bh * sc;
+
+      const rowMid = (TOP + i * PITCH) * S + bh / 2;
+      const dy = Math.abs(rowMid / S - this.magY);
+      const falloff = Math.max(0, 1 - dy / MAG_REACH);
+      const lean = this.magX * MAG_PULL * W * falloff * falloff * this.magAmt;
+
+      const cx = s.x + bw / 2 + shiftOf(i) + lean;
+      const cy = (TOP + i * PITCH) * S + bh / 2;
+      return { x: cx - w / 2, y: cy - h / 2, w, h, s };
+    });
+
+    const pts: [number, number][] = [];
+    for (const p of placed) {
+      pts.push([p.x, p.y], [p.x + p.w, p.y], [p.x, p.y + p.h], [p.x + p.w, p.y + p.h]);
+    }
+    const hull = convexHull(pts);
+
+    if (!still) {
+
+      this.wake.push(hull.map(([x, y]) => [x / W, y / S] as [number, number]));
+      while (this.wake.length > WAKE_LAG) this.wake.shift();
+    }
+    const past = this.wake.length >= WAKE_LAG ? this.wake[0] : null;
+    if (past && past.length > 2) {
+      ctx.globalAlpha = WAKE_ALPHA;
+      ctx.beginPath();
+      ctx.moveTo(past[0][0] * W, past[0][1] * S);
+      for (let i = 1; i < past.length; i++) ctx.lineTo(past[i][0] * W, past[i][1] * S);
+      ctx.closePath();
+      ctx.lineWidth = WAKE_WIDTH;
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = WAKE_TINT;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    let top = Infinity;
+    let bot = -Infinity;
+    for (const [, y] of hull) {
+      if (y < top) top = y;
+      if (y > bot) bot = y;
+    }
+    let fill: string | CanvasGradient = ACCENT;
+    if (bot > top) {
+      const g = ctx.createLinearGradient(0, top, 0, bot);
+      for (let i = 0; i < ROWS; i++) {
+        const rowMid = placed[i].y + placed[i].h / 2;
+        const stop = Math.max(0, Math.min(1, (rowMid - top) / (bot - top)));
+        g.addColorStop(stop, heat(states[i].speed, states[i].slide, this.lit[i]));
+      }
+      fill = g;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(hull[0][0], hull[0][1]);
+    for (let i = 1; i < hull.length; i++) ctx.lineTo(hull[i][0], hull[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+
+    const dt = still ? 0 : Math.max(1, (t - this.prevAt) * 1000);
+    this.prevAt = t;
+
+    ctx.textBaseline = "alphabetic";
+    ctx.textAlign = "left";
+
+    for (let i = 0; i < ROWS; i++) {
+      const p = placed[i];
+      const { label, slide, speed } = states[i];
+      ctx.font = `600 ${FONT * S * scaleOf(i)}px ${this.family}`;
+
+      const was = this.prevX[i];
+      const nowFrac = p.x / W;
+      if (was !== null && !still) {
+        const travelled = (nowFrac - was) * W;
+        const px = Math.abs(travelled) / dt;
+        if (px > BLUR_MIN_SPEED && speed > 0) {
+          const reach = -travelled * BLUR_REACH;
+          ctx.fillStyle = BLOCK;
+          for (let k = 1; k <= BLUR_TAPS; k++) {
+            const f = k / BLUR_TAPS;
+            ctx.globalAlpha = (1 - f) * 0.42 * speed;
+            ctx.fillRect(p.x + reach * f, p.y, p.w, p.h);
+          }
+          ctx.globalAlpha = 1;
+        }
+      }
+      this.prevX[i] = nowFrac;
+
+      ctx.fillStyle = BLOCK;
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+
+      const pad = LABEL_PAD_X * S * scaleOf(i);
+      const tw = ctx.measureText(label).width;
+      const room = Math.max(0, p.w - pad * 2 - tw);
+      const lx = p.x + pad + room * slide;
+      const ly = p.y + p.h - LABEL_PAD_Y * S * scaleOf(i);
+
+      const split = SPLIT_MAX * speed;
+      if (split > 0.02) {
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = SPLIT_WARM;
+        ctx.fillText(label, lx - split, ly);
+        ctx.fillStyle = SPLIT_COOL;
+        ctx.fillText(label, lx + split, ly);
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.fillStyle = GROUND;
+      ctx.fillText(label, lx, ly);
+    }
+
+    ctx.restore();
+
+    if (this.grain) {
+      ctx.globalAlpha = GRAIN_ALPHA;
+      ctx.globalCompositeOperation = "overlay";
+      const pat = ctx.createPattern(this.grain, "repeat");
+      if (pat) {
+        ctx.fillStyle = pat;
+        ctx.fillRect(0, 0, W, H);
+      }
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+```
+
+### slide-stack/SlideStackCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { SlideStack } from "./engine";
+import { onTransitionChange } from "../../lib/view-transition";
+
+function cardFraction(el: HTMLElement, cx: number, cy: number) {
+  const r = el.getBoundingClientRect();
+  const s = Math.min(r.width, r.height);
+  if (s <= 0 || r.width <= 0) return null;
+  return {
+    x: (cx - r.left) / r.width,
+    y: (cy - r.top - (r.height - s) / 2) / s,
+  };
+}
+
+export function SlideStackCard({
+  bare = false,
+  viewTransitionName,
+}: {
+  bare?: boolean;
+  viewTransitionName?: string;
+} = {}) {
+  void bare;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let engine: SlideStack | null = null;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const sync = () => {
+      if (!engine || reduced) return;
+      if (onScreen && !hidden && !inTransition) engine.start();
+      else engine.stop();
+    };
+
+    const raf = requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
+      engine = new SlideStack(canvas);
+      if (!engine.ok) return;
+      if (reduced) engine.renderStill();
+      else sync();
+
+      if (document.fonts?.load) {
+        const probe = document.createElement("span");
+        probe.style.cssText = "position:absolute;visibility:hidden";
+        probe.style.fontFamily = "var(--font-neue-montreal)";
+        probe.textContent = "Ag";
+        document.body.appendChild(probe);
+        const fam = getComputedStyle(probe)
+          .fontFamily.split(",")[0]
+          .replace(/["']/g, "")
+          .trim();
+        probe.remove();
+        if (fam) {
+          document.fonts
+            .load(`600 1em "${fam}"`)
+            .then(() => engine?.setFont(`"${fam}", sans-serif`), () => {});
+        }
+      }
+    });
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es[0]?.isIntersecting ?? false;
+        sync();
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(canvas);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    let rt = 0;
+    const onResize = () => {
+      window.clearTimeout(rt);
+      rt = window.setTimeout(() => engine?.resize(), 120);
+    };
+    window.addEventListener("resize", onResize);
+
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      engine?.setPointer(cardFraction(canvas, e.clientX, e.clientY));
+    };
+    const onLeave = () => engine?.setPointer(null);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerleave", onLeave);
+
+    window.addEventListener("blur", onLeave);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      window.removeEventListener("resize", onResize);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("blur", onLeave);
+      window.clearTimeout(rt);
+      engine?.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      data-canvas-card
+      role="img"
+      aria-label="Five dark blocks on an orange field, sliding between a left and a right stop. Each row starts a beat after the one above it, so the movement falls down the stack as a wave and the blocks' leading edges trace a shifting diagonal."
+      style={viewTransitionName ? { viewTransitionName } : undefined}
+      className="relative mx-auto aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)] bg-[#dedede]"
+    >
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
+  );
+}
+
+```

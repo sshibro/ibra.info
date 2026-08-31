@@ -1,0 +1,350 @@
+Build this: a corrupted-video look — flat blocks of saturated colour that fall, stretch open through the middle of the frame, and squeeze shut again — reverse-engineered from a datamoshed clip. THE ONE THING TO GET RIGHT: nothing moves horizontally. The column grid is FIXED for the life of the card; only the vertical tiling animates. Every attempt to make this by scrolling a picture sideways is wrong and will look like a slideshow. THE COLUMNS: not a uniform grid. Edge i sits at x = W * (i/N)^1.65 with N = 11, so columns are narrow on the left and wide on the right — measured off the source, where widths grow by a near-constant +9px. That non-uniform grid is what makes the image read as receding perspective instead of a flat mosaic, and it is the single hardest thing to guess by eye. THE FALL: each column holds a stack of tiles whose boundaries come from one curve, y = f(k) where k is how far a tile has travelled. f is a SIGMOID: nearly flat at both ends, steep in the middle. Steepness IS tile height, so a tile enters the top as a sliver, snaps open to roughly half the card's height as it crosses the centre, and compresses shut again on the way out. Use an ODD tile count (15) so exactly one tile sits dead centre and takes the whole bulge — with an even count the middle is split between two tiles and the peak is roughly halved no matter how hard you push the exponent. Exponent and tile count must move together: a high exponent with too few tiles starves the neighbouring tiles to 0-2px and the graded run of thin bands at the edges disappears. NEVER WRAP THE PHASE. Run it unbounded and derive tile identity from it (id = -floor(flow) + n, position = id + flow). Wrapping snaps every boundary back to the top once per cycle, which is only invisible if the colours advance in lockstep to hide the seam — and if the colours are static, as they should be, the wrap becomes a violent full-height teleport several times a second. Extend the curve LINEARLY past both ends (a shallow slope, ~0.05) rather than clamping: clamping collapses every off-screen tile onto y=0, and whichever one owns that line keeps changing, which shows up as a thin strip flickering through colours along the top edge. THE SPRING: re-map the fraction of each tile-step through an exponential arrival, 1 - e^(-k*t), mirrored at the halfway point (k ~ 3). Each half starts fast and decays to a crawl, so a tile rushes toward the centre of its step, HANGS there while it is fattest and most visible, then releases — about a 20x speed ratio across one step, versus 2x for a plain ease. Because the mapping is monotonic and hits 0 and 1 exactly, the stack still crosses every boundary on schedule and never drifts; only the pacing inside a step changes. THE ZIG-ZAG: offset each column's phase by a FRACTION of a tile (about -0.4 per column, negative so the stack rides higher the further right you go). The offset wrapping is the point, not a bug — the pattern is cyclic, so a wrap just means that column shows a different part of the same stack, and a tile drops in from below and keeps rising. That interlock is the zig-zag. Too small an offset (under ~0.1 across all the columns) and it is invisible; past ~0.5 neighbouring columns land on alternating values and it stops reading as a ramp at all. COLOURS ARE STATIC — index them by tile IDENTITY, never by on-screen position, or they appear to swipe as the geometry slides. Every column reads the SAME cyclic strip so one colour spans the card as a continuous row, with a small per-column skew to lean those rows into the diagonal. Order the strip so white and the near-blacks recur often (white alone is ~18% of the source): stepping the palette by a fixed stride walks past them almost every time and the result is flat mid-tone corduroy with no contrast. Draw each tile a few px past its own bottom edge and paint BOTTOM-UP so the overhang laps over the tile below rather than being covered by it — that turns a ruled grid into stacked layers. Framework-free Canvas 2D (plain fillRect, no shader, no image), one rAF loop, time-based so it runs the same on 60Hz and 120Hz; DPR-capped at 2, pauses offscreen / when hidden / during route transitions, one static frame under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### datamosh/engine.ts
+```ts
+const PALETTE = [
+  "#ffffff",
+  "#3566ff",
+  "#ffcf00",
+  "#192aff",
+  "#d62036",
+  "#282142",
+  "#ec4978",
+  "#ff9900",
+  "#14101f",
+  "#00dd33",
+  "#00ef82",
+] as const;
+
+const COLS = 11;
+const POWER = 1.65;
+
+const TILES = 15;
+
+const CYCLE = 0.2;
+
+const STAGGER = 0.006;
+
+const STRETCH = 8.5;
+
+const EARLY = 1.0;
+
+const SPRING_K = 1.6;
+
+const BLEED = 0.012;
+
+const COL_PHASE = -0.4;
+
+const SPRING_NORM = 1 - Math.exp(-SPRING_K);
+
+function springStep(p: number): number {
+  const half = (t: number) => (1 - Math.exp(-SPRING_K * t)) / SPRING_NORM;
+  return p < 0.5 ? 0.5 * half(2 * p) : 1 - 0.5 * half(2 * (1 - p));
+}
+
+function pickDifferent(from: number, avoid: number[]): number {
+  for (let i = 1; i <= PALETTE.length; i++) {
+    const c = (from + i) % PALETTE.length;
+    if (!avoid.includes(c)) return c;
+  }
+  return from;
+}
+
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export class Datamosh {
+  readonly ok: boolean = false;
+
+  private host: HTMLElement;
+  private canvas: HTMLCanvasElement;
+
+  private ctx!: CanvasRenderingContext2D;
+  private ro: ResizeObserver | null = null;
+
+  private w = 0;
+  private h = 0;
+  private dpr = 1;
+
+  private raf = 0;
+  private running = false;
+  private lastT = 0;
+  private elapsed = 0;
+  private seed: number;
+
+  private edges: number[] = [];
+
+  private strip: number[] = [];
+
+  constructor(host: HTMLElement, seed = 1) {
+    this.host = host;
+    this.seed = seed;
+
+    const canvas = document.createElement("canvas");
+    canvas.style.display = "block";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    host.appendChild(canvas);
+    this.canvas = canvas;
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+    this.ctx = ctx;
+
+    ctx.imageSmoothingEnabled = false;
+    this.ok = true;
+
+    this.buildColours();
+    this.measure();
+
+    if (typeof ResizeObserver !== "undefined") {
+      this.ro = new ResizeObserver(() => {
+        this.measure();
+        if (!this.running) this.draw();
+      });
+      this.ro.observe(host);
+    }
+  }
+
+  private buildColours() {
+    const rand = mulberry32(this.seed);
+
+    const WHITE = 0;
+    const DARKS = [8, 5];
+    const HUES = [1, 2, 3, 4, 6, 7, 9, 10];
+
+    const LEN = 61;
+    const strip: number[] = [];
+    let lastHue = -1;
+
+    for (let n = 0; n < LEN; n++) {
+      const r = rand();
+      let next: number;
+      if (r < 0.26) {
+
+        next = WHITE;
+      } else if (r < 0.42) {
+        next = DARKS[Math.floor(rand() * DARKS.length)];
+      } else {
+
+        let h = HUES[Math.floor(rand() * HUES.length)];
+        if (h === lastHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
+        lastHue = h;
+        next = h;
+      }
+
+      if (n > 0 && next === strip[n - 1]) {
+        next = pickDifferent(next, [strip[n - 1]]);
+      }
+      strip.push(next);
+    }
+
+    if (strip[LEN - 1] === strip[0]) {
+      strip[LEN - 1] = pickDifferent(strip[LEN - 1], [strip[LEN - 2], strip[0]]);
+    }
+
+    this.strip = strip;
+  }
+
+  private measure() {
+    const r = this.host.getBoundingClientRect();
+
+    this.dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.w = Math.max(1, Math.round(r.width * this.dpr));
+    this.h = Math.max(1, Math.round(r.height * this.dpr));
+    this.canvas.width = this.w;
+    this.canvas.height = this.h;
+    this.ctx.imageSmoothingEnabled = false;
+
+    this.edges = [];
+    for (let i = 0; i <= COLS; i++) {
+      this.edges.push(Math.round(this.w * Math.pow(i / COLS, POWER)));
+    }
+  }
+
+  private tileEdge(k: number): number {
+    const u = k / TILES;
+
+    if (u < 0) return u * 0.05;
+    if (u > 1) return 1 + (u - 1) * 0.05;
+    const v = Math.pow(u, EARLY);
+    const a = Math.pow(v, STRETCH);
+    return a / (a + Math.pow(1 - v, STRETCH));
+  }
+
+  private draw() {
+    const { ctx, h, edges } = this;
+
+    for (let i = 0; i < COLS; i++) {
+      const x0 = edges[i];
+      const cw = edges[i + 1] - x0;
+      if (cw <= 0) continue;
+
+      const delay = (COLS - 1 - i) * STAGGER;
+      const t = this.elapsed - delay;
+      const raw = t <= 0 ? 0 : t / CYCLE;
+
+      const linear = raw + i * COL_PHASE;
+      const step = Math.floor(linear);
+      const frac = linear - step;
+      const flow = step + springStep(frac);
+
+      const bleed = Math.round(BLEED * h);
+
+      const base = -Math.floor(flow);
+      for (let n = TILES + 2; n >= -2; n--) {
+        const id = base + n;
+
+        const k = id + flow;
+        const top = Math.round(this.tileEdge(k) * h);
+
+        const bot = Math.round(this.tileEdge(k + 1) * h) + bleed;
+        if (bot <= top || bot <= 0 || top >= h) continue;
+        const y = Math.max(0, top);
+        const th = Math.min(h, bot) - y;
+        if (th <= 0) continue;
+
+        const s = id - i;
+        const len = this.strip.length;
+        ctx.fillStyle = PALETTE[this.strip[((s % len) + len) % len]];
+        ctx.fillRect(x0, y, cw, th);
+      }
+    }
+  }
+
+  private tick = (now: number) => {
+    if (!this.running) return;
+
+    const dt = this.lastT ? Math.min(0.05, (now - this.lastT) / 1000) : 0;
+    this.lastT = now;
+    this.elapsed += dt;
+    this.draw();
+    this.raf = requestAnimationFrame(this.tick);
+  };
+
+  start() {
+    if (this.running || !this.ok) return;
+    this.running = true;
+    this.lastT = 0;
+    this.raf = requestAnimationFrame(this.tick);
+  }
+
+  stop() {
+    this.running = false;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+  }
+
+  renderStill() {
+    if (!this.ok) return;
+    this.elapsed = CYCLE * 0.45 + COLS * STAGGER;
+    this.draw();
+  }
+
+  destroy() {
+    this.stop();
+    this.ro?.disconnect();
+    this.ro = null;
+    this.canvas.remove();
+  }
+}
+
+```
+
+### datamosh/DatamoshCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { Datamosh } from "./engine";
+import { onTransitionChange } from "../../lib/view-transition";
+
+export function DatamoshCard({
+  bare = false,
+}: { bare?: boolean } = {}) {
+  void bare;
+  const hostRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let engine: Datamosh | null = null;
+    let raf = 0;
+    let created = false;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const running = () => onScreen && !hidden && !inTransition;
+    const sync = () => {
+      if (!engine || reduced) return;
+      if (running()) engine.start();
+      else engine.stop();
+    };
+
+    const create = () => {
+      if (created) return;
+      created = true;
+      raf = requestAnimationFrame(() => {
+        if (!hostRef.current) return;
+
+        engine = new Datamosh(host, 1 + Math.floor(Math.random() * 9999));
+        if (!engine.ok) return;
+        if (reduced) engine.renderStill();
+        else sync();
+      });
+    };
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es.some((e) => e.isIntersecting);
+        if (onScreen && !created) create();
+        if (created) sync();
+      },
+      { rootMargin: "200px" },
+    );
+    io.observe(host);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    return () => {
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      if (raf) cancelAnimationFrame(raf);
+      engine?.destroy();
+      engine = null;
+    };
+  }, []);
+
+  return (
+    <div
+      ref={hostRef}
+      role="img"
+      aria-label="A corrupted video decode: fixed columns of saturated colour, each one falling on its own fast clock. Tiles snap open through the middle of the frame and squeeze back down at the top and bottom, staggered column by column so the motion sweeps from right to left."
+      className="relative aspect-[1344/620] w-full overflow-hidden rounded-[12px] border border-[var(--border-line)] bg-[#14101f]"
+    />
+  );
+}
+
+```

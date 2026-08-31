@@ -1,0 +1,690 @@
+Build this: a retro logo slam on a pre-dawn sky: the word "sunset" breathes, squashes to a third of its height, then SLAMS forward into a chunky extruded logo trailing a fan of dawn colour, cools to a resting sticker, holds, and unwinds back to where it began — a seamless loop with no cut anywhere in it. THE MOTION IS A MEASUREMENT, NOT A DESIGN, and that is the whole reason it reads as a recording rather than as easing curves: the word's box width, its vertical centre, and the fan's depth are per-frame tracks, and the colour window (an offset and a span over a fixed ramp) was least-squares fitted per frame. What that buys is slop no hand-authored curve would ever produce — an ignition that flickers for exactly one frame, a settle that overshoots and returns, an ease-back that is not the mirror of its attack. Every number with a physical meaning is expressed in reference pixels of a 1500x1000 frame and reference frames at 25fps, then mapped onto the card. THE FAN CONVERGES, IT DOES NOT DIVERGE, and this is the finding that kills the obvious model: it is not a long shadow spreading from a light above. The fan's edge rays CLOSE IN at about 1-in-1 and meet at a vanishing point 2.17 word-box-heights BELOW the baseline at word centre. Every extrusion copy shrinks and slides toward that point, like a floor receding under the word, and the flat bottom of the fan is simply the baseline's image at the deepest copy. Get this backwards and the shape is wrong at every frame. THE SWEPT SILHOUETTE IS NOT THE WORD but the word DILATED by 8.4% of its box height — measured 18px on a 215px word and 12px on a 143px word, the same fraction both times — which is why the resting logo wears an all-around sticker outline: that outline IS copy zero of the extrusion, not a separate stroke, so it comes free and disappears free. Implement the dilation as a fill plus a fat miter stroke of the same path in the same colour, per copy, deepest first. THE GRADIENT NEVER CHANGES, ONLY ITS WINDOW MOVES: one fixed dawn ramp, and each frame maps fan depth through a fitted offset and span onto it. The ignition flashes the hot end at the face; the slam re-ignites with the window INVERTED — gold at the face, deep navy at the tips, span negative — and the heat then drains down the growing fan until only the deep end is left. A separate measured track pins a brighter terminal band to the fan's very tips, hotter than the window's own endpoint, and the last few percent of every column blends into it. A DAWN IS NOT ONE BLEND, IT IS STACKED ATMOSPHERE, and this is the thing that took the longest to get right. Walking a single smooth path from navy to gold gives you a WASH, and no amount of remapping where you sit on that path fixes it — a bowl-shaped depth curve was built, verified monotonic, and thrown away, because it changes WHERE on the ramp each copy sits and that does nothing when every neighbourhood of the ramp looks like every other. The shape has to live in the ramp's own STOP SPACING. So the stops compress most of the range into the deep end and put all the heat in the last fifth, neighbouring stops deliberately differ in how fast they move so the eye finds edges, and the hue TURNS BACK on itself just above the horizon — cooler for a moment before the sun's own light takes over, which is what a real sky does and what makes it read as distance rather than as a gradient tool. Interpolate each segment with an eased blend rather than linearly, then run two box-blur passes along the 256-entry lookup: linear segments leave a slope discontinuity AT every stop, which with thirteen stops is thirteen faint bands down the fan. Verified against a control — a mathematically perfect linear gradient scores the same worst-slope figure, so the ramp is as smooth as 8-bit colour allows. Draw one copy per reference pixel of depth, not one per two: at the resting depth of 67 the coarser count is 33 visible bands, a staircase rather than a gradient. THE COLOUR WINDOW IS SMOOTHED AND THE GEOMETRY IS NOT. Across the ignition the fitted window swings its offset by 0.83 then 0.98 and its span by 0.54 then 1.17 — close to its entire range, in single frames. That is real and correctly measured, but on a smooth canvas it reads as the gradient snapping between unrelated states rather than as a flash. A short triangular kernel over the window alone calms it more than fivefold while the ignition still travels nearly its full range; the word's size, the fan's depth and the slam's timing stay raw, because those are the choreography and softening them takes the slam's teeth out. THE LOOP CLOSES ON ITSELF, and this is the part a measured clip cannot give you. The source has a hard cut two thirds through — the word snapping 870px wide down to 476, the fan collapsing 212px, the word dropping 204px, all in one frame — which reads as an edit in a short clip and as the animation breaking and re-entering a different state in something that loops forever. It is BRIDGED: the clock is remapped so that single frame step is spread over a few frames on an ease-out, done once on the clock rather than inside each table read, because the tables must stay in step with each other and a per-table bridge desynchronises the word from its own fan. The bridge must consume its whole clock span or subtracting its length lands back at the start and replays the collapse. Then an OUTRO is appended after the last measured frame in which the piece undoes itself: the fan retracts into the word, the outline goes with it, the bloom falls to TRUE zero rather than its resting ember (a glow outliving its source is worse than no glow), the face rim unwinds, and the word eases back to exactly the size and position frame zero starts at — verified to zero delta on all three geometry values, so the seam has nothing left to show. The light dies BEFORE the geometry moves; a fan retracting while the word is already resizing reads as one mushy event instead of two. THE GLOW IS LAYERED, NOT ONE RADIAL. A single gradient has one falloff curve, so it reads as a blob sitting behind the word; a few nested ones at different radii, each a step COOLER on the ramp as it widens, give the falloff a profile and let the outermost arrive at nearly the sky's own tone, so the glow dissolves into the background instead of ending somewhere. Watch the alpha: overlapping layers composite, so per-layer values have to come down or the core blows out. The word itself is SHADED rather than filled flat — brightest just below its top edge where a lit convex surface catches highlight, cooling toward the baseline where the fan's light dies — and its lower edge picks up the fan's current colour, so it reads as a surface catching the dawn rather than a mask cut out of it. The ground is a vertical gradient, not a fill, so the fan is the brightest part of a sky it belongs to. HOVER WARMS THE LIGHT AND NOTHING ELSE. The piece reads as a broadcast — a long hold, a hard ignition, a rhythm that is the content — and a recording does not reposition itself when you look at it. So hovering slides the colour window a little further along the ramp it already uses: the same dawn, a few minutes later. Applied to the WINDOW rather than to the ramp, so the fan, the glow and the face rim all follow from one number and cannot drift apart; the glow leads slightly, being the light source. Asymmetric timing, faster in than out, because light arriving and light leaving are not the same gesture — and mind that an exponential time constant is not a duration, it reaches 90% at about 2.3x its value. THE WORD IS DRAWN AS GEOMETRY on one pixel-font grid: 40-unit stems, 24-unit horizontals, 18-unit sidebearings, x-height letters from y=22 to a baseline at 122, ascenders from y=0. Any word on that grid inherits the measured fan anatomy exactly, since all of it is relative to the box. Watch the counters — a glyph whose stems overlap in y fills solid, so verify letterforms by rasterising them before trusting them on screen. Framework-free Canvas 2D, no assets and no library: rectangles, one path, and a colour lookup. A rounded state key skips repainting during the long hold, which is nearly half the loop; anything animating on its own clock has to appear in that key or it freezes there. DPR-capped at 2, pauses offscreen / when hidden / during route transitions, one settled frame under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### sunset-slam/params.ts
+```ts
+export const REF_W = 1500;
+export const REF_H = 1000;
+export const FPS = 25;
+export const FRAMES = 89;
+
+export const BG = "#0b0f1f";
+
+export const BG_TOP = "#080b16";
+export const BG_BOTTOM = "#171a33";
+
+export const BG_HORIZON = 0.78;
+
+export const FACE = "#ffffff";
+
+export const FACE_RIM = 0.45;
+export const FACE_RIM_ALPHA = 0.3;
+
+export const FACE_TOP = "#ffffff";
+export const FACE_MID = "#f4f4fb";
+export const FACE_BOTTOM = "#c9cbe4";
+
+export const FACE_HILITE_AT = 0.18;
+
+export const RAMP: [number, [number, number, number]][] = [
+  [0.0, [18, 24, 66]],
+  [0.22, [24, 30, 84]],
+  [0.42, [38, 40, 108]],
+  [0.58, [58, 49, 128]],
+  [0.7, [86, 58, 142]],
+  [0.79, [124, 68, 148]],
+  [0.86, [168, 84, 142]],
+
+  [0.885, [186, 100, 132]],
+  [0.91, [206, 122, 120]],
+  [0.945, [234, 152, 106]],
+  [0.968, [248, 184, 104]],
+  [0.985, [253, 214, 128]],
+  [1.0, [255, 240, 190]],
+];
+
+export const VP_DEPTH = 2.17;
+
+export const OUTLINE = 0.084;
+
+export const IGNITE_AT = 15;
+
+export const WW = [
+  506, 552, 600, 617, 625, 631, 635, 636, 634, 631, 625, 617, 593, 412, 302,
+  309, 335, 403, 612, 726, 792, 835, 864, 885, 901, 913, 922, 930, 937, 942,
+  946, 950, 952, 952, 949, 937, 919, 904, 870, 476, 519, 545, 582, 611, 621,
+  628, 632, 635, 635, 635, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637,
+  637, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637,
+  637, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637, 637,
+];
+export const WCY = [
+  500, 495, 489.5, 487.5, 486.5, 486, 485.5, 485.5, 485.5, 486, 486.5, 487.5,
+  492, 515, 532, 529.5, 527, 507.5, 425, 393.5, 378, 367.5, 360, 353, 345,
+  338, 332, 328, 324, 321, 318, 316.5, 315.5, 315.5, 316, 320, 325.5, 329,
+  341, 545, 540, 513, 499, 491, 487, 485.5, 485.5, 486, 486, 486, 485.5,
+  485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5,
+  485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5,
+  485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5, 485.5,
+  485.5, 485.5, 485.5, 485.5, 485.5,
+];
+export const D = [
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  17, 29, 63, 160, 215, 246, 267, 281, 290, 298, 304, 309, 312, 315, 318,
+  320, 321, 322, 322, 321, 314, 305, 291, 259, 47, 44, 50, 56, 60, 63,
+  65, 66, 66, 66, 66, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67,
+  67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67,
+  67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67,
+];
+
+export const OFF = [
+  0.784, 0.884, 0.055, 1.031, 0.952, 0.774, 0.65, 0.518, 0.397, 0.312, 0.246,
+  0.173, 0.133, 0.001, -0.018, -0.001, -0.024, 0.104, 0.104, 0.104, 0.003,
+  -0.003, 0.163, 0.177, 0.15, 0.12, 0.1, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08,
+  0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08,
+  0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08,
+  0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08,
+  0.08, 0.08, 0.08, 0.08, 0.08,
+];
+export const SPAN = [
+  -0.025, 0.097, 0.635, -0.539, -0.156, 0.117, 0.282, 0.446, 0.578, 0.654,
+  0.716, 0.791, 0.806, 0.934, 0.959, 0.925, 0.965, 0.799, 0.799, 0.804,
+  0.923, 0.952, 0.768, 0.598, 0.1, 0.06, 0.04, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0,
+];
+
+export const TIPP = [
+  0.756, 0.977, 0.673, 0.37, 0.7, 0.773, 0.845, 0.878, 0.908, 0.932, 0.95,
+  0.977, 1.0, 0.977, 0.977, 0.977, 0.977, 0.977, 0.977, 0.977, 0.967, 0.967,
+  0.977, 0.87, 0.4, 0.252, 0.252, 0.254, 0.252, 0.252, 0.252, 0.254, 0.252,
+  0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252,
+  0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252,
+  0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252,
+  0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252, 0.252,
+  0.252,
+];
+
+export const TIP_BAND_FROM = 0.9;
+export const TIP_BAND_FULL = 0.97;
+
+export const REST_OFF = 0.06;
+export const REST_SPAN = 0.42;
+
+export const REST_TIPP = 0.62;
+
+export const REST_FROM = 42;
+export const REST_FULL = 52;
+
+export const BLOOM_LAYERS: [number, number, number][] = [
+  [2.6, 0.3, 0.62],
+  [1.5, 0.42, 0.8],
+  [0.85, 0.62, 0.9],
+  [0.42, 0.8, 0.97],
+];
+
+export const BLOOM_R = 0.95;
+
+export const BLOOM_ALPHA = 0.26;
+export const BLOOM_REST = 0.08;
+
+export const BLOOM_DROP = 0.35;
+
+export const BLOOM_RAMP = 0.86;
+
+export const WINDOW_SMOOTH = 2.2;
+
+export const OUTRO = 11;
+
+export const OUTRO_HOLD = 0.28;
+
+export const HOVER_WARM = 0.075;
+
+export const HOVER_SPREAD = 0.06;
+
+export const HOVER_BLOOM = 1.35;
+
+export const HOVER_IN = 0.24;
+export const HOVER_OUT = 0.48;
+
+export const BANDS = 0;
+
+export const CUTS = new Set([88]);
+
+export const SETTLE_BRIDGE = 5;
+
+export const BRIDGE_AT = 38;
+
+export const WORD_W = 726;
+export const WORD_H = 122;
+
+export const WORD_REF_W = 851;
+
+export const RECTS: [number, number, number, number][] = [
+
+  [0, 22, 108, 24], [0, 46, 40, 28], [0, 50, 108, 24],
+  [68, 74, 40, 24], [0, 98, 108, 24],
+
+  [126, 22, 40, 100], [194, 22, 40, 100], [126, 82, 108, 40],
+
+  [252, 22, 40, 100], [252, 22, 108, 24], [320, 22, 40, 100],
+
+  [378, 22, 108, 24], [378, 22, 40, 40], [378, 50, 108, 24],
+  [446, 62, 40, 40], [378, 98, 108, 24],
+
+  [504, 22, 108, 24], [504, 22, 40, 100], [504, 60, 88, 24],
+  [504, 98, 108, 24],
+
+  [658, 0, 40, 122], [630, 22, 96, 40],
+];
+
+export const V_POLY: [number, number][] = [];
+
+export const CONTENT_MID = 467.5;
+
+```
+
+### sunset-slam/engine.ts
+```ts
+import {
+  OUTRO,
+  OUTRO_HOLD,
+  HOVER_WARM,
+  HOVER_SPREAD,
+  HOVER_BLOOM,
+  HOVER_IN,
+  HOVER_OUT,
+  WINDOW_SMOOTH,
+  BANDS,
+  BG_BOTTOM,
+  BG_HORIZON,
+  BG_TOP,
+  BLOOM_ALPHA,
+  BLOOM_LAYERS,
+  BLOOM_DROP,
+  BLOOM_R,
+  BLOOM_REST,
+  BRIDGE_AT,
+  CONTENT_MID,
+  CUTS,
+  D,
+  FACE_RIM,
+  FACE_RIM_ALPHA,
+  REST_FROM,
+  REST_FULL,
+  REST_OFF,
+  REST_SPAN,
+  REST_TIPP,
+  SETTLE_BRIDGE,
+  FACE_TOP,
+  FACE_MID,
+  FACE_BOTTOM,
+  FACE_HILITE_AT,
+  FPS,
+  FRAMES,
+  IGNITE_AT,
+  OFF,
+  OUTLINE,
+  RAMP,
+  RECTS,
+  REF_W,
+  SPAN,
+  TIP_BAND_FROM,
+  TIP_BAND_FULL,
+  TIPP,
+  V_POLY,
+  VP_DEPTH,
+  WCY,
+  WORD_H,
+  WORD_W,
+  WW,
+} from "./params";
+
+function at(table: number[], u: number): number {
+  const last = table.length - 1;
+  if (u <= 0) return table[0];
+  if (u >= last) return table[last];
+  const i = Math.floor(u);
+  if (CUTS.has(i)) return table[i];
+  return table[i] + (table[i + 1] - table[i]) * (u - i);
+}
+
+function bridged(u: number): number {
+  if (SETTLE_BRIDGE <= 0) return u;
+  if (u < BRIDGE_AT) return u;
+
+  const span = 1 + SETTLE_BRIDGE;
+  if (u < BRIDGE_AT + span) {
+
+    const k = (u - BRIDGE_AT) / span;
+    return BRIDGE_AT + (1 - (1 - k) ** 3);
+  }
+  return u - SETTLE_BRIDGE;
+}
+
+function atFrom(table: number[], base: number, u: number): number {
+  return at(table, u - base < 0 ? 0 : u - base);
+}
+
+function window3(table: number[], base: number, u: number): number {
+  if (WINDOW_SMOOTH <= 0) return atFrom(table, base, u);
+  const r = WINDOW_SMOOTH;
+  const steps = 5;
+  let sum = 0;
+  let wsum = 0;
+  for (let i = -steps; i <= steps; i++) {
+    const o = (i / steps) * r;
+    const w = 1 - Math.abs(i) / (steps + 1);
+    sum += atFrom(table, base, u + o) * w;
+    wsum += w;
+  }
+  return sum / wsum;
+}
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const smooth = (v: number) => v * v * (3 - 2 * v);
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+
+function outroK(u: number): number {
+  if (OUTRO <= 0) return 0;
+  const start = FRAMES - 1;
+  if (u <= start) return 0;
+  return smooth(clamp01((u - start) / OUTRO));
+}
+
+function outroGeo(u: number): number {
+  const k = outroK(u);
+  if (k <= OUTRO_HOLD) return 0;
+  return smooth((k - OUTRO_HOLD) / (1 - OUTRO_HOLD));
+}
+
+export class SunsetSlam {
+  private ctx: CanvasRenderingContext2D | null;
+  private raf = 0;
+  private t0 = 0;
+  private running = false;
+  private dpr = 1;
+
+  private word: Path2D;
+  private lut: string[] = [];
+  private lastKey = "";
+
+  private hover = 0;
+  private hoverTo = 0;
+  private lastNow = 0;
+
+  readonly ok: boolean;
+
+  constructor(private canvas: HTMLCanvasElement) {
+    this.ctx = canvas.getContext("2d");
+    this.ok = !!this.ctx;
+    this.word = this.buildWord();
+    this.buildLut();
+    if (this.ok) this.resize();
+  }
+
+  private buildWord(): Path2D {
+    const p = new Path2D();
+    if (V_POLY.length > 1) {
+      p.moveTo(V_POLY[0][0], V_POLY[0][1]);
+      for (let i = 1; i < V_POLY.length; i++) p.lineTo(V_POLY[i][0], V_POLY[i][1]);
+      p.closePath();
+    }
+    for (const [x, y, w, h] of RECTS) p.rect(x, y, w, h);
+    return p;
+  }
+
+  private buildLut() {
+
+    const raw: [number, number, number][] = [];
+    for (let i = 0; i < 256; i++) {
+      const u = i / 255;
+      let k = RAMP.length - 2;
+      for (let j = 0; j < RAMP.length - 1; j++) {
+        if (u <= RAMP[j + 1][0]) { k = j; break; }
+      }
+      const [p0, c0] = RAMP[k];
+      const [p1, c1] = RAMP[k + 1];
+      const t = p1 > p0 ? (u - p0) / (p1 - p0) : 0;
+      const e = t * t * (3 - 2 * t);
+      raw.push([
+        c0[0] + (c1[0] - c0[0]) * e,
+        c0[1] + (c1[1] - c0[1]) * e,
+        c0[2] + (c1[2] - c0[2]) * e,
+      ]);
+    }
+
+    const R = 7;
+    let src = raw;
+    for (let pass = 0; pass < 2; pass++) {
+      const out: [number, number, number][] = [];
+      for (let i = 0; i < 256; i++) {
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let o = -R; o <= R; o++) {
+          const j = Math.max(0, Math.min(255, i + o));
+          r += src[j][0]; g += src[j][1]; b += src[j][2]; n++;
+        }
+        out.push([r / n, g / n, b / n]);
+      }
+      src = out;
+    }
+    for (let i = 0; i < 256; i++) {
+      this.lut[i] = `rgb(${Math.round(src[i][0])},${Math.round(src[i][1])},${Math.round(src[i][2])})`;
+    }
+  }
+
+  private ramp(u: number): string {
+
+    const q = BANDS > 0 ? Math.round(u * BANDS) / BANDS : u;
+    const i = Math.max(0, Math.min(255, Math.round(q * 255)));
+    return this.lut[i];
+  }
+
+  private rampRGB(u: number): [number, number, number] {
+    const s = this.lut[Math.max(0, Math.min(255, Math.round(u * 255)))];
+    const m = s.match(/\d+/g)!;
+    return [+m[0], +m[1], +m[2]];
+  }
+
+  resize() {
+    const c = this.canvas;
+    const r = c.getBoundingClientRect();
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.round(r.width * this.dpr);
+    c.height = Math.round(r.height * this.dpr);
+    this.lastKey = "";
+    if (!this.running) this.renderStill();
+  }
+
+  start() {
+    if (this.running || !this.ok) return;
+    this.running = true;
+    this.t0 = performance.now();
+    this.lastKey = "";
+    this.lastNow = performance.now();
+    const tick = (now: number) => {
+      if (!this.running) return;
+
+      const dt = Math.min(Math.max((now - this.lastNow) / 1000, 1 / 240), 0.1);
+      this.lastNow = now;
+
+      const rate = this.hoverTo > this.hover ? HOVER_IN : HOVER_OUT;
+      this.hover += (this.hoverTo - this.hover) * (1 - Math.exp(-dt / rate));
+
+      const span = FRAMES + SETTLE_BRIDGE + OUTRO;
+      this.draw(bridged((((now - this.t0) / 1000) * FPS) % span));
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  setHover(on: boolean) {
+    this.hoverTo = on ? 1 : 0;
+  }
+
+  stop() {
+    this.running = false;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+  }
+
+  renderStill() {
+    if (this.ok) this.draw(60);
+  }
+
+  destroy() {
+    this.stop();
+    this.ctx = null;
+  }
+
+  private draw(u: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const ok = outroK(u);
+    const og = outroGeo(u);
+
+    const ww = lerp(at(WW, u), WW[0], og);
+    const wcy = lerp(at(WCY, u), WCY[0], og);
+
+    const depth = at(D, u) * (1 - ok);
+    let off = window3(OFF, IGNITE_AT, u);
+    let span = window3(SPAN, IGNITE_AT, u);
+    let tipp = window3(TIPP, IGNITE_AT, u);
+    const ignited = u >= IGNITE_AT;
+
+    if (u > REST_FROM) {
+      const k = smooth(clamp01((u - REST_FROM) / (REST_FULL - REST_FROM)));
+      off += (REST_OFF - off) * k;
+      span += (REST_SPAN - span) * k;
+      tipp += (REST_TIPP - tipp) * k;
+    }
+
+    const hv = this.hover;
+    if (hv > 0.001) {
+      off += HOVER_WARM * hv;
+      span += HOVER_SPREAD * hv * Math.sign(span || 1);
+      tipp += HOVER_WARM * hv;
+    }
+
+    const key = `${ww.toFixed(1)}|${wcy.toFixed(1)}|${depth.toFixed(1)}|${off.toFixed(4)}|${span.toFixed(4)}|${tipp.toFixed(4)}|${ignited}|${hv.toFixed(3)}`;
+    if (key === this.lastKey) return;
+    this.lastKey = key;
+
+    const { dpr } = this;
+    const W = this.canvas.width / dpr;
+    const H = this.canvas.height / dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, BG_TOP);
+    sky.addColorStop(BG_HORIZON, BG_BOTTOM);
+    sky.addColorStop(1, BG_TOP);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    const sc = W / REF_W;
+    ctx.translate(0, H / 2 - CONTENT_MID * sc);
+    ctx.scale(sc, sc);
+
+    const ws = ww / WORD_W;
+    const wh = WORD_H * ws;
+    const wx = REF_W / 2 - ww / 2;
+    const wy = wcy - wh / 2;
+    const baseline = wy + wh;
+    const vpDist = VP_DEPTH * wh;
+    const strokeW = 2 * OUTLINE * WORD_H;
+
+    const copy = (f: number) => {
+
+      const q = 1 - f;
+      ctx.save();
+      ctx.translate(REF_W / 2, baseline + vpDist);
+      ctx.scale(q, q);
+      ctx.translate(-REF_W / 2, -(baseline + vpDist));
+      ctx.translate(wx, wy);
+      ctx.scale(ws, ws);
+    };
+
+    {
+      const peak = 322;
+      const k = clamp01(depth / peak);
+
+      const a =
+        (BLOOM_REST + (BLOOM_ALPHA - BLOOM_REST) * smooth(k)) *
+        (1 + (HOVER_BLOOM - 1) * hv) *
+        (1 - ok);
+      const cx = REF_W / 2;
+      const cy = baseline + BLOOM_DROP * wh;
+      const base = BLOOM_R * ww * (0.75 + 0.45 * k);
+
+      for (const [rMul, aMul, pos] of BLOOM_LAYERS) {
+        const r = base * rMul;
+        const la = a * aMul;
+        if (la < 0.004) continue;
+        const [br, bg, bb] = this.rampRGB(pos);
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, `rgba(${br},${bg},${bb},${la.toFixed(3)})`);
+        g.addColorStop(0.45, `rgba(${br},${bg},${bb},${(la * 0.35).toFixed(3)})`);
+
+        g.addColorStop(1, `rgba(${br},${bg},${bb},0)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(-REF_W, -REF_W, REF_W * 3, REF_W * 3);
+      }
+    }
+
+    if (ignited && depth > 1) {
+
+      const n = Math.min(260, Math.max(12, Math.ceil(depth)));
+      ctx.lineJoin = "miter";
+      ctx.lineWidth = strokeW;
+      for (let i = n; i >= 0; i--) {
+        const dd = (depth * i) / n;
+        copy(dd / vpDist);
+        const df = dd / depth;
+
+        let p = off + span * df;
+        if (df > TIP_BAND_FROM) {
+          const t = Math.min(1, (df - TIP_BAND_FROM) / (TIP_BAND_FULL - TIP_BAND_FROM));
+          p += (tipp - p) * t;
+        }
+        const col = this.ramp(p);
+        ctx.fillStyle = col;
+        ctx.strokeStyle = col;
+        ctx.fill(this.word);
+        ctx.stroke(this.word);
+        ctx.restore();
+      }
+    }
+
+    copy(0);
+
+    const faceG = ctx.createLinearGradient(0, 0, 0, WORD_H);
+    faceG.addColorStop(0, FACE_MID);
+    faceG.addColorStop(FACE_HILITE_AT, FACE_TOP);
+    faceG.addColorStop(1, FACE_BOTTOM);
+    ctx.fillStyle = faceG;
+    ctx.fill(this.word);
+    if (ignited) {
+      const [rr, rg, rb] = this.rampRGB(Math.min(1, off + span * 0.55));
+      const grad = ctx.createLinearGradient(0, WORD_H * (1 - FACE_RIM), 0, WORD_H);
+      const rimA = FACE_RIM_ALPHA * (1 - ok);
+      grad.addColorStop(0, `rgba(${rr},${rg},${rb},0)`);
+      grad.addColorStop(1, `rgba(${rr},${rg},${rb},${rimA.toFixed(3)})`);
+      ctx.fillStyle = grad;
+      ctx.fill(this.word);
+    }
+    ctx.restore();
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+}
+
+```
+
+### sunset-slam/SunsetSlamCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { SunsetSlam } from "./engine";
+import { onTransitionChange } from "../../lib/view-transition";
+
+export function SunsetSlamCard({
+  bare = false,
+  viewTransitionName,
+}: {
+  bare?: boolean;
+  viewTransitionName?: string;
+} = {}) {
+  void bare;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let engine: SunsetSlam | null = null;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const sync = () => {
+      if (!engine || reduced) return;
+      if (onScreen && !hidden && !inTransition) engine.start();
+      else engine.stop();
+    };
+
+    const raf = requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
+      engine = new SunsetSlam(canvas);
+      if (!engine.ok) return;
+      if (reduced) engine.renderStill();
+      else sync();
+    });
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es[0]?.isIntersecting ?? false;
+        sync();
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(canvas);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    let rt = 0;
+    const onResize = () => {
+      window.clearTimeout(rt);
+      rt = window.setTimeout(() => engine?.resize(), 120);
+    };
+    window.addEventListener("resize", onResize);
+
+    const onEnter = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") engine?.setHover(true);
+    };
+    const onLeave = () => engine?.setHover(false);
+    canvas.addEventListener("pointerenter", onEnter);
+    canvas.addEventListener("pointerleave", onLeave);
+    window.addEventListener("blur", onLeave);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      window.removeEventListener("resize", onResize);
+      canvas.removeEventListener("pointerenter", onEnter);
+      canvas.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("blur", onLeave);
+      window.clearTimeout(rt);
+      engine?.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      data-canvas-card
+      role="img"
+      aria-label="The word sunset, in white slab letters on a pre-dawn sky, squashes down and then slams forward into a chunky retro logo trailing a fan of dawn colour — deep navy through violet and rose to a gold edge. It cools to a resting sticker, holds, then the fan retracts and the word returns to where it started."
+      style={viewTransitionName ? { viewTransitionName } : undefined}
+      className="relative mx-auto aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)] bg-black"
+    >
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
+  );
+}
+
+```

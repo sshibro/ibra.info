@@ -1,0 +1,747 @@
+Build this: a live ASCII particle field that spells a word: GPGPU flow-field particles simulated on the GPU, rendered as a grid of ASCII glyphs that drift and react to the cursor.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### ascii-wordmark/shaders.ts
+```ts
+export const GPGPU_COMPUTE =  `
+uniform float uTime;
+uniform float uDeltaTime;
+uniform float uFlowFieldInfluence;
+uniform float uFlowFieldStrength;
+uniform float uFlowFieldFrequency;
+
+uniform vec3  uMouse;
+uniform float uMouseStrength;
+uniform float uMouseSpeed;
+
+uniform sampler2D uBase;
+
+vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+float permute(float x){return floor(mod(((x*34.0)+1.0)*x, 289.0));}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+float taylorInvSqrt(float r){return 1.79284291400159 - 0.85373472095314 * r;}
+
+vec4 grad4(float j, vec4 ip){
+  const vec4 ones = vec4(1.0, 1.0, 1.0, -1.0);
+  vec4 p,s;
+  p.xyz = floor( fract (vec3(j) * ip.xyz) * 7.0) * ip.z - 1.0;
+  p.w = 1.5 - dot(abs(p.xyz), ones.xyz);
+  s = vec4(lessThan(p, vec4(0.0)));
+  p.xyz = p.xyz + (s.xyz*2.0 - 1.0) * s.www;
+  return p;
+}
+
+float simplexNoise4d(vec4 v){
+  const vec2  C = vec2( 0.138196601125010504, 0.309016994374947451);
+  vec4 i  = floor(v + dot(v, C.yyyy) );
+  vec4 x0 = v -   i + dot(i, C.xxxx);
+  vec4 i0;
+  vec3 isX = step( x0.yzw, x0.xxx );
+  vec3 isYZ = step( x0.zww, x0.yyz );
+  i0.x = isX.x + isX.y + isX.z;
+  i0.yzw = 1.0 - isX;
+  i0.y += isYZ.x + isYZ.y;
+  i0.zw += 1.0 - isYZ.xy;
+  i0.z += isYZ.z;
+  i0.w += 1.0 - isYZ.z;
+  vec4 i3 = clamp( i0, 0.0, 1.0 );
+  vec4 i2 = clamp( i0-1.0, 0.0, 1.0 );
+  vec4 i1 = clamp( i0-2.0, 0.0, 1.0 );
+  vec4 x1 = x0 - i1 + 1.0 * C.xxxx;
+  vec4 x2 = x0 - i2 + 2.0 * C.xxxx;
+  vec4 x3 = x0 - i3 + 3.0 * C.xxxx;
+  vec4 x4 = x0 - 1.0 + 4.0 * C.xxxx;
+  i = mod(i, 289.0);
+  float j0 = permute( permute( permute( permute(i.w) + i.z) + i.y) + i.x);
+  vec4 j1 = permute( permute( permute( permute (
+             i.w + vec4(i1.w, i2.w, i3.w, 1.0 ))
+           + i.z + vec4(i1.z, i2.z, i3.z, 1.0 ))
+           + i.y + vec4(i1.y, i2.y, i3.y, 1.0 ))
+           + i.x + vec4(i1.x, i2.x, i3.x, 1.0 ));
+  vec4 ip = vec4(1.0/294.0, 1.0/49.0, 1.0/7.0, 0.0) ;
+  vec4 p0 = grad4(j0,   ip);
+  vec4 p1 = grad4(j1.x, ip);
+  vec4 p2 = grad4(j1.y, ip);
+  vec4 p3 = grad4(j1.z, ip);
+  vec4 p4 = grad4(j1.w, ip);
+  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+  p4 *= taylorInvSqrt(dot(p4,p4));
+  vec3 m0 = max(0.6 - vec3(dot(x0,x0), dot(x1,x1), dot(x2,x2)), 0.0);
+  vec2 m1 = max(0.6 - vec2(dot(x3,x3), dot(x4,x4)            ), 0.0);
+  m0 = m0 * m0;
+  m1 = m1 * m1;
+  return 49.0 * ( dot(m0*m0, vec3( dot( p0, x0 ), dot( p1, x1 ), dot( p2, x2 )))
+               + dot(m1*m1, vec2( dot( p3, x3 ), dot( p4, x4 ) ) ) ) ;
+}
+
+void main() {
+  float time = uTime * 0.2;
+  vec2 uv = gl_FragCoord.xy / resolution.xy;
+  vec4 particle = texture(uParticles, uv);
+  vec4 base = texture(uBase, uv);
+
+  float uRepelStrength = clamp(uMouseSpeed, 0.0, uMouseStrength);
+  vec3 particlePos = particle.xyz;
+  vec3 dir = normalize(particlePos - uMouse);
+  float dist = distance(uMouse, particlePos);
+  float repulsionForce = uRepelStrength / (dist * (dist + 1.0));
+  vec3 repulsion = dir * repulsionForce * 2.0;
+  particle.xyz += repulsion * uRepelStrength;
+
+  if (particle.a >= 1.0) {
+
+    particle.a = mod(particle.a, 1.0);
+    particle.xyz = base.xyz;
+  } else {
+
+    float strength = simplexNoise4d(vec4(base.xyz, time + 1.0));
+    float influence = (uFlowFieldInfluence - 0.5) * (- 2.0);
+    strength = smoothstep(influence, 1.0, strength);
+
+    vec3 flowField = vec3(
+      simplexNoise4d(vec4(particle.xyz * uFlowFieldFrequency + 0.0, time)),
+      simplexNoise4d(vec4(particle.xyz * uFlowFieldFrequency + 1.0, time)),
+      simplexNoise4d(vec4(particle.xyz * uFlowFieldFrequency + 2.0, time))
+    );
+    flowField = normalize(flowField);
+    particle.xyz += flowField * uDeltaTime * strength * uFlowFieldStrength;
+
+    particle.a += uDeltaTime * 0.3;
+    vec3 toTarget = base.xyz - particle.xyz;
+    particle.xyz += toTarget * uDeltaTime * 2.2;
+  }
+
+  gl_FragColor = particle;
+}
+`;
+
+export const PARTICLE_VERT =  `
+uniform vec2 uResolution;
+uniform float uSize;
+uniform float uVisibility;
+uniform sampler2D uParticlesTexture;
+
+attribute vec2 aParticlesUv;
+attribute float aSize;
+
+varying float vAlpha;
+
+void main() {
+  vec4 particle = texture2D(uParticlesTexture, aParticlesUv);
+
+  vec4 modelPosition = modelMatrix * vec4(particle.xyz, 1.0);
+  vec4 viewPosition = viewMatrix * modelPosition;
+  gl_Position = projectionMatrix * viewPosition;
+
+  vAlpha = uVisibility;
+  gl_PointSize = uSize * aSize * uResolution.y * 0.006;
+  gl_PointSize *= (1.0 / - viewPosition.z);
+}
+`;
+
+export const PARTICLE_FRAG =  `
+varying float vAlpha;
+void main() {
+
+  vec2 c = gl_PointCoord - 0.5;
+  float d = length(c);
+  if (d > 0.5) discard;
+  float a = smoothstep(0.5, 0.15, d) * vAlpha;
+
+  gl_FragColor = vec4(vec3(1.0), a);
+}
+`;
+
+export const ASCII_VERT =  `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+export const TRAIL_LEN = 24;
+
+export const ASCII_FRAG =  `
+uniform sampler2D tDiffuse;
+uniform vec2 uResolution;
+uniform float uAsciiPixelSize;
+uniform sampler2D uAsciiTexture;
+uniform vec2 uCharCount;
+uniform float uAsciiContrast;
+uniform float uAsciiBrightness;
+uniform float uAsciiMin;
+uniform float uAsciiMax;
+
+uniform float uAspect;
+uniform vec3  uInk;
+uniform vec2  uTrail[${TRAIL_LEN}];
+uniform float uTrailAge[${TRAIL_LEN}];
+uniform float uTrailOn;
+
+varying vec2 vUv;
+
+void main() {
+  vec2 normalizedPixelSize = uAsciiPixelSize / uResolution;
+  vec2 uvPixel = normalizedPixelSize * floor(vUv / normalizedPixelSize);
+  vec4 texColor = texture2D(tDiffuse, uvPixel);
+
+  float lumaRGB = dot(vec3(0.2126, 0.7152, 0.0722), texColor.rgb);
+  float luma = max(lumaRGB, texColor.a);
+
+  luma = (luma - uAsciiMin) / (uAsciiMax - uAsciiMin);
+  luma = clamp(luma, 0.0, 1.0);
+  luma = luma + uAsciiBrightness;
+  luma = (luma - 0.5) * uAsciiContrast + 0.5;
+  luma = clamp(luma, 0.0, 1.0);
+
+  vec2 cellUV = fract(vUv / normalizedPixelSize);
+  float charIndex = clamp(
+    floor(luma * (uCharCount.x - 1.0)),
+    0.0,
+    uCharCount.x - 1.0
+  );
+  vec2 asciiUV = vec2(
+    (charIndex + cellUV.x) / uCharCount.x,
+    cellUV.y
+  );
+  float character = texture2D(uAsciiTexture, asciiUV).r;
+
+  vec2 cellCenter = uvPixel + normalizedPixelSize * 0.5;
+
+  vec3 inkDeep = vec3(0.14, 0.16, 0.30);
+  vec3 inkLift = vec3(0.20, 0.24, 0.42);
+  vec3 baseColor = mix(inkDeep, inkLift, smoothstep(0.0, 1.0, cellCenter.x));
+
+  float trail = 0.0;
+  float headness = 0.0;
+  for (int i = 0; i < ${TRAIL_LEN}; i++) {
+    float age = uTrailAge[i];
+    if (age >= 1.0) continue;
+    vec2 d = (cellCenter - uTrail[i]) * vec2(uAspect, 1.0);
+    float rad = 0.16 + age * 0.10;
+    float g = smoothstep(rad, 0.0, length(d)) * (1.0 - age);
+    if (g > trail) { trail = g; headness = 1.0 - age; }
+  }
+  trail *= uTrailOn;
+
+  vec3 trailCool = vec3(0.29, 0.23, 1.0);
+  vec3 trailHot  = vec3(1.0, 0.32, 0.68);
+  vec3 trailColor = mix(trailCool, trailHot, headness);
+
+  vec3 glyphColor = mix(baseColor, trailColor, clamp(trail, 0.0, 1.0));
+
+  float ink = character * smoothstep(0.015, 0.18, luma);
+  ink = min(1.0, ink + trail * character * 0.3);
+
+  gl_FragColor = vec4(glyphColor * ink, ink);
+}
+`;
+
+```
+
+### ascii-wordmark/atlas.ts
+```ts
+export const RAMP = " .:-=+*#%VAULT";
+
+export function buildAtlas(ramp = RAMP, cell = 64): HTMLCanvasElement {
+  const n = ramp.length;
+  const c = document.createElement("canvas");
+  c.width = cell * n;
+  c.height = cell;
+  const ctx = c.getContext("2d")!;
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = "#fff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.font = `${Math.floor(cell * 0.74)}px ui-monospace, "SF Mono", Menlo, monospace`;
+  for (let i = 0; i < n; i++) {
+    const ch = ramp[i];
+    if (ch !== " ") ctx.fillText(ch, i * cell + cell / 2, cell / 2 + cell * 0.04);
+  }
+  return c;
+}
+
+```
+
+### ascii-wordmark/word-points.ts
+```ts
+export interface WordPoints {
+  positions: Float32Array;
+  count: number;
+  aspect: number;
+}
+
+export function buildWordPoints(
+  word: string,
+  size: number,
+): WordPoints {
+  const count = size * size;
+
+  const W = 1024;
+  const H = 320;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext("2d", { willReadFrequently: true })!;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#fff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  let fontSize = 240;
+  ctx.font = `800 ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+  const margin = 80;
+  const measured = ctx.measureText(word).width;
+  if (measured > W - margin) {
+    fontSize = Math.floor(fontSize * ((W - margin) / measured));
+    ctx.font = `800 ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+  }
+  ctx.fillText(word, W / 2, H / 2);
+
+  const data = ctx.getImageData(0, 0, W, H).data;
+
+  const lit: [number, number][] = [];
+  const stride = 2;
+  for (let y = 0; y < H; y += stride) {
+    for (let x = 0; x < W; x += stride) {
+      const a = data[(y * W + x) * 4 + 3];
+      if (a > 128) lit.push([x, y]);
+    }
+  }
+
+  if (lit.length === 0) {
+    for (let i = 0; i < 256; i++) lit.push([W / 2, H / 2]);
+  }
+
+  const aspect = W / H;
+  const positions = new Float32Array(count * 4);
+  for (let i = 0; i < count; i++) {
+
+    const p = lit[(Math.random() * lit.length) | 0];
+    const jx = (Math.random() - 0.5) * stride;
+    const jy = (Math.random() - 0.5) * stride;
+    const nx = ((p[0] + jx) / W - 0.5) * 2 * aspect;
+    const ny = -((p[1] + jy) / H - 0.5) * 2;
+    const nz = (Math.random() - 0.5) * 0.08;
+
+    positions[i * 4 + 0] = nx;
+    positions[i * 4 + 1] = ny;
+    positions[i * 4 + 2] = nz;
+    positions[i * 4 + 3] = Math.random();
+  }
+
+  return { positions, count, aspect };
+}
+
+```
+
+### ascii-wordmark/renderer.ts
+```ts
+import * as THREE from "three";
+import { GPUComputationRenderer } from "three/examples/jsm/misc/GPUComputationRenderer.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import {
+  GPGPU_COMPUTE,
+  PARTICLE_VERT,
+  PARTICLE_FRAG,
+  ASCII_VERT,
+  ASCII_FRAG,
+  TRAIL_LEN,
+} from "./shaders";
+import { buildAtlas, RAMP } from "./atlas";
+import { buildWordPoints } from "./word-points";
+
+const FLOW_INFLUENCE = 0.43;
+const FLOW_STRENGTH = 1.09;
+const FLOW_FREQUENCY = 0.53;
+const MOUSE_STRENGTH = 0.08;
+const MOUSE_SPEED_GAIN = 1.5;
+
+const IS_TOUCH =
+  typeof window !== "undefined" &&
+  (window.matchMedia?.("(pointer: coarse)").matches ?? false);
+
+const FBO_SIZE = IS_TOUCH ? 128 : 200;
+const MAX_DPR = IS_TOUCH ? 1.5 : 2;
+const RENDER_SCALE = 0.5;
+const ASCII_CELL_DIVISOR = 100;
+
+export interface AsciiWordmarkOptions {
+  word: string;
+  inkColor: string;
+}
+
+export class AsciiWordmarkRenderer {
+  private host: HTMLElement;
+  private opts: AsciiWordmarkOptions;
+
+  private renderer!: THREE.WebGLRenderer;
+  private scene = new THREE.Scene();
+  private camera!: THREE.PerspectiveCamera;
+  private composer!: EffectComposer;
+  private asciiPass!: ShaderPass;
+
+  private gpgpu!: GPUComputationRenderer;
+  private posVar!: ReturnType<GPUComputationRenderer["addVariable"]>;
+  private points!: THREE.Points;
+  private pointsMat!: THREE.ShaderMaterial;
+
+  private clock = new THREE.Clock();
+  private raf = 0;
+  private running = false;
+  private onScreen = true;
+  private disposed = false;
+
+  private mouse = new THREE.Vector3(9999, 9999, 0);
+  private prevMouse = new THREE.Vector3(9999, 9999, 0);
+  private mouseSpeed = 0;
+
+  private mouseUv = new THREE.Vector2(9999, 9999);
+  private onCard = false;
+
+  private trailPos: THREE.Vector2[] = [];
+  private trailAge: Float32Array = new Float32Array(TRAIL_LEN).fill(1);
+  private trailOn = 0;
+  private visibility = 0;
+  private wordAspect = 3;
+  private readonly WORD_MARGIN = 0.92;
+
+  private io?: IntersectionObserver;
+  private ro?: ResizeObserver;
+
+  constructor(host: HTMLElement, opts: AsciiWordmarkOptions) {
+    this.host = host;
+    this.opts = opts;
+  }
+
+  mount(): boolean {
+    const { clientWidth: w, clientHeight: h } = this.host;
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+
+    this.renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: false,
+      powerPreference: "high-performance",
+      failIfMajorPerformanceCaveat: false,
+    });
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(w, h);
+    this.renderer.setClearColor(0x000000, 0);
+    this.host.appendChild(this.renderer.domElement);
+    Object.assign(this.renderer.domElement.style, {
+      position: "absolute",
+      inset: "0",
+      width: "100%",
+      height: "100%",
+      display: "block",
+
+      touchAction: "pan-y",
+      userSelect: "none",
+      WebkitUserSelect: "none",
+    });
+
+    const { positions, count, aspect } = buildWordPoints(this.opts.word, FBO_SIZE);
+    this.wordAspect = aspect;
+
+    this.camera = new THREE.PerspectiveCamera(35, w / h, 0.1, 100);
+    this.frameWord(w / h);
+    this.camera.lookAt(0, 0, 0);
+
+    if (!this.initGPGPU(positions)) return false;
+    this.initPoints(count);
+    this.initComposer(w, h, dpr);
+
+    this.bindEvents();
+    return true;
+  }
+
+  private initGPGPU(positions: Float32Array): boolean {
+    this.gpgpu = new GPUComputationRenderer(FBO_SIZE, FBO_SIZE, this.renderer);
+
+    this.gpgpu.setDataType(THREE.HalfFloatType);
+
+    const baseTex = this.gpgpu.createTexture();
+    (baseTex.image.data as Float32Array).set(positions);
+
+    const initTex = this.gpgpu.createTexture();
+    (initTex.image.data as Float32Array).set(positions);
+
+    this.posVar = this.gpgpu.addVariable("uParticles", GPGPU_COMPUTE, initTex);
+    this.gpgpu.setVariableDependencies(this.posVar, [this.posVar]);
+
+    const u = this.posVar.material.uniforms;
+    u.uTime = { value: 0 };
+    u.uDeltaTime = { value: 0 };
+    u.uBase = { value: baseTex };
+    u.uFlowFieldInfluence = { value: FLOW_INFLUENCE };
+    u.uFlowFieldStrength = { value: FLOW_STRENGTH };
+    u.uFlowFieldFrequency = { value: FLOW_FREQUENCY };
+    u.uMouse = { value: new THREE.Vector3(9999, 9999, 0) };
+    u.uMouseStrength = { value: MOUSE_STRENGTH };
+    u.uMouseSpeed = { value: 0 };
+
+    const err = this.gpgpu.init();
+    if (err) {
+
+      console.warn("[ascii-wordmark] GPGPU unsupported, skipping:", err);
+      return false;
+    }
+    return true;
+  }
+
+  private initPoints(count: number) {
+    const geo = new THREE.BufferGeometry();
+
+    const uvs = new Float32Array(count * 2);
+    const sizes = new Float32Array(count);
+    let i = 0;
+    for (let y = 0; y < FBO_SIZE; y++) {
+      for (let x = 0; x < FBO_SIZE; x++) {
+        uvs[i * 2] = (x + 0.5) / FBO_SIZE;
+        uvs[i * 2 + 1] = (y + 0.5) / FBO_SIZE;
+        sizes[i] = 0.6 + Math.random() * 0.8;
+        i++;
+      }
+    }
+
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    geo.setAttribute("aParticlesUv", new THREE.BufferAttribute(uvs, 2));
+    geo.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+    geo.setDrawRange(0, count);
+
+    this.pointsMat = new THREE.ShaderMaterial({
+      vertexShader: PARTICLE_VERT,
+      fragmentShader: PARTICLE_FRAG,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uResolution: { value: new THREE.Vector2() },
+        uSize: { value: 4 },
+        uVisibility: { value: 0 },
+        uParticlesTexture: { value: null },
+      },
+    });
+
+    this.points = new THREE.Points(geo, this.pointsMat);
+    this.points.frustumCulled = false;
+    this.scene.add(this.points);
+  }
+
+  private initComposer(w: number, h: number, dpr: number) {
+    const bw = Math.max(2, Math.round(w * RENDER_SCALE));
+    const bh = Math.max(2, Math.round(h * RENDER_SCALE));
+
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.setPixelRatio(dpr);
+    this.composer.setSize(w, h);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+
+    const atlas = buildAtlas(RAMP);
+    const atlasTex = new THREE.CanvasTexture(atlas);
+    atlasTex.minFilter = THREE.LinearFilter;
+    atlasTex.magFilter = THREE.LinearFilter;
+
+    const cell = (bw * dpr) / ASCII_CELL_DIVISOR;
+
+    const ink = new THREE.Color(this.opts.inkColor);
+
+    this.trailPos = Array.from({ length: TRAIL_LEN }, () => new THREE.Vector2(9999, 9999));
+    this.trailAge = new Float32Array(TRAIL_LEN).fill(1);
+
+    this.asciiPass = new ShaderPass({
+      uniforms: {
+        tDiffuse: { value: null },
+        uResolution: { value: new THREE.Vector2(bw * dpr, bh * dpr) },
+        uAsciiPixelSize: { value: cell },
+        uAsciiTexture: { value: atlasTex },
+        uCharCount: { value: new THREE.Vector2(RAMP.length, 1) },
+        uAsciiContrast: { value: 1.4 },
+        uAsciiBrightness: { value: 0.12 },
+        uAsciiMin: { value: 0.0 },
+        uAsciiMax: { value: 1.0 },
+        uAspect: { value: w / h },
+        uInk: { value: new THREE.Vector3(ink.r, ink.g, ink.b) },
+        uTrail: { value: this.trailPos },
+        uTrailAge: { value: this.trailAge },
+        uTrailOn: { value: 0 },
+      },
+      vertexShader: ASCII_VERT,
+      fragmentShader: ASCII_FRAG,
+    });
+    this.asciiPass.renderToScreen = true;
+    this.composer.addPass(this.asciiPass);
+
+    this.pointsMat.uniforms.uResolution.value.set(w * dpr, h * dpr);
+  }
+
+  private bindEvents() {
+    const onPointerMove = (e: PointerEvent) => {
+      const r = this.host.getBoundingClientRect();
+
+      const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
+      const ny = -(((e.clientY - r.top) / r.height) * 2 - 1);
+      const v = new THREE.Vector3(nx, ny, 0.5).unproject(this.camera);
+      const dir = v.sub(this.camera.position).normalize();
+      const dist = -this.camera.position.z / dir.z;
+      this.mouse.copy(this.camera.position).add(dir.multiplyScalar(dist));
+
+      this.mouseUv.set((e.clientX - r.left) / r.width, 1 - (e.clientY - r.top) / r.height);
+      this.onCard = true;
+    };
+    const onPointerLeave = () => {
+      this.mouse.set(9999, 9999, 0);
+      this.mouseUv.set(9999, 9999);
+      this.onCard = false;
+    };
+
+    this.host.addEventListener("pointermove", onPointerMove);
+    this.host.addEventListener("pointerleave", onPointerLeave);
+    this.cleanupFns.push(() => {
+      this.host.removeEventListener("pointermove", onPointerMove);
+      this.host.removeEventListener("pointerleave", onPointerLeave);
+    });
+
+    const onVis = () => (document.hidden ? this.stop() : this.maybeStart());
+    document.addEventListener("visibilitychange", onVis);
+    this.cleanupFns.push(() => document.removeEventListener("visibilitychange", onVis));
+
+    this.io = new IntersectionObserver(
+      (es) => {
+        this.onScreen = es[0]?.isIntersecting ?? true;
+        this.onScreen ? this.maybeStart() : this.stop();
+      },
+      { threshold: 0.01 },
+    );
+    this.io.observe(this.host);
+
+    this.ro = new ResizeObserver(() => this.resize());
+    this.ro.observe(this.host);
+  }
+
+  private cleanupFns: (() => void)[] = [];
+
+  private frameWord(viewportAspect: number) {
+    const halfV = THREE.MathUtils.degToRad(this.camera.fov) / 2;
+    const tanV = Math.tan(halfV);
+    const distForHeight = 1.0 / tanV;
+    const distForWidth = this.wordAspect / (tanV * viewportAspect);
+    const dist = Math.max(distForHeight, distForWidth) * this.WORD_MARGIN;
+    this.camera.position.set(0, 0, dist);
+  }
+
+  private resize() {
+    if (this.disposed) return;
+    const { clientWidth: w, clientHeight: h } = this.host;
+    if (w === 0 || h === 0) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(w, h);
+    this.composer.setPixelRatio(dpr);
+    this.composer.setSize(w, h);
+    this.camera.aspect = w / h;
+    this.frameWord(w / h);
+    this.camera.updateProjectionMatrix();
+
+    const bw = Math.max(2, Math.round(w * RENDER_SCALE));
+    const bh = Math.max(2, Math.round(h * RENDER_SCALE));
+    this.asciiPass.uniforms.uResolution.value.set(bw * dpr, bh * dpr);
+    this.asciiPass.uniforms.uAsciiPixelSize.value = (bw * dpr) / ASCII_CELL_DIVISOR;
+    this.asciiPass.uniforms.uAspect.value = w / h;
+    this.pointsMat.uniforms.uResolution.value.set(w * dpr, h * dpr);
+  }
+
+  start() {
+    this.onScreen = true;
+    this.maybeStart();
+  }
+
+  private maybeStart() {
+    if (this.disposed || this.running || !this.onScreen || document.hidden) return;
+    this.running = true;
+    this.clock.getDelta();
+    this.raf = requestAnimationFrame(this.loop);
+  }
+
+  stop() {
+    this.running = false;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+  }
+
+  private advanceTrail(dt: number) {
+    const TRAIL_LIFE = 0.75;
+    for (let i = 0; i < TRAIL_LEN; i++) {
+      this.trailAge[i] = Math.min(1, this.trailAge[i] + dt / TRAIL_LIFE);
+    }
+    if (this.onCard) {
+
+      for (let i = TRAIL_LEN - 1; i > 0; i--) {
+        this.trailPos[i].copy(this.trailPos[i - 1]);
+        this.trailAge[i] = this.trailAge[i - 1];
+      }
+      this.trailPos[0].copy(this.mouseUv);
+      this.trailAge[0] = 0;
+    }
+
+    this.asciiPass.uniforms.uTrailAge.value = this.trailAge;
+  }
+
+  private loop = () => {
+    if (!this.running) return;
+    const dt = Math.min(this.clock.getDelta(), 1 / 30);
+    const t = this.clock.elapsedTime;
+
+    this.mouseSpeed = this.mouse.distanceTo(this.prevMouse);
+    if (this.mouse.x > 9000) this.mouseSpeed = 0;
+    this.prevMouse.copy(this.mouse);
+
+    const cu = this.posVar.material.uniforms;
+    cu.uTime.value = t;
+    cu.uDeltaTime.value = dt;
+    cu.uMouse.value.copy(this.mouse);
+    cu.uMouseSpeed.value = this.mouseSpeed * MOUSE_SPEED_GAIN;
+    this.gpgpu.compute();
+
+    this.pointsMat.uniforms.uParticlesTexture.value =
+      this.gpgpu.getCurrentRenderTarget(this.posVar).texture;
+
+    this.visibility = Math.min(1, this.visibility + dt * 0.9);
+    this.pointsMat.uniforms.uVisibility.value = this.visibility;
+
+    const au = this.asciiPass.uniforms;
+    this.advanceTrail(dt);
+
+    this.trailOn += ((this.onCard ? 1 : 0) - this.trailOn) * Math.min(1, dt * 6);
+    au.uTrailOn.value = this.trailOn;
+
+    this.composer.render();
+    this.raf = requestAnimationFrame(this.loop);
+  };
+
+  dispose() {
+    this.disposed = true;
+    this.stop();
+    this.cleanupFns.forEach((fn) => fn());
+    this.io?.disconnect();
+    this.ro?.disconnect();
+    this.points?.geometry.dispose();
+    this.pointsMat?.dispose();
+    this.asciiPass?.uniforms.uAsciiTexture.value?.dispose?.();
+    this.gpgpu?.dispose?.();
+    this.composer?.dispose?.();
+    this.renderer?.dispose();
+    this.renderer?.forceContextLoss?.();
+    if (this.renderer?.domElement.parentNode) {
+      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+    }
+  }
+}
+
+```

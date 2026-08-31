@@ -1,0 +1,432 @@
+Build this: a four-word carousel of design nouns — Type, Grid, Color, Motion — on pure white, in TWO blues keyed to scale: Klein blue (#002fa7) at the center and a pale #7fb2ff out at the small slots, mixed per-stamp so a word darkens as it grows into center and lifts away as it shrinks out. The color carries the same signal the size does, which makes it structural rather than decorative; the mix eases quadratically toward the deep tone so the big word is unambiguously Klein rather than a midpoint blend, and the gradient lives in the periphery where it belongs. Small word left, BIG word center, small word right, slamming one slot leftward every half second with velocity-proportional motion blur. EVERY NUMBER IS TRACED FROM AN 800x450, 65-FRAME, ~33FPS REFERENCE (1.97s loop of exactly four steps). THE HIDDEN FOURTH SLOT IS THE BEST DETAIL: the next-next word is parked at TINY scale (0.145x) directly BEHIND the big center word, drawn underneath it, peeking through the letter gaps — each word's cycle is right-small -> center-BIG -> left-small -> pops out in ONE frame at the cut -> re-enters as the hidden tiny -> right-small again, a closed loop where one position is nearly invisible. Slot centers at 0.235 / 0.49 / 0.745 of the width; scales 1 / 0.35 / 0.145 measured from cap-band heights (77 / 26 / ~11 px of 450). EVERY WORD HANGS FROM THE SAME OPTICAL CAP-MIDDLE at exactly half the height — baseline = mid + cap x scale / 2 at every size — which is what makes three sizes read as one quiet line; centring the words' bounding boxes instead lets descenders shove words vertically and the line breaks. THE STRIP NEVER FULLY STOPS, and this is the signature: the tracked center dwell runs 430 -> 411 -> 403 -> 401 -> 400 -> 393 -> 378 -> 350 — a long deceleration tail after arrival, barely two frames of near-stillness, then a symmetric acceleration into departure. Each move is ONE fat-tailed sigmoid (two frames of wind-up, two or three violent frames, a tail still creeping when the next step begins), shipped as measured control points through a monotone cubic spline — a closed-form ease thins the tail and kills the creep. The wind-up starts ~2 frames BEFORE the visible cut. THE STEPS ARE NOT EVENLY SPACED: transition starts sit at frames 12, 26, 41, 53 of 65, so intervals run 14, 15, 12 and 24 — one dwell wraps the loop seam and holds visibly longer, kept as-is. MOTION BLUR IS TEMPORAL SUPERSAMPLING with two subtleties: (1) the smear spans the displacement across the reference's own 33ms shutter, computed ANALYTICALLY from the pose function at t and t-33ms — not from the previous rendered frame — so blur length is identical at any display refresh rate and a still render gets the correct mid-flight smear; (2) the moving word is stamped along that displacement at falling alpha, and the STAMP COUNT SCALES WITH TRAVEL (4 to 18) rather than sitting at a fixed number — the traced eases are violently uneven, DEPART peaking at 9.6x its average velocity at k=0.10 against ARRIVE at 3.0x at k=0.34, so a fixed count bands visibly across a ~300px whip while wasting fills on a 5px creep; (3) the alpha ramp is TRAILING-WEIGHTED in proportion to speed, because a real shutter piles ink where the move BEGAN (that is where the subject was slowest) — a head-biased k^2 ramp gets this backwards, so the two profiles blend by velocity and a slam reads trailing-heavy while a settle stays head-weighted and sharp, the ramp staying monotonic throughout so the head is always brightest and only the DISTRIBUTION shifts; the head alpha also eases back to opaque as motion slows so the settle sharpens instead of popping at a threshold — and the slow dwell creep (a few px a frame) must stay BELOW the blur threshold or the big word renders soft all dwell long. Scale animates on the same ease as position (0.35 -> 1 growing into center). THE ARRIVING WORD LANDS RATHER THAN ASYMPTOTES: an explicit overshoot of ~0.4% of the width begins at 62% through arrival and unwinds on a half-sine that returns to EXACTLY zero at the end, so the settled slot is untouched and the loop still closes on the traced position — the measured ease stays authoritative for the flight and this sits on top of it. The hidden tiny is treated as what it is: at ~21px a smear is mud, not motion, so blur is gated on rendered SIZE as well as travel, and it draws at 0.4 alpha so it reads as texture through the big word’s counters instead of a second word competing for attention. Draw order: tiny under everything, and the top layer hands over mid-flight so the incoming big word wins. Framework-free Canvas 2D — four fillText calls (times the per-frame stamp count while smearing) and a deterministic clock; pauses offscreen / when hidden / during route transitions, one settled static frame under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### word-carousel/params.ts
+```ts
+export const WORDS = ["Type", "Grid", "Color", "Motion"];
+
+export const INK = "#002fa7";
+export const INK_FAR = "#7fb2ff";
+export const BG = "#ffffff";
+
+export const FONT = 107 / 450;
+export const CAP = 77 / 450;
+
+export const SLOT_L = 0.235;
+export const SLOT_C = 0.49;
+export const SLOT_R = 0.745;
+export const SLOT_T = 0.46;
+
+export const SCALE_BIG = 1;
+export const SCALE_SMALL = 0.35;
+export const SCALE_TINY = 0.145;
+
+export const LOOP = 1.97;
+export const STEPS = [0.36, 0.78, 1.23, 1.59];
+
+export const WINDUP = 0.06;
+
+export const POP_IN_DELAY = 0.09;
+
+export const ARRIVE_E: [number, number][] = [
+  [0, 0], [0.15, 0.005], [0.21, 0.02], [0.29, 0.14], [0.36, 0.33],
+  [0.43, 0.52], [0.5, 0.67], [0.57, 0.77], [0.64, 0.88], [0.71, 0.925],
+  [0.8, 0.94], [0.93, 0.98], [1, 1],
+];
+export const DEPART_E: [number, number][] = [
+  [0, 0], [0.07, 0.15], [0.13, 0.6], [0.2, 0.72], [0.27, 0.92],
+  [0.33, 0.965], [0.4, 0.985], [0.5, 0.993], [0.7, 0.998], [1, 1],
+];
+
+export const BLUR_HEAD = 0.5;
+export const BLUR_TAIL = 0.07;
+
+export const BLUR_MIN = 8 / 800;
+
+export const BLUR_STAMPS_MIN = 4;
+export const BLUR_STAMPS_MAX = 18;
+
+export const BLUR_FULL = 0.16;
+
+export const TRAIL_BIAS = 0.55;
+
+export const BLUR_MIN_SCALE = 0.3;
+
+export const TINY_ALPHA = 0.4;
+
+export const OVERSHOOT = 0.004;
+
+export const OVERSHOOT_FROM = 0.62;
+
+```
+
+### word-carousel/engine.ts
+```ts
+import {
+  ARRIVE_E,
+  BG,
+  BLUR_FULL,
+  BLUR_HEAD,
+  BLUR_MIN,
+  BLUR_MIN_SCALE,
+  BLUR_STAMPS_MAX,
+  BLUR_STAMPS_MIN,
+  BLUR_TAIL,
+  CAP,
+  DEPART_E,
+  FONT,
+  INK,
+  INK_FAR,
+  LOOP,
+  POP_IN_DELAY,
+  SCALE_BIG,
+  SCALE_SMALL,
+  SCALE_TINY,
+  SLOT_C,
+  SLOT_L,
+  SLOT_R,
+  SLOT_T,
+  STEPS,
+  TINY_ALPHA,
+  TRAIL_BIAS,
+  OVERSHOOT,
+  OVERSHOOT_FROM,
+  WINDUP,
+  WORDS,
+} from "./params";
+
+function spline(pts: [number, number][]): (k: number) => number {
+  const n = pts.length;
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  const dx: number[] = [];
+  const s: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(xs[i + 1] - xs[i]);
+    s.push((ys[i + 1] - ys[i]) / dx[i]);
+  }
+  const m: number[] = [s[0]];
+  for (let i = 1; i < n - 1; i++) {
+    if (s[i - 1] * s[i] <= 0) m.push(0);
+    else {
+      const w1 = 2 * dx[i] + dx[i - 1];
+      const w2 = dx[i] + 2 * dx[i - 1];
+      m.push((w1 + w2) / (w1 / s[i - 1] + w2 / s[i]));
+    }
+  }
+  m.push(s[n - 2]);
+  return (k: number) => {
+    if (k <= 0) return ys[0];
+    if (k >= 1) return ys[n - 1];
+    let i = 0;
+    while (i < n - 2 && xs[i + 1] < k) i++;
+    const h = dx[i];
+    const u = (k - xs[i]) / h;
+    const u2 = u * u;
+    const u3 = u2 * u;
+    return (
+      ys[i] * (2 * u3 - 3 * u2 + 1) +
+      m[i] * h * (u3 - 2 * u2 + u) +
+      ys[i + 1] * (-2 * u3 + 3 * u2) +
+      m[i + 1] * h * (u3 - u2)
+    );
+  };
+}
+
+const arriveE = spline(ARRIVE_E);
+const departE = spline(DEPART_E);
+const clamp01 = (k: number) => Math.max(0, Math.min(1, k));
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+
+const ROLE_X = [SLOT_C, SLOT_R, SLOT_T, SLOT_L];
+const ROLE_S = [SCALE_BIG, SCALE_SMALL, SCALE_TINY, SCALE_SMALL];
+
+const ROLE_Z = [3, 1, 0, 2];
+
+interface Pose {
+  x: number;
+  s: number;
+  visible: boolean;
+  z: number;
+}
+
+export class WordCarousel {
+  ok = false;
+
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D | null;
+  private raf = 0;
+  private running = false;
+  private last = 0;
+  private t = 0.15;
+
+  private W = 0;
+  private H = 0;
+  private dpr = 1;
+  private fontPx = 0;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    if (!this.ctx) return;
+    this.resize();
+    this.ok = true;
+  }
+
+  resize() {
+    const r = this.canvas.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return;
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.W = r.width;
+    this.H = r.height;
+    this.canvas.width = Math.round(r.width * this.dpr);
+    this.canvas.height = Math.round(r.height * this.dpr);
+    this.fontPx = FONT * this.H;
+    if (!this.running) this.draw(this.t);
+  }
+
+  start() {
+    if (this.running || !this.ok) return;
+    this.running = true;
+    this.last = performance.now();
+    const tick = (now: number) => {
+      if (!this.running) return;
+      this.t = (this.t + Math.min((now - this.last) / 1000, 0.1)) % LOOP;
+      this.last = now;
+      this.draw(this.t);
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  stop() {
+    this.running = false;
+    cancelAnimationFrame(this.raf);
+  }
+
+  renderStill() {
+    this.draw(0.15);
+  }
+
+  destroy() {
+    this.stop();
+  }
+
+  private stepAt(t: number): { p: number; u: number; tIn: number } {
+    for (let i = 0; i < 4; i++) {
+      const a = STEPS[i] - WINDUP;
+      let b = STEPS[(i + 1) % 4] - WINDUP;
+      if (b < a) b += LOOP;
+      let tt = t;
+      if (tt < a) tt += LOOP;
+      if (tt >= a && tt < b) return { p: i, u: (tt - a) / (b - a), tIn: tt - a };
+    }
+    return { p: 0, u: 0, tIn: 0 };
+  }
+
+  private pose(wi: number, t: number): Pose {
+    const { p, u, tIn } = this.stepAt(t);
+
+    const role = (((wi - p) % 4) + 4) % 4;
+    const next = (role + 3) % 4;
+
+    const e = role === 1 ? arriveE(clamp01(u)) : departE(clamp01(u));
+
+    if (role === 3) {
+      if (tIn < WINDUP) return { x: SLOT_L, s: SCALE_SMALL, visible: true, z: ROLE_Z[3] };
+      if (tIn < WINDUP + POP_IN_DELAY) return { x: SLOT_T, s: SCALE_TINY, visible: false, z: ROLE_Z[2] };
+      return { x: SLOT_T, s: SCALE_TINY, visible: true, z: ROLE_Z[2] };
+    }
+
+    let over = 0;
+    if (role === 1 && u > OVERSHOOT_FROM) {
+      const q = (u - OVERSHOOT_FROM) / (1 - OVERSHOOT_FROM);
+      over = -OVERSHOOT * Math.sin(q * Math.PI);
+    }
+
+    return {
+      x: lerp(ROLE_X[role], ROLE_X[next], e) + over,
+      s: lerp(ROLE_S[role], ROLE_S[next], e),
+      visible: true,
+
+      z: e < 0.5 ? ROLE_Z[role] : ROLE_Z[next],
+    };
+  }
+
+  private inkAt(s: number): string {
+    const k = clamp01((s - SCALE_TINY) / (SCALE_BIG - SCALE_TINY));
+
+    const e = k * k;
+    const mix = (a: string, b: string, m: number) => {
+      const p = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+      const c = [0, 1, 2].map((i) => Math.round(lerp(p(a, i), p(b, i), m)));
+      return `rgb(${c[0]},${c[1]},${c[2]})`;
+    };
+    return mix(INK_FAR, INK, e);
+  }
+
+  private stamp(word: string, x: number, s: number, alpha: number) {
+    const ctx = this.ctx!;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = this.inkAt(s);
+    ctx.font = `400 ${this.fontPx * s}px Helvetica, Arial, sans-serif`;
+
+    ctx.fillText(word, x * this.W, this.H / 2 + (CAP * this.H * s) / 2);
+  }
+
+  private draw(t: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, this.W, this.H);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+
+    const poses = WORDS.map((_, wi) => this.pose(wi, t));
+    const was = WORDS.map((_, wi) => this.pose(wi, (t - 0.033 + LOOP) % LOOP));
+    const order = [...WORDS.keys()].sort((a, b) => poses[a].z - poses[b].z);
+
+    for (const wi of order) {
+      const pose = poses[wi];
+      const from = was[wi];
+      if (!pose.visible) continue;
+      const travelled = from.visible ? Math.abs(pose.x - from.x) : 0;
+
+      const bigEnough = pose.s >= BLUR_MIN_SCALE;
+
+      if (travelled > BLUR_MIN && bigEnough) {
+
+        const head = lerp(1, BLUR_HEAD, clamp01(travelled / BLUR_MIN - 1));
+
+        const speed = clamp01(travelled / BLUR_FULL);
+        const stamps = Math.round(
+          lerp(BLUR_STAMPS_MIN, BLUR_STAMPS_MAX, speed),
+        );
+
+        const trail = TRAIL_BIAS * speed;
+
+        for (let i = 0; i < stamps; i++) {
+          const k = i / (stamps - 1);
+          const headward = k * k;
+          const tailward = 1 - (1 - k) * (1 - k);
+          this.stamp(
+            WORDS[wi],
+            lerp(from.x, pose.x, k),
+            lerp(from.s, pose.s, k),
+            lerp(BLUR_TAIL, head, lerp(headward, tailward, trail)),
+          );
+        }
+      } else {
+
+        const a =
+          pose.s <= SCALE_TINY
+            ? TINY_ALPHA
+            : lerp(
+                TINY_ALPHA,
+                1,
+                clamp01((pose.s - SCALE_TINY) / (SCALE_SMALL - SCALE_TINY)),
+              );
+        this.stamp(WORDS[wi], pose.x, pose.s, a);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+```
+
+### word-carousel/WordCarouselCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { WordCarousel } from "./engine";
+import { onTransitionChange } from "../../lib/view-transition";
+
+export function WordCarouselCard({
+  bare = false,
+  viewTransitionName,
+}: {
+  bare?: boolean;
+  viewTransitionName?: string;
+} = {}) {
+  void bare;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let engine: WordCarousel | null = null;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const sync = () => {
+      if (!engine || reduced) return;
+      if (onScreen && !hidden && !inTransition) engine.start();
+      else engine.stop();
+    };
+
+    const raf = requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
+      engine = new WordCarousel(canvas);
+      if (!engine.ok) return;
+      if (reduced) engine.renderStill();
+      else sync();
+    });
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es[0]?.isIntersecting ?? false;
+        sync();
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(canvas);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    let rt = 0;
+    const onResize = () => {
+      window.clearTimeout(rt);
+      rt = window.setTimeout(() => engine?.resize(), 120);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(rt);
+      engine?.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      data-canvas-card
+      role="img"
+      aria-label="Four dark navy words on white — Type, Grid, Color, Motion — arranged as a small word, a large word, and another small word on one line. Every half second the row slams one position to the left with a horizontal motion blur, cycling which word is large."
+      style={viewTransitionName ? { viewTransitionName } : undefined}
+      className="relative mx-auto aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)] bg-white"
+    >
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
+  );
+}
+
+```

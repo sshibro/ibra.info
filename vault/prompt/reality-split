@@ -1,0 +1,1249 @@
+Build this: ## WHAT IT IS
+
+A word sits selected in a design tool that starts thinking for itself: it splits into letter objects, they scatter, the view dives in, the letters take turns being inspected at huge scale, then everything collapses to a dot and pops back whole. Each pass then replays as a DIFFERENT word, in a different colour world, with a different kind of shape under the letters.
+
+## THE MECHANISM
+
+the word Animation selected in a design tool that starts thinking for itself: white Helvetica Bold in ultramarine boxes (#1f22c9) on an acid yellow field (#ffe500), hot vermilion selection handles (#ff3d00) on the corners. The word SPLITS into letter objects, each instantly getting its own four handles; they scatter across the card, the view dives into the first letter while everything else defocuses and fades away, and then the letters take turns sliding through center at huge scale like someone stepping through objects in an inspector — then everything collapses to a single dot and the word pops back whole. THE REFERENCE WAS A 162-FRAME CLIP at 25fps (6.48s, a 700px square) showing the word 'Reality', and its eases, seam gaps, drift law and handle physics are all still here verbatim — but the piece was rebuilt to work on ANY WORD, and that rebuild is the whole story, because almost everything that was measured as a property of seven specific letters turned out to be a property of the mechanism instead. THE ORIGINAL LAYOUT WAS KEYED BY CHARACTER AND THAT IS THE BUG THAT HID FOUR OTHERS: a map of scatter targets keyed 'a' to dead centre, and the camera dives into dead centre — so on any word, the letter magnified was whichever one happened to be NAMED a, which on 'Animation' is the one in the middle. The same character-keying stacked both i's of a word on one identical point, and dropped every unnamed letter onto a fallback ring that read as a mechanical arc dropped into a hand-composed constellation. SO THE CONSTELLATION IS GENERATED, KEYED BY INDEX: WORD[0] parks dead centre — the letter the camera magnifies must BE the letter the inspection opens on, or the train starts with a glyph swap at full zoom — and the rest spiral out on the GOLDEN ANGLE (137.5 degrees, so no two are ever in line and it never resolves into a visible ring), then RELAX APART over sixty passes using each glyph's real box size, with the centre letter pinned and every box clamped inside the card. Deterministic, so a word always gives the same picture; on a 9-letter word it lands two letters per quadrant with the scatter centroid 5px off centre. THE BOXES MUST BE MEASURED OFF THE GLYPHS, NOT TABULATED: the original fitted sizes were hand-measured for seven characters with one shared fallback, and that fallback was NARROWER THAN A CAPITAL A OR M, so those letters hung outside their own selection boxes — which is the one thing a design-tool fantasy cannot do. Each box now comes from the glyph's own ink bounds plus the padding recovered from the reference (0.16 of the font horizontally, 0.26 vertically, read off the R). THE INSPECTION VISITS EVERY LETTER, AND THE DWELL IS A FLOOR NOT A REMAINDER: the clip inspected four of its seven letters on four absolute timings, which on a custom word reads as skipping letters at random — so the schedule is generated, and the first generated version divided the window into equal steps and let the hold be whatever survived the slides, which on nine letters went NEGATIVE. Every letter began departing before it had finished arriving; nothing was ever motionless and the whole passage read as a blur of two or three glyphs. Built forward from a guaranteed still hold instead (~5 frames), and THE LOOP STRETCHES TO FIT THE WORD rather than the train racing to fit the loop — the measured 2.16s window holds exactly seven letters, so nine of them get a longer piece at the same speed, not a faster piece. Each letter enters from the RIGHT and leaves LEFT, one direction throughout (alternating sides was tried and a zig-zag reads as fidgeting, not as a conveyor), and lands on a DAMPED SPRING — carrying about 12px past centre and ringing down to rest inside the arrival, because at this speed a move that merely decelerates reads as a cut while a spring reads as mass. THE LETTERS FADE AND DEFOCUS UNDER THE ZOOM instead of relying on it to sweep them off: the measured 3.46x cleared the reference's wide spread, but a generated constellation packs letters closer in, so the nearest one kept a corner in frame for the entire dive and then blinked out the instant the train took over. They now fade to nothing over the first third of the dive with a blur that ramps alongside — and the blur radius is DIVIDED BY THE GLYPH SCALE, because canvas filters blur in the current transform space, so a glyph drawn under a 3.46x scale would otherwise defocus three and a half times harder than the box drawn right beside it. ONE MOTION LANGUAGE EVERYWHERE: lazy wind-up, violent middle, long soft landing, zero rotation anywhere. No closed-form ease fits it — the measured curves have fatter tails than any cubic-bezier or sigmoid (the zoom covers 26%->80% of its travel in five frames around k=0.4, then spends a fifth of the phase on the last 5%; the reassembly pop goes 4.5%, 16%, then EIGHTY-ONE percent between two frames) — so every phase ships its measured control points through a monotone cubic spline (Fritsch-Carlson; monotone matters, a Catmull-Rom rings on either side of the violent segment). THE SPLIT IS NOT A SCALE: the seams open to gaps of 33, 33, 29, 43, 29, 29 while the row stays centred, hand slop and all, cycled for words longer than the reference. After the scatter lands everything creeps outward and the creep is QUADRATIC IN BOTH DISTANCE AND TIME (R at 354px out moved 88px, e at 280px moved 57px — both give d^2/1430), which reads as a slow explosion still breathing. Handles are their own layer of physics: they hold their size through split and scatter, grow SUB-LINEARLY during the zoom (boxes go 3.46x, handles stop at 30/700, the zoom's snap eased twice), and during the final pop they DON'T scale with the word at all, which is why the near-zero word reads as a single dot before the box explodes out of it. THE PALETTE IS FOUR FLAT COLOURS because a design tool has no gradients — field, box, handle, glyph — swappable as a set, and the handles want to be the loudest of the four and clear of both the field and the box in VALUE as well as hue, or the corners disappear into whichever surface they land on. Framework-free Canvas 2D — the piece is rectangles, glyphs and a handful of circles; a deterministic clock (state is a pure function of t mod the derived loop) so pausing and resuming can't drift the choreography. Pauses offscreen / when hidden / during route transitions, one static frame under reduced motion.
+
+## THE OPTIONS API
+
+The engine takes (canvas, opts) and every field is optional, falling back to the TUNABLE defaults, so `new RealitySplit(el)` is the piece exactly as measured. This matters more than it sounds: the word and the palette used to be module constants the engine imported directly, which meant two instances on one page could not show different words, and customising meant editing the library rather than calling it. The fields: word (any length, since cells, seams, scatter and the inspection all derive from it); palette (an object, or the name of one in PALETTES); shape (rect, round, ellipse or squircle, which changes what KIND of object is selected); scatterSpread (0 keeps the reference square's proportions, 1 stretches to full card width); trainAll (inspect every letter, or only the reference's four); speed; seed (varies the constellation WITHOUT changing the word); and variants (the worlds to cycle through, one per pass, or an empty array to play one forever).
+
+## VARIANTS: WHAT PLAYS AFTER THE FIRST PASS
+
+The loop ends with the word popped back whole and holding still for 0.6s. That hold is the ONLY place a variant can change hands without anything visibly jumping, and the swap must fire exactly at the wrap and nowhere else, because layout is measured and cached for one word and changing it mid-pass desyncs the cells from the glyphs. Each pass should change the word AND the palette AND the shape together: changing only one of the three reads as a recolour of the same animation rather than as a new one.
+
+## SHAPES MUST GROW, AND THE FACTOR IS GEOMETRY NOT TASTE
+
+A box fitted to a letter's ink is a rectangle. Inscribe an ellipse in that same rectangle and the corners are cut off, so the glyph pokes out of its own selection object, which is the one thing a design-tool fantasy cannot do. A point at the ink corner satisfies (x/a)^n + (y/b)^n = 1 only once the shape is scaled by 2^(1/n), so an ellipse needs sqrt(2), a squircle (n=4) needs 2^0.25, and a rounded rect only clips a corner radius the ink never reaches so it needs nothing. Apply that growth at MEASURE time rather than draw time, so the scatter's overlap relaxation and the train's centring both see the true occupied size.
+
+## THE SEED
+
+Seed 0 must be the measured layout exactly: the jitter is multiplied by a factor that is zero at seed 0, so adding the knob cannot perturb the reference composition. Any other seed rotates where the golden-angle spiral starts and nudges each radius, through a deterministic hash of (seed, index) rather than Math.random, so a given word and seed always produce the same picture. Variation without randomness.
+
+## MEASURED VS TUNABLE
+
+Split the constants into two clearly fenced halves and state the rule once at the top. MEASURED came off the reference clip frame by frame and is data, not knobs: the eases have fatter tails than any closed form, the seam gaps are three different sizes because a human made them, and the drift law was solved from two letters' displacement. TUNABLE is everything an instance can override. Without that fence an agent cannot tell which numbers are safe to touch, and the ones that look most arbitrary are exactly the ones that must not move.
+
+## VERIFY IT
+
+The default must render pixel-identical before and after a refactor of this kind. Freeze the engine at a dozen loop times, screenshot, and diff the rasters byte for byte. That catches the two mistakes that are invisible by eye: a seed formula that perturbs the layout at seed 0, and swapping fillRect for rect() plus fill(), which rasterises edge antialiasing differently.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### reality-split/params.ts
+```ts
+export const WORD: string = "Animation";
+
+export interface Palette {
+  bg: string;
+  box: string;
+  handle: string;
+  ink: string;
+}
+
+export const PALETTES: Record<string, Palette> = {
+
+  volt: { bg: "#ffe500", box: "#1f22c9", handle: "#ff3d00", ink: "#ffffff" },
+
+  reality: { bg: "#4e49fc", box: "#0b5c35", handle: "#e8ff97", ink: "#ffffff" },
+
+  mint: { bg: "#0f3d2e", box: "#7cf0b8", handle: "#ff5c7a", ink: "#0f3d2e" },
+
+  studio: { bg: "#f3f3f5", box: "#1e1e1e", handle: "#0d99ff", ink: "#ffffff" },
+
+  press: { bg: "#d94f2b", box: "#2b1a12", handle: "#f2d8a7", ink: "#fff8ee" },
+
+  terminal: { bg: "#0d0f0c", box: "#14301c", handle: "#5cff8f", ink: "#d8ffe4" },
+
+  klein: { bg: "#f4f4f6", box: "#002fa7", handle: "#ff5c00", ink: "#ffffff" },
+
+  paper: { bg: "#e8e8e6", box: "#111111", handle: "#8a8a8a", ink: "#ffffff" },
+};
+
+export const PALETTE: Palette = PALETTES.volt;
+
+export const BG = PALETTE.bg;
+export const BOX = PALETTE.box;
+export const HANDLE = PALETTE.handle;
+export const INK = PALETTE.ink;
+
+export const SCATTER_SPREAD = 0.5;
+
+export type BoxShape = "rect" | "round" | "ellipse" | "squircle";
+
+export type HandleShape = "circle" | "square" | "hollow" | "diamond" | "bar";
+
+export const BOX_RADIUS = 0.22;
+
+export const SQUIRCLE_N = 4;
+
+export const SHAPE_INFLATE: Record<BoxShape, number> = {
+  rect: 1,
+  round: 1,
+  ellipse: Math.SQRT2,
+  squircle: Math.pow(2, 1 / SQUIRCLE_N),
+};
+
+export interface Variant {
+  word?: string;
+  palette?: keyof typeof PALETTES | Palette;
+  shape?: BoxShape;
+
+  handle?: HandleShape;
+
+  seed?: number;
+}
+
+export const VARIANTS: Variant[] = [
+  { word: "Animation", palette: "volt", shape: "rect", handle: "square" },
+  { word: "Reality", palette: "mint", shape: "round", handle: "circle", seed: 1 },
+  { word: "Selected", palette: "klein", shape: "squircle", handle: "bar", seed: 2 },
+  { word: "Objects", palette: "terminal", shape: "ellipse", handle: "diamond", seed: 3 },
+  { word: "Layers", palette: "press", shape: "round", handle: "hollow", seed: 4 },
+  { word: "Canvas", palette: "studio", shape: "rect", handle: "square", seed: 5 },
+];
+
+export const COLLAPSE_DUR = 0.42;
+
+export const EMERGE_DUR = 0.5;
+export const FIELD_FADE = 0.55;
+
+export const CYCLE_VARIANTS = true;
+
+export const FONT_SIZE = 178 / 700;
+export const WORD_H = 208 / 700;
+export const PAD_X = 22 / 700;
+
+export const BASELINE_FRAC = 158 / 208;
+
+export const HANDLE_R = 11.75 / 700;
+export const HANDLE_R_GIANT = 30 / 700;
+
+export const TIGHT: Record<string, [number, number]> = {
+  R: [150 / 700, 174 / 700],
+  e: [106 / 700, 126 / 700],
+  a: [102 / 700, 126 / 700],
+  l: [71 / 700, 161 / 700],
+  i: [71 / 700, 161 / 700],
+  t: [78 / 700, 150 / 700],
+  y: [115 / 700, 154 / 700],
+};
+
+export const REFERENCE_WORD: string = "Reality";
+
+export const SCATTER_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+export const SCATTER_INNER = 0.26;
+export const SCATTER_OUTER = 0.46;
+
+export const SCATTER_RELAX_PASSES = 60;
+export const SCATTER_GAP = 0.03;
+
+export const FIT_PAD_X = 0.16;
+export const FIT_PAD_Y = 0.26;
+
+export const SCATTER: Record<string, [number, number]> = {
+  R: [20 / 700, 166 / 700],
+  e: [177 / 700, 572 / 700],
+  a: [350 / 700, 350 / 700],
+  l: [572 / 700, 114 / 700],
+  i: [672 / 700, 224 / 700],
+  t: [474 / 700, 540 / 700],
+  y: [626 / 700, 644 / 700],
+};
+
+export const SEAM_GAPS = [33 / 700, 33 / 700, 29 / 700, 43 / 700, 29 / 700, 29 / 700];
+
+export const DRIFT_D0 = 1430 / 700;
+
+export const ZOOM = 3.46;
+
+export const TRAIN_FIT = 0.86;
+
+export const TRAIN_NORMALISE = 0.8;
+
+export const ZOOM_FADE_IN = 0.05;
+export const ZOOM_FADE_OUT = 0.34;
+
+export const ZOOM_BLUR = 15 / 700;
+
+export const TRAIN = ["a", "R", "e", "t"] as const;
+export const ARRIVE = [3.44, 4.12, 4.72];
+export const ARRIVE_DUR = [0.28, 0.18, 0.18];
+export const DEPART = [3.48, 4.08, 4.68, 5.24];
+
+export const DEPART_DUR = 0.14;
+
+export const TRAIN_ALL = true;
+
+export const TRAIN_ARRIVE_SLOW = 0.2;
+export const TRAIN_ARRIVE_FAST = 0.11;
+
+export const TRAIN_DWELL_MIN = 0.09;
+
+export const SPRING_FREQ = 8.5;
+
+export const SPRING_DAMP = 5;
+
+export const SPRING_AMP = 0.02;
+
+export const TRAIN_OVERLAP = 0.35;
+
+export const LOOP = 6.48;
+export const T_SPLIT = 0.36;
+export const T_SPREAD_END = 0.6;
+export const T_SCATTER = 0.64;
+export const T_SCATTER_END = 1.36;
+export const T_ZOOM = 1.92;
+export const T_ZOOM_END = 3.36;
+export const T_POP = 5.52;
+export const T_POP_END = 5.88;
+
+export const SELECT_ALL_HOLD = 0.55;
+
+export const SELECT_FADE = 0.45;
+
+export const SELECT_DIM = 0.22;
+
+export const TIGHTEN_IN = 0.11;
+export const TIGHTEN_OUT = 0.55;
+
+export const SCATTER_E: [number, number][] = [
+  [0, 0], [0.2, 0.02], [0.33, 0.05], [0.45, 0.35],
+  [0.56, 0.8], [0.67, 0.94], [0.78, 0.99], [1, 1],
+];
+
+export const ZOOM_E: [number, number][] = [
+  [0, 0], [0.06, 0.02], [0.17, 0.06], [0.28, 0.15], [0.33, 0.26],
+  [0.39, 0.66], [0.44, 0.8], [0.5, 0.86], [0.56, 0.9],
+  [0.67, 0.955], [0.78, 0.98], [0.89, 0.995], [1, 1],
+];
+
+export const TRAV_E: [number, number][] = [
+  [0, 0], [0.2, 0.03], [0.35, 0.15], [0.5, 0.5],
+  [0.65, 0.88], [0.8, 0.975], [1, 1],
+];
+
+export const POP_E: [number, number][] = [
+  [0, 0], [0.11, 0.01], [0.22, 0.045], [0.33, 0.16], [0.44, 0.81],
+  [0.56, 0.92], [0.67, 0.964], [0.78, 0.986], [0.89, 0.997], [1, 1],
+];
+
+```
+
+### reality-split/engine.ts
+```ts
+import {
+  ARRIVE,
+  ARRIVE_DUR,
+  BASELINE_FRAC,
+  DEPART,
+  DEPART_DUR,
+  DRIFT_D0,
+  FIT_PAD_X,
+  FIT_PAD_Y,
+  FONT_SIZE,
+  HANDLE_R,
+  HANDLE_R_GIANT,
+  LOOP,
+  PAD_X,
+  POP_E,
+  SCATTER_ANGLE,
+  SCATTER_E,
+  SCATTER_GAP,
+  SCATTER_INNER,
+  SCATTER_OUTER,
+  SCATTER_RELAX_PASSES,
+  SCATTER_SPREAD,
+  SQUIRCLE_N,
+  SHAPE_INFLATE,
+  BOX_RADIUS,
+  PALETTES,
+  VARIANTS,
+  CYCLE_VARIANTS,
+  COLLAPSE_DUR,
+  EMERGE_DUR,
+  FIELD_FADE,
+  PALETTE,
+  WORD,
+  type Palette,
+  type BoxShape,
+  type HandleShape,
+  type Variant,
+  SEAM_GAPS,
+  SPRING_AMP,
+  SPRING_DAMP,
+  SPRING_FREQ,
+  T_POP,
+  T_POP_END,
+  T_SCATTER,
+  T_SCATTER_END,
+  T_SPLIT,
+  T_SPREAD_END,
+  T_ZOOM,
+  T_ZOOM_END,
+  TIGHTEN_IN,
+  SELECT_ALL_HOLD,
+  SELECT_FADE,
+  SELECT_DIM,
+  TIGHTEN_OUT,
+  TRAIN,
+  TRAIN_ALL,
+  TRAIN_ARRIVE_FAST,
+  TRAIN_ARRIVE_SLOW,
+  TRAIN_DWELL_MIN,
+  TRAIN_OVERLAP,
+  TRAV_E,
+  WORD_H,
+  ZOOM,
+  TRAIN_FIT,
+  TRAIN_NORMALISE,
+  ZOOM_BLUR,
+  ZOOM_E,
+  ZOOM_FADE_IN,
+  ZOOM_FADE_OUT,
+} from "./params";
+
+function spline(pts: [number, number][]): (k: number) => number {
+  const n = pts.length;
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  const dx: number[] = [];
+  const dy: number[] = [];
+  const s: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(xs[i + 1] - xs[i]);
+    dy.push(ys[i + 1] - ys[i]);
+    s.push(dy[i] / dx[i]);
+  }
+  const m: number[] = [s[0]];
+  for (let i = 1; i < n - 1; i++) {
+    if (s[i - 1] * s[i] <= 0) m.push(0);
+    else {
+      const w1 = 2 * dx[i] + dx[i - 1];
+      const w2 = dx[i] + 2 * dx[i - 1];
+      m.push((w1 + w2) / (w1 / s[i - 1] + w2 / s[i]));
+    }
+  }
+  m.push(s[n - 2]);
+  return (k: number) => {
+    if (k <= 0) return ys[0];
+    if (k >= 1) return ys[n - 1];
+    let i = 0;
+    while (i < n - 2 && xs[i + 1] < k) i++;
+    const h = dx[i];
+    const u = (k - xs[i]) / h;
+    const u2 = u * u;
+    const u3 = u2 * u;
+    return (
+      ys[i] * (2 * u3 - 3 * u2 + 1) +
+      m[i] * h * (u3 - 2 * u2 + u) +
+      ys[i + 1] * (-2 * u3 + 3 * u2) +
+      m[i + 1] * h * (u3 - u2)
+    );
+  };
+}
+
+const scatterE = spline(SCATTER_E);
+const zoomE = spline(ZOOM_E);
+const travE = spline(TRAV_E);
+const popE = spline(POP_E);
+
+function mixHex(a: string, b: string, k: number): string {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const r = Math.round((pa >> 16 & 255) + (((pb >> 16 & 255) - (pa >> 16 & 255)) * k));
+  const g = Math.round((pa >> 8 & 255) + (((pb >> 8 & 255) - (pa >> 8 & 255)) * k));
+  const bl = Math.round((pa & 255) + (((pb & 255) - (pa & 255)) * k));
+  return `rgb(${r},${g},${bl})`;
+}
+
+const easeOutCubic = (k: number) => 1 - (1 - k) ** 3;
+const clamp01 = (k: number) => Math.max(0, Math.min(1, k));
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+const smooth = (k: number) => {
+  const c = clamp01(k);
+  return c * c * (3 - 2 * c);
+};
+
+interface Piece {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  gx: number;
+  gy: number;
+  gs: number;
+  hr: number;
+  a?: number;
+  blur?: number;
+  sel?: number;
+}
+
+interface LetterMetrics {
+  ch: string;
+  cellL: number;
+  cellR: number;
+  drawX: number;
+  gcx: number;
+  gcy: number;
+  tw: number;
+  th: number;
+}
+
+export interface RealitySplitOptions {
+
+  word?: string;
+
+  palette?: Palette | keyof typeof PALETTES;
+
+  shape?: BoxShape;
+
+  handleShape?: HandleShape;
+
+  scatterSpread?: number;
+
+  trainAll?: boolean;
+
+  speed?: number;
+
+  seed?: number;
+
+  variants?: Variant[];
+}
+
+export class RealitySplit {
+  ok = false;
+
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D | null;
+  private raf = 0;
+  private running = false;
+  private last = 0;
+  private t = 0;
+
+  private W = 0;
+  private H = 0;
+  private dpr = 1;
+
+  private opts: RealitySplitOptions = {};
+  private variants: Variant[] = [];
+  private vi = 0;
+  private word: string = WORD;
+  private pal: Palette = PALETTE;
+  private prevPal: Palette | null = null;
+  private started = false;
+  private shape: BoxShape = "rect";
+  private handleShape: HandleShape = "circle";
+  private seed = 0;
+
+  private font = "";
+  private fontPx = 0;
+  private letters: LetterMetrics[] = [];
+  private wordW = 0;
+  private wordH = 0;
+  private baseline = 0;
+
+  constructor(canvas: HTMLCanvasElement, opts: RealitySplitOptions = {}) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    if (!this.ctx) return;
+    this.opts = opts;
+    this.variants =
+      opts.variants ?? (CYCLE_VARIANTS ? VARIANTS : []);
+    this.applyVariant(0);
+    this.resize();
+    this.ok = true;
+  }
+
+  private resolvePalette(p: Palette | keyof typeof PALETTES | undefined): Palette {
+    if (!p) return PALETTE;
+    return typeof p === "string" ? (PALETTES[p] ?? PALETTE) : p;
+  }
+
+  private applyVariant(i: number) {
+    const v: Variant = this.variants.length ? this.variants[i % this.variants.length] : {};
+
+    this.prevPal = this.started ? this.pal : null;
+    this.started = true;
+    this.vi = i;
+    this.word = v.word ?? this.opts.word ?? WORD;
+    this.pal = this.resolvePalette(v.palette ?? this.opts.palette);
+    this.shape = v.shape ?? this.opts.shape ?? "rect";
+    this.handleShape = v.handle ?? this.opts.handleShape ?? "circle";
+    this.seed = v.seed ?? this.opts.seed ?? 0;
+  }
+
+  resize() {
+    const r = this.canvas.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return;
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.W = r.width;
+    this.H = r.height;
+    this.canvas.width = Math.round(r.width * this.dpr);
+    this.canvas.height = Math.round(r.height * this.dpr);
+    this.measure();
+    if (!this.running) this.draw(this.t);
+  }
+
+  private measure() {
+    const ctx = this.ctx!;
+    const S = this.H;
+    this.fontPx = FONT_SIZE * S;
+    this.font = `700 ${this.fontPx}px Helvetica, Arial, sans-serif`;
+    ctx.font = this.font;
+
+    const textW = ctx.measureText(this.word).width;
+    this.wordW = textW + 2 * PAD_X * S;
+    this.wordH = WORD_H * S;
+    this.baseline = BASELINE_FRAC * this.wordH;
+
+    const padX = PAD_X * S;
+    this.letters = [];
+    this.trainZoomCache = null;
+    this.slots = null;
+    this.sched = null;
+    this.layout = null;
+    for (let i = 0; i < this.word.length; i++) {
+      const ch = this.word[i];
+      const pre = ctx.measureText(this.word.slice(0, i)).width;
+      const adv = ctx.measureText(this.word.slice(0, i + 1)).width;
+      const m = ctx.measureText(ch);
+      const asc = m.actualBoundingBoxAscent ?? this.fontPx * 0.72;
+      const desc = m.actualBoundingBoxDescent ?? 0;
+      const bbL = m.actualBoundingBoxLeft ?? 0;
+      const bbR = m.actualBoundingBoxRight ?? adv - pre;
+      const drawX = padX + pre;
+
+      const inkW = bbL + bbR;
+      const inkH = asc + desc;
+      this.letters.push({
+        ch,
+        cellL: i === 0 ? 0 : padX + pre,
+        cellR: i === this.word.length - 1 ? this.wordW : padX + adv,
+        drawX,
+        gcx: drawX + (bbR - bbL) / 2,
+        gcy: this.baseline + (desc - asc) / 2,
+
+        tw: (inkW + FIT_PAD_X * this.fontPx) * SHAPE_INFLATE[this.shape],
+        th: (inkH + FIT_PAD_Y * this.fontPx) * SHAPE_INFLATE[this.shape],
+      });
+    }
+  }
+
+  start() {
+    if (this.running || !this.ok) return;
+    this.running = true;
+    this.last = performance.now();
+    const tick = (now: number) => {
+      if (!this.running) return;
+
+      const speed = this.opts.speed ?? 1;
+      const loop = this.timeline().loop;
+      const next = this.t + Math.min((now - this.last) / 1000, 0.1) * speed;
+
+      if (next >= loop && this.variants.length > 1) {
+        this.applyVariant(this.vi + 1);
+        this.measure();
+      }
+      this.t = next % loop;
+      this.last = now;
+      this.draw(this.t);
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  stop() {
+    this.running = false;
+    cancelAnimationFrame(this.raf);
+  }
+
+  renderStill() {
+    this.draw(0);
+  }
+
+  destroy() {
+    this.stop();
+  }
+
+  private wordRect(scale: number) {
+    return {
+      x: this.W / 2 - (this.wordW * scale) / 2,
+      y: this.H / 2 - (this.wordH * scale) / 2,
+      w: this.wordW * scale,
+      h: this.wordH * scale,
+    };
+  }
+
+  private layout: [number, number][] | null = null;
+  private scatterLayout(): [number, number][] {
+    if (this.layout) return this.layout;
+    const n = this.letters.length;
+    if (n === 0) return (this.layout = []);
+
+    const span = this.H + (this.W - this.H) * (this.opts.scatterSpread ?? SCATTER_SPREAD);
+    const cx = this.W / 2;
+    const cy = this.H / 2;
+    const gap = SCATTER_GAP * this.H;
+
+    const pts: [number, number][] = [[cx, cy]];
+    for (let i = 1; i < n; i++) {
+      const k = n > 2 ? (i - 1) / (n - 2) : 0;
+
+      const off = this.seed === 0 ? 0 : 1;
+      const h = Math.sin((this.seed + 1) * 12.9898 + i * 78.233) * 43758.5453;
+      const jitter = (h - Math.floor(h)) * off;
+      const r = lerp(SCATTER_INNER, SCATTER_OUTER, k) * (1 - 0.12 * off + 0.24 * jitter);
+      const a = i * SCATTER_ANGLE - Math.PI / 2 + this.seed * SCATTER_ANGLE;
+      pts.push([cx + Math.cos(a) * r * span, cy + Math.sin(a) * r * this.H]);
+    }
+
+    const halfW = this.letters.map((L) => L.tw / 2);
+    const halfH = this.letters.map((L) => L.th / 2);
+    for (let pass = 0; pass < SCATTER_RELAX_PASSES; pass++) {
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const dx = pts[j][0] - pts[i][0];
+          const dy = pts[j][1] - pts[i][1];
+
+          const ox = halfW[i] + halfW[j] + gap - Math.abs(dx);
+          const oy = halfH[i] + halfH[j] + gap - Math.abs(dy);
+          if (ox <= 0 || oy <= 0) continue;
+
+          let px = 0;
+          let py = 0;
+          if (ox < oy) px = (dx < 0 ? -ox : ox) / 2;
+          else py = (dy < 0 ? -oy : oy) / 2;
+
+          if (i === 0) {
+            pts[j][0] += px * 2;
+            pts[j][1] += py * 2;
+          } else {
+            pts[i][0] -= px;
+            pts[i][1] -= py;
+            pts[j][0] += px;
+            pts[j][1] += py;
+          }
+        }
+      }
+
+      for (let i = 1; i < n; i++) {
+        pts[i][0] = Math.max(halfW[i] + gap, Math.min(this.W - halfW[i] - gap, pts[i][0]));
+        pts[i][1] = Math.max(halfH[i] + gap, Math.min(this.H - halfH[i] - gap, pts[i][1]));
+      }
+    }
+    return (this.layout = pts);
+  }
+
+  private target(ch: string, li: number): [number, number] {
+    void ch;
+    return this.scatterLayout()[li] ?? [this.W / 2, this.H / 2];
+  }
+
+  private scatterPiece(li: number, t: number): Piece | null {
+    const S = this.H;
+    const L = this.letters[li];
+    const word = this.wordRect(1);
+
+    const spreadK =
+      t < T_SPLIT ? 0 : easeOutCubic(clamp01((t - T_SPLIT) / (T_SPREAD_END - T_SPLIT)));
+
+    const seams = Math.max(this.letters.length - 1, 0);
+    const gapAt = (i: number) => SEAM_GAPS[i % SEAM_GAPS.length];
+    let cum = 0;
+    for (let s = 0; s < li; s++) cum += gapAt(s);
+    let total = 0;
+    for (let s = 0; s < seams; s++) total += gapAt(s);
+    const rowShift = (cum - total / 2) * S * spreadK;
+
+    const sliceX = word.x + L.cellL + rowShift;
+    const sliceW = L.cellR - L.cellL;
+    const sliceGx = word.x + L.gcx + rowShift;
+    const sliceCx = sliceX + sliceW / 2;
+
+    if (t < T_SCATTER) {
+      return {
+        x: sliceX,
+        y: word.y,
+        w: sliceW,
+        h: word.h,
+        gx: sliceGx,
+        gy: word.y + L.gcy,
+        gs: 1,
+        hr: HANDLE_R * S,
+      };
+    }
+
+    const fly = scatterE(clamp01((t - T_SCATTER) / (T_SCATTER_END - T_SCATTER)));
+    const tight = smooth(
+      (clamp01((t - T_SCATTER) / (T_SCATTER_END - T_SCATTER)) - TIGHTEN_IN) /
+        (TIGHTEN_OUT - TIGHTEN_IN),
+    );
+    const [tx, ty] = this.target(L.ch, li);
+    let cx = lerp(sliceCx, tx, fly);
+    let cy = lerp(this.H / 2, ty, fly);
+    const w = lerp(sliceW, L.tw, tight);
+    const h = lerp(word.h, L.th, tight);
+
+    let gox = lerp(sliceGx - sliceCx, 0, tight);
+    let goy = lerp(L.gcy - this.wordH / 2, 0, tight);
+
+    let gs = 1;
+    let hr = HANDLE_R * S;
+    if (t >= T_SCATTER_END) {
+      const q = clamp01((t - T_SCATTER_END) / (T_ZOOM - T_SCATTER_END));
+      const vx = tx - this.W / 2;
+      const vy = ty - this.H / 2;
+      const d = Math.hypot(vx, vy);
+      if (d > 0) {
+        const push = (d / (DRIFT_D0 * S)) * q * q;
+        cx = tx + vx * push;
+        cy = ty + vy * push;
+      }
+    }
+    if (t >= T_ZOOM) {
+
+      const zEnd = li === 0 ? this.letterZoom(L) : ZOOM;
+      const z = 1 + (zEnd - 1) * zoomE(clamp01((t - T_ZOOM) / (T_ZOOM_END - T_ZOOM)));
+      cx = this.W / 2 + (cx - this.W / 2) * z;
+      cy = this.H / 2 + (cy - this.H / 2) * z;
+      gs = z;
+      gox *= z;
+      goy *= z;
+      hr *= this.handleGrow(t);
+      const zw = w * z;
+      const zh = h * z;
+      if (
+        cx + zw / 2 < 0 ||
+        cx - zw / 2 > this.W ||
+        cy + zh / 2 < 0 ||
+        cy - zh / 2 > this.H
+      )
+        return null;
+
+      let a = 1;
+      let blur = 0;
+      if (li !== 0) {
+        const k = clamp01((t - T_ZOOM) / (T_ZOOM_END - T_ZOOM));
+        const f = smooth((k - ZOOM_FADE_IN) / (ZOOM_FADE_OUT - ZOOM_FADE_IN));
+        a = 1 - f;
+        if (a <= 0.002) return null;
+
+        blur = f * ZOOM_BLUR * S;
+      }
+      return {
+        x: cx - zw / 2,
+        y: cy - zh / 2,
+        w: zw,
+        h: zh,
+        gx: cx + gox,
+        gy: cy + goy,
+        gs,
+        hr,
+        a,
+        blur,
+      };
+    }
+    return { x: cx - w / 2, y: cy - h / 2, w, h, gx: cx + gox, gy: cy + goy, gs, hr };
+  }
+
+  private handleGrow(t: number) {
+    const k = zoomE(clamp01((t - T_ZOOM) / (T_ZOOM_END - T_ZOOM)));
+    return 1 + (HANDLE_R_GIANT / HANDLE_R - 1) * k * k;
+  }
+
+  private trainIndex(ti: number): number {
+    return this.trainSlots()[ti] ?? 0;
+  }
+
+  private slots: number[] | null = null;
+  private trainSlots(): number[] {
+    if (this.slots) return this.slots;
+    const n = this.letters.length;
+    if (n === 0) return (this.slots = [0, 0, 0, 0]);
+
+    if (this.opts.trainAll ?? TRAIN_ALL) return (this.slots = this.letters.map((_, i) => i));
+
+    const used = new Set<number>();
+    const out: number[] = [];
+    for (let ti = 0; ti < TRAIN.length; ti++) {
+      const byName = this.letters.findIndex(
+        (l, i) => l.ch === TRAIN[ti] && !used.has(i),
+      );
+      let idx =
+        byName >= 0
+          ? byName
+          : Math.min(n - 1, Math.round((ti / (TRAIN.length - 1)) * (n - 1)));
+
+      let step = 0;
+      while (used.has(idx) && step < n) {
+        step++;
+        idx = (idx + 1) % n;
+      }
+      used.add(idx);
+      out.push(idx);
+    }
+    return (this.slots = out);
+  }
+
+  private sched: { arrive: number; arriveDur: number; depart: number }[] | null =
+    null;
+  private schedule() {
+    if (this.sched) return this.sched;
+    const slots = this.trainSlots();
+    const n = slots.length;
+    if (!(this.opts.trainAll ?? TRAIN_ALL) && n === TRAIN.length) {
+
+      this.sched = slots.map((_, i) => ({
+        arrive: i === 0 ? T_ZOOM_END : ARRIVE[i - 1],
+        arriveDur: i === 0 ? 0 : ARRIVE_DUR[i - 1],
+        depart: DEPART[i],
+      }));
+      return this.sched;
+    }
+
+    const refWindow = T_POP - T_ZOOM_END;
+
+    const durAt = (i: number) =>
+      lerp(TRAIN_ARRIVE_SLOW, TRAIN_ARRIVE_FAST, n > 1 ? i / (n - 1) : 0);
+
+    const cost = (dwell: number) => {
+      let total = 0;
+      for (let i = 0; i < n; i++) {
+        const overlap = i === 0 ? 0 : DEPART_DUR * TRAIN_OVERLAP;
+        total += (i === 0 ? 0 : durAt(i)) + dwell + DEPART_DUR - overlap;
+      }
+      return total;
+    };
+
+    const slack = (refWindow - cost(0)) / n;
+    const dwell = Math.max(TRAIN_DWELL_MIN, slack);
+
+    let cursor = T_ZOOM_END;
+    this.sched = slots.map((_, i) => {
+      const arriveDur = i === 0 ? 0 : durAt(i);
+
+      const arrive = cursor;
+      const depart = arrive + arriveDur + dwell;
+
+      cursor = depart + DEPART_DUR - DEPART_DUR * TRAIN_OVERLAP;
+      return { arrive, arriveDur, depart };
+    });
+    return this.sched;
+  }
+
+  private timeline() {
+    const sched = this.schedule();
+    const last = sched[sched.length - 1];
+    const trainEnd = last ? last.depart + DEPART_DUR : T_POP;
+    const pop = Math.max(T_POP, trainEnd);
+    const popEnd = pop + (T_POP_END - T_POP);
+    const loop = pop + (LOOP - T_POP);
+
+    const collapse = this.variants.length > 1 ? Math.max(popEnd, loop - COLLAPSE_DUR) : loop;
+    return { pop, popEnd, collapse, loop };
+  }
+
+  private trainX(ti: number, t: number): number | null {
+    const S = this.H;
+    const L = this.letters[this.trainIndex(ti)];
+    if (!L) return null;
+    const halfW = (L.tw * this.letterZoom(L)) / 2;
+    const center = this.W / 2;
+    const enterX = this.W + halfW;
+    const exitX = -halfW - 0.05 * S;
+
+    const sched = this.schedule();
+    const slot = sched[ti];
+    if (!slot) return null;
+
+    let x = center;
+    if (ti > 0) {
+      if (t < slot.arrive) return null;
+      const k = clamp01((t - slot.arrive) / slot.arriveDur);
+      x = lerp(enterX, center, travE(k));
+
+      const decay = Math.exp(-SPRING_DAMP * k);
+      x -= Math.sin(SPRING_FREQ * k) * decay * SPRING_AMP * this.W;
+    }
+    if (t >= slot.depart) {
+      x = lerp(center, exitX, travE(clamp01((t - slot.depart) / DEPART_DUR)));
+      if (t >= slot.depart + DEPART_DUR) return null;
+    }
+    return x;
+  }
+
+  private trainZoomCache: number | null = null;
+  private trainZoom(): number {
+    if (this.trainZoomCache !== null) return this.trainZoomCache;
+    let tallest = 0;
+    let widest = 0;
+    for (const L of this.letters) {
+      if (L.th > tallest) tallest = L.th;
+      if (L.tw > widest) widest = L.tw;
+    }
+    if (tallest <= 0) return (this.trainZoomCache = ZOOM);
+    const byH = (this.H * TRAIN_FIT) / tallest;
+
+    const byW = (this.W * TRAIN_FIT) / Math.max(widest, 1);
+    return (this.trainZoomCache = Math.min(ZOOM, byH, byW));
+  }
+
+  private letterZoom(L: LetterMetrics): number {
+    const z = this.trainZoom();
+    if (TRAIN_NORMALISE <= 0) return z;
+    let tallest = 0;
+    for (const m of this.letters) if (m.th > tallest) tallest = m.th;
+    if (tallest <= 0 || L.th <= 0) return z;
+
+    const even = z * (tallest / L.th);
+    return lerp(z, even, TRAIN_NORMALISE);
+  }
+
+  private trainPiece(ti: number, t: number): Piece | null {
+    const x = this.trainX(ti, t);
+    if (x === null) return null;
+    const L = this.letters[this.trainIndex(ti)];
+    if (!L) return null;
+    const z = this.letterZoom(L);
+    const w = L.tw * z;
+    const h = L.th * z;
+    return {
+      x: x - w / 2,
+      y: this.H / 2 - h / 2,
+      w,
+      h,
+      gx: x,
+      gy: this.H / 2,
+      gs: z,
+      hr: HANDLE_R_GIANT * this.H,
+    };
+  }
+
+  private fillBox(x: number, y: number, w: number, h: number) {
+    const ctx = this.ctx!;
+
+    if (this.shape === "rect") {
+      ctx.fillRect(x, y, w, h);
+      return;
+    }
+    this.boxPath(x, y, w, h);
+    ctx.fill();
+  }
+
+  private boxPath(x: number, y: number, w: number, h: number) {
+    const ctx = this.ctx!;
+    ctx.beginPath();
+    if (this.shape === "ellipse") {
+      ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+      return;
+    }
+    if (this.shape === "round") {
+      const r = Math.min(w, h) * BOX_RADIUS;
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+      return;
+    }
+
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const a = w / 2;
+    const b = h / 2;
+    const n = SQUIRCLE_N;
+    const STEPS = 96;
+    for (let i = 0; i <= STEPS; i++) {
+      const th = (i / STEPS) * Math.PI * 2;
+      const c = Math.cos(th);
+      const si = Math.sin(th);
+      const px = cx + a * Math.sign(c) * Math.abs(c) ** (2 / n);
+      const py = cy + b * Math.sign(si) * Math.abs(si) ** (2 / n);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+
+  private drawPiece(p: Piece, ch: string, li: number) {
+    const ctx = this.ctx!;
+    const fade = (p.a !== undefined && p.a < 1) || !!p.blur;
+    if (fade) {
+      ctx.save();
+      if (p.a !== undefined) ctx.globalAlpha = p.a;
+
+      if (p.blur && p.blur > 0.2) ctx.filter = `blur(${p.blur.toFixed(2)}px)`;
+    }
+    ctx.fillStyle = this.pal.box;
+    this.fillBox(p.x, p.y, p.w, p.h);
+    ctx.fillStyle = this.pal.ink;
+    const L = this.letters[li];
+    ctx.save();
+    ctx.translate(p.gx, p.gy);
+    ctx.scale(p.gs, p.gs);
+
+    if (fade && p.blur && p.blur > 0.2 && p.gs !== 1) {
+      ctx.filter = `blur(${(p.blur / p.gs).toFixed(3)}px)`;
+    }
+
+    ctx.fillText(ch, L.drawX - L.gcx, this.baseline - L.gcy);
+    ctx.restore();
+
+    const sel = p.sel ?? 1;
+    if (sel > 0.002) {
+      if (sel < 1) {
+        ctx.save();
+        ctx.globalAlpha = (p.a ?? 1) * sel;
+        this.handles(p.x, p.y, p.w, p.h, p.hr);
+        ctx.restore();
+      } else {
+        this.handles(p.x, p.y, p.w, p.h, p.hr);
+      }
+    }
+    if (fade) ctx.restore();
+  }
+
+  private handles(x: number, y: number, w: number, h: number, r: number) {
+    const ctx = this.ctx!;
+    const corners: [number, number][] = [
+      [x, y],
+      [x + w, y],
+      [x, y + h],
+      [x + w, y + h],
+    ];
+    ctx.fillStyle = this.pal.handle;
+    ctx.strokeStyle = this.pal.handle;
+    for (const [hx, hy] of corners) {
+      switch (this.handleShape) {
+        case "square":
+
+          ctx.fillRect(hx - r * 0.86, hy - r * 0.86, r * 1.72, r * 1.72);
+          break;
+        case "hollow":
+
+          ctx.lineWidth = Math.max(1, r * 0.42);
+          ctx.strokeRect(hx - r * 0.8, hy - r * 0.8, r * 1.6, r * 1.6);
+          break;
+        case "diamond":
+          ctx.beginPath();
+          ctx.moveTo(hx, hy - r * 1.15);
+          ctx.lineTo(hx + r * 1.15, hy);
+          ctx.lineTo(hx, hy + r * 1.15);
+          ctx.lineTo(hx - r * 1.15, hy);
+          ctx.closePath();
+          ctx.fill();
+          break;
+        case "bar": {
+
+          const horiz = w >= h;
+          const len = r * 2.6;
+          const thick = Math.max(1.5, r * 0.7);
+          if (horiz) ctx.fillRect(hx - len / 2, hy - thick / 2, len, thick);
+          else ctx.fillRect(hx - thick / 2, hy - len / 2, thick, len);
+          break;
+        }
+        default:
+          ctx.beginPath();
+          ctx.arc(hx, hy, r, 0, Math.PI * 2);
+          ctx.fill();
+      }
+    }
+  }
+
+  private drawWord(scale: number) {
+    const ctx = this.ctx!;
+    const r = this.wordRect(scale);
+    if (scale > 0.002) {
+      ctx.fillStyle = this.pal.box;
+      this.fillBox(r.x, r.y, r.w, r.h);
+      if (scale > 0.02) {
+        ctx.fillStyle = this.pal.ink;
+        ctx.save();
+        ctx.translate(this.W / 2, this.H / 2);
+        ctx.scale(scale, scale);
+        ctx.translate(-this.wordW / 2, -this.wordH / 2);
+        for (const L of this.letters) ctx.fillText(L.ch, L.drawX, this.baseline);
+        ctx.restore();
+      }
+    }
+    this.handles(r.x, r.y, r.w, r.h, HANDLE_R * this.H);
+  }
+
+  private draw(t: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
+    ctx.fillStyle =
+      this.prevPal && t < FIELD_FADE
+        ? mixHex(this.prevPal.bg, this.pal.bg, smooth(t / FIELD_FADE))
+        : this.pal.bg;
+    ctx.fillRect(0, 0, this.W, this.H);
+    ctx.font = this.font;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+
+    if (t < T_SPLIT) {
+
+      const emerge =
+        this.prevPal && t < EMERGE_DUR ? popE(clamp01(t / EMERGE_DUR)) : 1;
+      this.drawWord(emerge);
+      return;
+    }
+
+    if (t < T_ZOOM_END) {
+
+      for (let li = 0; li < this.letters.length; li++) {
+        const p = this.scatterPiece(li, t);
+        if (!p) continue;
+
+        const fadeStart = T_SPLIT + SELECT_ALL_HOLD;
+        p.sel =
+          li === 0
+            ? 1
+            : lerp(1, SELECT_DIM, smooth((t - fadeStart) / SELECT_FADE));
+        this.drawPiece(p, this.letters[li].ch, li);
+      }
+      return;
+    }
+
+    const { pop, popEnd } = this.timeline();
+
+    if (t < pop) {
+
+      const slotCount = this.trainSlots().length;
+      for (let ti = 0; ti < slotCount; ti++) {
+        const p = this.trainPiece(ti, t);
+        if (p) {
+          const li = this.trainIndex(ti);
+          this.drawPiece(p, this.letters[li].ch, li);
+        }
+      }
+      return;
+    }
+
+    if (t < popEnd) {
+      this.drawWord(popE(clamp01((t - pop) / (popEnd - pop))));
+      return;
+    }
+
+    const { collapse, loop } = this.timeline();
+    if (t >= collapse && loop > collapse) {
+      this.drawWord(1 - popE(clamp01((t - collapse) / (loop - collapse))));
+      return;
+    }
+    this.drawWord(1);
+  }
+}
+
+```
+
+### reality-split/RealitySplitCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { RealitySplit, type RealitySplitOptions } from "./engine";
+import { PALETTES, VARIANTS, PALETTE } from "./params";
+import { onTransitionChange } from "../../lib/view-transition";
+
+export function RealitySplitCard({
+  bare = false,
+  viewTransitionName,
+  ...opts
+}: {
+  bare?: boolean;
+  viewTransitionName?: string;
+} & RealitySplitOptions = {}) {
+  void bare;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const first = (opts.variants ?? VARIANTS)[0];
+  const firstPal =
+    typeof first?.palette === "string"
+      ? (PALETTES[first.palette] ?? PALETTE)
+      : (first?.palette ?? (typeof opts.palette === "string" ? PALETTES[opts.palette] : opts.palette) ?? PALETTE);
+  const firstBg = firstPal.bg;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let engine: RealitySplit | null = null;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const sync = () => {
+      if (!engine || reduced) return;
+      if (onScreen && !hidden && !inTransition) engine.start();
+      else engine.stop();
+    };
+
+    const raf = requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
+      engine = new RealitySplit(canvas, opts);
+      if (!engine.ok) return;
+      if (reduced) engine.renderStill();
+      else sync();
+    });
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es[0]?.isIntersecting ?? false;
+        sync();
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(canvas);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    let rt = 0;
+    const onResize = () => {
+      window.clearTimeout(rt);
+      rt = window.setTimeout(() => engine?.resize(), 120);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(rt);
+      engine?.destroy();
+    };
+
+  }, []);
+
+  return (
+    <div
+      data-canvas-card
+      role="img"
+      aria-label={`A word sits selected in a design tool, each letter in its own box with corner handles. The letters split apart, scatter across the card, get inspected one at a time at huge scale, then collapse to a dot and snap back together as the whole word.`}
+
+      style={{ backgroundColor: firstBg, ...(viewTransitionName ? { viewTransitionName } : null) }}
+      className="relative mx-auto aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)]"
+    >
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
+  );
+}
+
+```

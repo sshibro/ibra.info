@@ -1,0 +1,461 @@
+Build this: a dot-matrix word cascade, rebuilt frame by frame from a 600x337, 10fps, 25-frame reference clip: a three-letter word drawn as fat rounded scanline dashes (ten fixed rows, ~20px pitch, 18px dash height) unfurls out of a dotted vertical line, rests at full width for a beat, folds back into the line, and loops — and each loop brings a DIFFERENT word. THE RESTING LINE IS THE WORD: every dash is a round-capped capsule whose endpoints scale about ONE axis column, so at zero excursion each dash is a dot and the dotted line is all forty-odd dashes parked — nothing fades, nothing is masked, nothing is added. THE ROWS NEVER MOVE VERTICALLY — verify this first, it constrains everything: the whole animation is per-row horizontal motion. TWO OBVIOUS MODELS ARE WRONG, and the frames disprove both. It is not a word rotating about a vertical axis: mid-flight a single row is wildly asymmetric (one side at 95% extension while the other is at 41%), orthographic rotation cannot do that, and fitting a perspective camera to the asymmetry demands cos greater than 1. And it is not one global diagonal sweep: the first letter's bottom rows stay late even though a bottom-up wave is visibly running two letters over. WHAT IT IS: every dash plays the SAME 25-frame waveform — rise over ~6 frames, a ~5-frame plateau at full extension, symmetric fall, rest (extract it by aligning all tracked edge trajectories on their fitted delays and averaging; ship it as a 25-entry table) — and the entire choreography lives in per-dash TIME SHIFTS. The delay law is per LETTER, each letter wiped by its own wave direction: the first letter top-down at ~0.58 frames per row (with its left stroke leading its right by ~0.4 frames), the last letter bottom-up at ~0.42 frames per row, and the middle letter PINCHED — both neighbors' waves run through it and each of its dashes leaves on whichever wave arrives first, min() of the two ramps. That interference is the whole spectacle: the twisted, almost-3D shear you see mid-flight is delays and nothing else. Fit the delays per dash by coordinate descent against per-frame pixel occupancy (extract each dash's true endpoints by INVERTING the excursion at a plateau frame — divide the observed offset by the waveform value — because dashes touch and merge at rest and naive segment extraction fuses them); dashes parked within ~30px of the axis barely move and their delays are unidentifiable, so exclude them when recovering the law. TICK AT THE CLIP'S OWN 10FPS: mid-flight dashes jump a hundred pixels between frames and that strobing is part of the look — redraw only when the frame index changes, never interpolate between frames the clip does not have. THE WORD ROTATES AND THE SWAP MUST BE UNSEEABLE: hold several words and change on the ONE frame where every dash is parked as a dot. Find that frame by measurement, not by eye — dashes have different delays, so 'the waveform is at zero' is not the same as 'the word is gone'; evaluate max extension across ALL dashes for every frame and take the minimum (here frame 0, at 0.9% of full, while its neighbour still showed a hairline at 1.3%). Because the delay law reads x-position and row rather than letter identity, a new word needs no timing changes at all — build every word on the same grid, the same letter zones and the same stroke weight, and validate each one: no zero-width runs, nothing outside the frame, no overlapping runs within a row (converging strokes must MERGE into a single dash the moment they touch, or the join doubles the ink and reads as a blot), and every letter zone occupied in every row so nothing goes blank mid-fold. COLOUR IS A FIELD, NOT A FILL: sample the ink from three cosine waves laid over each other at different angles, frequencies and drift speeds (weight them unevenly — one dominant wave for a readable direction, two quieter ones to break its regularity; even weights turn it to noise), and draw each dash as several overlapping segments so a long run picks up the ramp along its own length while a parked dot shows one point of it. Pick drift speeds that never realign, so the surface keeps reshaping instead of sliding a fixed pattern. Keep the travel narrow — every sample must stay recognisably ONE colour, or the effect reads as a gradient someone applied rather than as a surface with depth — and move lightness WITH hue by a couple of points, which is what makes it read as lit. Hover lifts saturation slightly and speeds the drift, eased in and out so a passing cursor never flashes it. Framework-free Canvas 2D, no assets; DPR-capped at 2, pauses offscreen / when hidden / during route transitions, one static frame (the full word) under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### dash-cascade/params.ts
+```ts
+export const REF_W = 600;
+export const REF_H = 337;
+export const FPS = 10;
+export const FRAMES = 25;
+
+export const BG = "#ffffff";
+export const INK = "#f2c94c";
+
+export const HUE_WAVES: {
+  u: number;
+  v: number;
+  speed: number;
+  weight: number;
+}[] = [
+  { u: 0.9, v: 0.35, speed: 1.0, weight: 0.5 },
+  { u: -0.55, v: 1.3, speed: -1.37, weight: 0.32 },
+  { u: 1.7, v: -0.8, speed: 0.61, weight: 0.18 },
+];
+
+export const HUE_SPREAD_DEG = 14;
+
+export const LIGHT_SPREAD = 0.035;
+
+export const HUE_LAYERS = 7;
+
+export const HUE_DRIFT_S = 60;
+
+export const HOVER_SAT_LIFT = 0.07;
+export const HOVER_DRIFT_GAIN = 1.6;
+export const HOVER_EASE_S = 0.5;
+
+export const ROW_Y = [76.5, 97, 117, 137.5, 158, 178, 198.5, 219, 239, 259.5];
+export const DASH_H = 18;
+
+export const AXIS = 281.5;
+
+export const CONTENT_MID = 168;
+
+export const WAVE = [
+  0.001, 0.003, 0.009, 0.028, 0.07, 0.148, 0.334, 0.674, 0.872, 0.95, 0.985,
+  0.998, 0.998, 0.985, 0.95, 0.873, 0.676, 0.33, 0.129, 0.052, 0.016, 0.003,
+  0.001, 0.0, 0.001,
+];
+export const WAVE_LEAD = 6.5;
+
+export const DOWN_AT = 4.85;
+export const DOWN_RATE = 0.58;
+export const DOWN_TILT = 0.003;
+export const UP_AT = 4.56;
+export const UP_RATE = 0.42;
+export const PINCH_DOWN: [number, number] = [4.98, 0.68];
+export const PINCH_UP: [number, number] = [4.73, 0.4];
+
+export const WORDS: [number, number, number][][][] = [
+
+  [
+    [[20, 64, 0], [237, 389, 1], [473, 517, 2]],
+    [[20, 64, 0], [237, 281, 1], [345, 389, 1], [473, 517, 2]],
+    [[20, 64, 0], [237, 281, 1], [345, 389, 1], [473, 517, 2]],
+    [[20, 64, 0], [237, 281, 1], [345, 389, 1], [473, 517, 2]],
+    [[20, 64, 0], [237, 281, 1], [345, 389, 1], [473, 517, 2]],
+    [[20, 64, 0], [237, 281, 1], [345, 389, 1], [473, 517, 2]],
+    [[20, 64, 0], [237, 281, 1], [345, 389, 1], [473, 517, 2]],
+    [[20, 64, 0], [237, 281, 1], [345, 389, 1], [473, 517, 2]],
+    [[20, 205, 0], [237, 281, 1], [345, 389, 1], [473, 582, 2]],
+    [[20, 205, 0], [237, 389, 1], [473, 582, 2]],
+  ],
+
+  [
+    [[90.5, 134.5, 0], [237, 281, 1], [281, 389, 1], [473, 582, 2]],
+    [[82.7, 142.3, 0], [237, 281, 1], [345, 389, 1], [473, 582, 2]],
+    [[74.8, 150.2, 0], [237, 281, 1], [345, 389, 1], [505.5, 549.5, 2]],
+    [[67.0, 111.0, 0], [114.0, 158.0, 0], [237, 281, 1], [345, 389, 1], [505.5, 549.5, 2]],
+    [[59.2, 103.2, 0], [121.8, 165.8, 0], [237, 281, 1], [281, 389, 1], [505.5, 549.5, 2]],
+    [[51.3, 95.3, 0], [129.7, 173.7, 0], [237, 281, 1], [505.5, 549.5, 2]],
+    [[43.5, 181.5, 0], [237, 281, 1], [281.0, 325.0, 1], [505.5, 549.5, 2]],
+    [[35.7, 189.3, 0], [237, 281, 1], [302.3, 346.3, 1], [505.5, 549.5, 2]],
+    [[27.8, 71.8, 0], [153.2, 197.2, 0], [237, 281, 1], [323.7, 367.7, 1], [505.5, 549.5, 2]],
+    [[20.0, 64.0, 0], [161.0, 205.0, 0], [237, 281, 1], [345.0, 389.0, 1], [505.5, 549.5, 2]],
+  ],
+
+  [
+    [[20, 205, 0], [237, 281, 1], [281, 389, 1], [473.0, 517.0, 2], [538.0, 582.0, 2]],
+    [[20, 205, 0], [237, 281, 1], [345, 389, 1], [481.1, 525.1, 2], [529.9, 573.9, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345, 389, 1], [489.2, 565.8, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345, 389, 1], [497.4, 557.6, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [281, 389, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [281.0, 325.0, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [302.3, 346.3, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [323.7, 367.7, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345.0, 389.0, 1], [505.5, 549.5, 2]],
+  ],
+
+  [
+    [[20, 205, 0], [237, 389, 1], [473.0, 517.0, 2], [538.0, 582.0, 2]],
+    [[20, 205, 0], [237, 281, 1], [345, 389, 1], [481.1, 525.1, 2], [529.9, 573.9, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345, 389, 1], [489.2, 565.8, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345, 389, 1], [497.4, 557.6, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345, 389, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345, 389, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345, 389, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345, 389, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 281, 1], [345, 389, 1], [505.5, 549.5, 2]],
+    [[90.5, 134.5, 0], [237, 389, 1], [505.5, 549.5, 2]],
+  ],
+];
+
+export const LOOPS_PER_WORD = 1;
+
+export const LETTER_CENTER = [112.5, 313, 495];
+
+```
+
+### dash-cascade/engine.ts
+```ts
+import {
+  AXIS,
+  BG,
+  CONTENT_MID,
+  DASH_H,
+  WORDS,
+  LOOPS_PER_WORD,
+  DOWN_AT,
+  DOWN_RATE,
+  DOWN_TILT,
+  FPS,
+  FRAMES,
+  INK,
+  HUE_SPREAD_DEG,
+  HUE_LAYERS,
+  HUE_DRIFT_S,
+  HUE_WAVES,
+  LIGHT_SPREAD,
+  HOVER_SAT_LIFT,
+  HOVER_DRIFT_GAIN,
+  HOVER_EASE_S,
+  LETTER_CENTER,
+  PINCH_DOWN,
+  PINCH_UP,
+  REF_W,
+  ROW_Y,
+  UP_AT,
+  UP_RATE,
+  WAVE,
+  WAVE_LEAD,
+} from "./params";
+
+function hexToHsl(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const mx = Math.max(r, g, b);
+  const mn = Math.min(r, g, b);
+  const l = (mx + mn) / 2;
+  if (mx === mn) return [0, 0, l];
+  const d = mx - mn;
+  const s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  let h: number;
+  if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (mx === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return [h * 360, s, l];
+}
+const [INK_H, INK_S, INK_L] = hexToHsl(INK);
+
+const ROWS = ROW_Y.length;
+
+const COLLAPSE_FRAME = 0;
+
+function delayOf(x0: number, x1: number, letter: number, row: number): number {
+  if (letter === 0) {
+    const c = (x0 + x1) / 2;
+    return DOWN_AT + DOWN_RATE * row + DOWN_TILT * (c - LETTER_CENTER[0]);
+  }
+  if (letter === 2) return UP_AT + UP_RATE * (ROWS - 1 - row);
+  return Math.min(
+    PINCH_DOWN[0] + PINCH_DOWN[1] * row,
+    PINCH_UP[0] + PINCH_UP[1] * (ROWS - 1 - row),
+  );
+}
+
+function excursion(frame: number, delay: number): number {
+  const ph = (((frame - delay + WAVE_LEAD) % FRAMES) + FRAMES) % FRAMES;
+  const i = Math.floor(ph);
+  const t = ph - i;
+  return WAVE[i] * (1 - t) + WAVE[(i + 1) % FRAMES] * t;
+}
+
+export class DashCascade {
+  private ctx: CanvasRenderingContext2D | null;
+  private raf = 0;
+  private t0 = 0;
+  private running = false;
+  private dpr = 1;
+  private lastFrame = -1;
+
+  private word = 0;
+
+  private hueClock = 0;
+
+  private hover = 0;
+  private hoverTarget = 0;
+  private lastNow = 0;
+
+  readonly ok: boolean;
+
+  constructor(private canvas: HTMLCanvasElement) {
+    this.ctx = canvas.getContext("2d");
+    this.ok = !!this.ctx;
+    if (this.ok) this.resize();
+  }
+
+  resize() {
+    const c = this.canvas;
+    const r = c.getBoundingClientRect();
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.round(r.width * this.dpr);
+    c.height = Math.round(r.height * this.dpr);
+    this.lastFrame = -1;
+    if (!this.running) this.renderStill();
+  }
+
+  start() {
+    if (this.running || !this.ok) return;
+    this.running = true;
+    this.t0 = performance.now();
+    this.lastFrame = -1;
+    const tick = (now: number) => {
+      if (!this.running) return;
+
+      const dt = this.lastNow === 0 ? 0 : Math.min(0.05, (now - this.lastNow) / 1000);
+      this.lastNow = now;
+      this.hueClock += dt * (1 + (HOVER_DRIFT_GAIN - 1) * this.hover);
+      if (this.hover !== this.hoverTarget) {
+        const step = dt / HOVER_EASE_S;
+        this.hover =
+          this.hoverTarget > this.hover
+            ? Math.min(this.hoverTarget, this.hover + step)
+            : Math.max(this.hoverTarget, this.hover - step);
+      }
+
+      const ticks = Math.floor(((now - this.t0) / 1000) * FPS);
+      const frame = ticks % FRAMES;
+
+      const colourMoving = this.hover !== this.hoverTarget || this.hover > 0;
+      if (frame !== this.lastFrame || colourMoving) {
+
+        if (frame === COLLAPSE_FRAME) {
+          const loop = Math.floor(ticks / FRAMES);
+          this.word = Math.floor(loop / LOOPS_PER_WORD) % WORDS.length;
+        }
+        this.lastFrame = frame;
+        this.draw(frame);
+      }
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  setHover(on: boolean) {
+    this.hoverTarget = on ? 1 : 0;
+  }
+
+  stop() {
+    this.running = false;
+    this.lastNow = 0;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+  }
+
+  renderStill() {
+    if (this.ok) this.draw(13);
+  }
+
+  destroy() {
+    this.stop();
+    this.ctx = null;
+  }
+
+  private ink(u: number, v: number, phase: number, sat: number): string {
+    let k = 0;
+    for (const w of HUE_WAVES) {
+      k += w.weight * Math.cos((u * w.u + v * w.v + phase * w.speed) * Math.PI * 2);
+    }
+    const h = INK_H + (k * HUE_SPREAD_DEG) / 2;
+    const l = INK_L + k * LIGHT_SPREAD;
+    return `hsl(${h.toFixed(1)} ${(sat * 100).toFixed(1)}% ${(l * 100).toFixed(1)}%)`;
+  }
+
+  private draw(frame: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const { dpr } = this;
+    const W = this.canvas.width / dpr;
+    const H = this.canvas.height / dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    const sc = W / REF_W;
+    ctx.translate(0, H / 2 - CONTENT_MID * sc);
+    ctx.scale(sc, sc);
+
+    ctx.lineCap = "round";
+
+    const phase = (this.hueClock / HUE_DRIFT_S) % 1;
+    const sat = Math.min(1, INK_S + HOVER_SAT_LIFT * this.hover);
+
+    for (let r = 0; r < ROWS; r++) {
+      const y = ROW_Y[r];
+      const vy = r / (ROWS - 1);
+      for (const [x0, x1, letter] of WORDS[this.word][r]) {
+        const e = excursion(frame, delayOf(x0, x1, letter, r));
+        const a = AXIS + (x0 - AXIS) * e;
+        const b = AXIS + (x1 - AXIS) * e;
+
+        const span = b - a;
+        if (span < 0.5) {
+
+          const u = (a - AXIS) / REF_W + 0.5;
+          ctx.fillStyle = this.ink(u, vy, phase, sat);
+          ctx.beginPath();
+          ctx.arc((a + b) / 2, y, DASH_H / 2, 0, Math.PI * 2);
+          ctx.fill();
+          continue;
+        }
+        ctx.lineWidth = DASH_H;
+        const seg = span / HUE_LAYERS;
+        for (let i = 0; i < HUE_LAYERS; i++) {
+
+          const s0 = Math.max(a, a + i * seg - seg * 0.5);
+          const s1 = Math.min(b, a + (i + 1) * seg + seg * 0.5);
+          const mid = (s0 + s1) / 2;
+          const u = (mid - AXIS) / REF_W + 0.5;
+          ctx.strokeStyle = this.ink(u, vy, phase, sat);
+          ctx.beginPath();
+          ctx.moveTo(s0, y);
+          ctx.lineTo(s1, y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+}
+
+```
+
+### dash-cascade/DashCascadeCard.tsx
+```ts
+"use client";
+
+import { BG } from "./params";
+import { useEffect, useRef } from "react";
+import { DashCascade } from "./engine";
+import { onTransitionChange } from "../../lib/view-transition";
+
+export function DashCascadeCard({
+  bare = false,
+  viewTransitionName,
+}: {
+  bare?: boolean;
+  viewTransitionName?: string;
+} = {}) {
+  void bare;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const engineRef = useRef<DashCascade | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let engine: DashCascade | null = null;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const sync = () => {
+      if (!engine || reduced) return;
+      if (onScreen && !hidden && !inTransition) engine.start();
+      else engine.stop();
+    };
+
+    const raf = requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
+      engine = new DashCascade(canvas);
+      engineRef.current = engine;
+      if (!engine.ok) return;
+      if (reduced) engine.renderStill();
+      else sync();
+    });
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es[0]?.isIntersecting ?? false;
+        sync();
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(canvas);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    let rt = 0;
+    const onResize = () => {
+      window.clearTimeout(rt);
+      rt = window.setTimeout(() => engine?.resize(), 120);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(rt);
+      engine?.destroy();
+      engineRef.current = null;
+    };
+  }, []);
+
+  return (
+    <div
+      data-canvas-card
+      role="img"
+      aria-label="Three-letter words built from fat scanline dashes in shifting yellows on white — LOL, VLT, ART, TOY — each unfurling out of a dotted vertical line letter by letter, the first letter wiping top to bottom, the last bottom to top, the middle pinched between them. The word rests at full width, folds back into the line, and the next one unfurls in its place."
+
+      style={{
+        backgroundColor: BG,
+        ...(viewTransitionName ? { viewTransitionName } : null),
+      }}
+      className="relative mx-auto aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)]"
+
+      onPointerEnter={() => engineRef.current?.setHover(true)}
+      onPointerLeave={() => engineRef.current?.setHover(false)}
+    >
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
+  );
+}
+
+```

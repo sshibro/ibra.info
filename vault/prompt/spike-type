@@ -1,0 +1,900 @@
+Build this: a word KNOCKED OUT of a flat grey ground, its boundary chewed ragged and bristling with hundreds of fine hand-drawn spikes growing outward. NEARLY STILL: the mark is a poster first and the density of the drawing is the subject, but the spikes breathe on a slow per-spike phase and respond to the pointer. Every frame is a scale and a rotate applied to already-built local paths — nothing is ever regrown, which is what keeps a thousand spikes affordable. THE ONE THING THAT MAKES IT WORK: the spikes are filled with THE SAME COLOUR AS THE GROUND and only their outline is drawn, so a tangle of a thousand overlapping spikes stays legible instead of collapsing into a dark mass — each spike paints ground over whatever is behind it and you read a clean contour line rather than accumulated ink. This also forces the draw order: fill AND stroke each spike before starting the next, because batching all the fills then all the strokes draws every outline over every shape and the field turns into a wire tangle. A SPIKE IS A STROKE THAT GOES OUT AND COMES BACK, NOT A FILLED TRIANGLE. In the reference many spikes fork, hook, or visibly double back — a triangle cannot, and a field of triangles reads as extrusion: even, mechanical, obviously generated. Each spike here is a wandering SPINE walked outward, with the outgoing and returning walls offset from it by a half-width that tapers to nothing at the tip; because both walls follow the same wandering spine at different offsets, a spike that bends produces the lopsided hooked sliver the reference is full of. Taper with an exponent ABOVE 1 (~1.8), not linearly — a linear taper is an isoceles wedge, which is the triangle look again; a higher power keeps the spike thin for most of its length and puts the mass near the root so it reads as a hair with a thickened base. LENGTH IS POWER-LAW, NOT JITTER, and this is the difference between growth and a comb: measured off the reference, lengths run 12px to 240px with a median near 45, so the longest is over five times the middle. Uniform or gaussian jitter clusters everything around the mean and gives an even fringe; raising a uniform variate to a power (~2.6) pushes most samples toward zero and leaves a thin tail of very long ones, so the field is mostly stubble with occasional spears. Drop ~14% of spikes outright — a continuous fringe reads as a border, and the reference has bald patches where clean edge shows through. Splay each root by a small signed rotation so spikes fan near corners instead of all standing perpendicular. CHEW THE OUTLINE BEFORE GROWING ANYTHING: the letters are visibly ragged UNDERNEATH the spikes, so displace the traced boundary along its own normals with LAYERED noise (three sines at irrational rate ratios — one sine alone reads as corrugation, unmistakably machine-made) and let the spikes grow from the chewed edge, which is most of why the result reads as one damaged object rather than type with a decoration applied. Trace the word with a directed-EDGE walker rather than the textbook cell-based marching squares: the case index does not encode arrival direction, so at saddle cases (the pixel-thin waists letterforms are full of) it picks the wrong crossing — tested on an annulus it returned five unclosed fragments instead of two closed contours. Winding comes free and tells each contour which way is OUT, so holes grow their spikes inward-facing-correctly. Smooth the trace BEFORE resampling: the staircase inflates arc length ~28% (measured on a known circle) and every downstream number is a function of arc length. Draw order overall: ground, then all spikes (under the letters, so their roots are covered), then the white letters with even-odd so counters stay open, then a stroke on the letter edge. THE INTERACTION IS GROWTH, NOT A BEND, and this is the one decision that makes the card specific rather than generic. Bending spikes away from the pointer is fur; fur is a fine idea that has nothing to do with this object, and the identical code would work on any outline. Instead RAYCAST EVERY SPIKE AT BUILD TIME to find how far it could reach before hitting more letter, let it take a power-law share of that budget, and keep the remainder as `slack`. The cursor spends the slack. Now the letterform itself decides what happens: spikes on an open edge surge out to twice their length, spikes inside the arch of an m have nowhere to go and do not move, and the counters of an a or an o stay clean because there was never room in them. The word bristles unevenly and the unevenness is a property of the word. Keep a small bend as well, because something has to happen at the tight places where growth cannot. GIVE EVERY SPIKE ITS OWN MOMENTUM. Computing an angle from cursor distance and applying it directly is the obvious approach and it feels dead: with no state every spike is exactly where the formula says at every instant, so the field snaps rigidly to the cursor and returns the moment it leaves. Give each an angle and an angular velocity, pulled to rest by a spring and slowed by damping, so it OVERSHOOTS coming back and wobbles down, and the field keeps moving after the cursor has gone. DRIVE STIFFNESS AND DAMPING FROM ONE VALUE — the spike's own length. Tuning them separately produces a field where the MIDDLE lengths settle fastest while both extremes ring on, which reads as arbitrary rather than as mass; driven together, stubble is stiff and heavily damped and snaps back, spears are slack and lightly damped and swing wide. BREATHE BY ROTATING, NOT BY SCALING LENGTH. A length scale pins the root and moves only the tip by half the swell, which at ~3% is a fraction of a pixel on the stubble and invisible; a few degrees of sway moves every point on the spike and the tip travels the arc of its full length, so the long ones are plainly alive while the short ones stay calm. The two together read as growth rather than as a pulse. TINT THE LINE, NOT THE MARK: the outline is the only element small enough in area to take a strong colour without the card becoming about the colour, and it is the element the effect is already about. Run it from the rest hue toward a green some 60 degrees round the wheel and never past it — further hits cyan and instantly looks like a demo — moving saturation and lightness along with the hue, since real pigment changes value as it changes colour and a fixed-S/L rotation looks synthetic. Precompute the ramp as ~24 ready-made colour strings: formatting an hsl() template for every one of ~580 stroke runs every frame is by far the most expensive thing that could happen in that loop, and the gradient only has to be smooth at the width of one run. Keep the tint's reach clearly TIGHTER than the spikes' so the colour pool and the area of movement read as two responses rather than one big highlight. Framework-free Canvas 2D, no assets; DPR-capped at 2, traces once on first intersection, pauses offscreen / when hidden / during route transitions, one static frame under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### spiketype/outline.ts
+```ts
+export type Contour = number[];
+
+export interface Field {
+
+  hit: (x: number, y: number) => boolean;
+
+  scale: number;
+}
+
+export interface Edge {
+
+  pts: number[];
+
+  nrm: number[];
+}
+
+export interface TraceOpts {
+  word: string;
+
+  font: string;
+  w: number;
+  h: number;
+  dpr: number;
+}
+
+const WEIGHT = 700;
+
+const EMPTY = { contours: [] as Contour[], field: { hit: () => false, scale: 1 } };
+
+export function traceWord(o: TraceOpts): { contours: Contour[]; field: Field } {
+  const gh = Math.max(360, Math.round(o.h * o.dpr * 1.15));
+  const gw = Math.max(8, Math.round((gh * o.w) / o.h));
+
+  const cv = document.createElement("canvas");
+  cv.width = gw;
+  cv.height = gh;
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return EMPTY;
+
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, gw, gh);
+
+  const face = (px: number) => `${WEIGHT} ${px}px ${o.font}`;
+  const PROBE = 100;
+  ctx.font = face(PROBE);
+
+  if (!ctx.font.includes(`${PROBE}px`)) return EMPTY;
+
+  const unit = ctx.measureText(o.word).width / PROBE;
+  const size = Math.min((gw * 0.74) / unit, gh * 0.62);
+  ctx.font = face(size);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#fff";
+  ctx.fillText(o.word, gw / 2, gh / 2);
+
+  const src = ctx.getImageData(0, 0, gw, gh).data;
+  const bits = new Uint8Array(gw * gh);
+  for (let i = 0; i < gw * gh; i++) bits[i] = src[i * 4] > 127 ? 1 : 0;
+
+  const on = (x: number, y: number): boolean => {
+    if (x < 1 || y < 1 || x >= gw - 1 || y >= gh - 1) return false;
+    return bits[y * gw + x] === 1;
+  };
+
+  const sx = o.w / gw;
+  const sy = o.h / gh;
+  const contours = traceContours(on, gw, gh).map((c) => {
+    const out: number[] = new Array(c.length);
+    for (let i = 0; i < c.length; i += 2) {
+      out[i] = c[i] * sx;
+      out[i + 1] = c[i + 1] * sy;
+    }
+    return out;
+  });
+
+  const field: Field = {
+    hit: (x, y) => on(Math.round(x / sx), Math.round(y / sy)),
+    scale: sx,
+  };
+
+  return { contours, field };
+}
+
+function traceContours(
+  on: (x: number, y: number) => boolean,
+  gw: number,
+  gh: number,
+): number[][] {
+  const DX = [1, 0, -1, 0];
+  const DY = [0, 1, 0, -1];
+  const NX = [0, 1, 0, -1];
+  const NY = [-1, 0, 1, 0];
+  const SX = [0, 1, 1, 0];
+  const SY = [0, 0, 1, 1];
+
+  const used = new Set<number>();
+  const key = (x: number, y: number, d: number) => (y * gw + x) * 4 + d;
+  const out: number[][] = [];
+
+  for (let y = 0; y < gh; y++) {
+    for (let x = 0; x < gw; x++) {
+      if (!on(x, y)) continue;
+      for (let d = 0; d < 4; d++) {
+        if (on(x + NX[d], y + NY[d])) continue;
+        if (used.has(key(x, y, d))) continue;
+
+        const pts: number[] = [];
+        let px = x;
+        let py = y;
+        let pd = d;
+        let guard = gw * gh * 8;
+
+        while (guard-- > 0) {
+          const k = key(px, py, pd);
+          if (used.has(k)) break;
+          used.add(k);
+          pts.push(px + SX[pd], py + SY[pd]);
+
+          const lx = px + DX[pd] + NX[pd];
+          const ly = py + DY[pd] + NY[pd];
+          const fx = px + DX[pd];
+          const fy = py + DY[pd];
+
+          if (on(lx, ly)) {
+            px = lx;
+            py = ly;
+            pd = (pd + 3) & 3;
+          } else if (on(fx, fy)) {
+            px = fx;
+            py = fy;
+          } else {
+            pd = (pd + 1) & 3;
+          }
+        }
+
+        if (pts.length >= Math.max(32, gh / 8)) out.push(pts);
+      }
+    }
+  }
+
+  return out;
+}
+
+export function prepare(raw: number[], step: number, rough: number, seed: number): Edge | null {
+  const base = resample(smooth(raw, 2), step);
+  const n = base.length / 2;
+  if (n < 8) return null;
+
+  const pts = new Array<number>(n * 2);
+  const nrm = new Array<number>(n * 2);
+
+  let area2 = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    area2 += base[i * 2] * base[j * 2 + 1] - base[j * 2] * base[i * 2 + 1];
+  }
+  const out = area2 > 0 ? 1 : -1;
+
+  for (let i = 0; i < n; i++) {
+    const p = ((i - 1) % n + n) % n;
+    const q = (i + 1) % n;
+    const tx = base[q * 2] - base[p * 2];
+    const ty = base[q * 2 + 1] - base[p * 2 + 1];
+    const tl = Math.hypot(tx, ty) || 1;
+
+    const ux = (ty / tl) * out;
+    const uy = (-tx / tl) * out;
+
+    const a = i * 0.9 + seed;
+    const chew =
+      Math.sin(a * 0.21) * 0.55 +
+      Math.sin(a * 0.53 + 1.7) * 0.3 +
+      Math.sin(a * 1.27 + 4.1) * 0.15;
+
+    pts[i * 2] = base[i * 2] + ux * chew * rough;
+    pts[i * 2 + 1] = base[i * 2 + 1] + uy * chew * rough;
+    nrm[i * 2] = ux;
+    nrm[i * 2 + 1] = uy;
+  }
+
+  return { pts, nrm };
+}
+
+function resample(src: number[], step: number): number[] {
+  const n = src.length / 2;
+  if (n < 3) return [];
+  const out: number[] = [];
+  let carry = 0;
+  for (let i = 0; i < n; i++) {
+    const ax = src[i * 2];
+    const ay = src[i * 2 + 1];
+    const j = (i + 1) % n;
+    const dx = src[j * 2] - ax;
+    const dy = src[j * 2 + 1] - ay;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) continue;
+    let t = carry;
+    while (t < len) {
+      const u = t / len;
+      out.push(ax + dx * u, ay + dy * u);
+      t += step;
+    }
+
+    carry = t - len;
+  }
+  return out;
+}
+
+function smooth(src: number[], passes: number): number[] {
+  const n = src.length / 2;
+  if (n < 5) return src.slice();
+  let cur = src;
+  for (let p = 0; p < passes; p++) {
+    const out = new Array<number>(n * 2);
+    for (let i = 0; i < n; i++) {
+      let sx = 0;
+      let sy = 0;
+      for (let k = -2; k <= 2; k++) {
+        const j = (((i + k) % n) + n) % n;
+        sx += cur[j * 2];
+        sy += cur[j * 2 + 1];
+      }
+      out[i * 2] = sx / 5;
+      out[i * 2 + 1] = sy / 5;
+    }
+    cur = out;
+  }
+  return cur;
+}
+
+```
+
+### spiketype/spikes.ts
+```ts
+import type { Edge, Field } from "./outline";
+
+export interface Spike {
+
+  path: number[];
+
+  x: number;
+  y: number;
+
+  nx: number;
+  ny: number;
+
+  reach: number;
+
+  slack: number;
+}
+
+export interface SpikeOpts {
+
+  maxLen: number;
+
+  root: number;
+
+  steps: number;
+
+  field: Field;
+}
+
+function headroom(x: number, y: number, dx: number, dy: number, max: number, f: Field): number {
+
+  const step = Math.max(1, f.scale);
+
+  const skip = step * 3;
+  for (let d = skip; d < max; d += step) {
+    if (f.hit(x + dx * d, y + dy * d)) return d;
+  }
+  return max;
+}
+
+function rnd(seed: number): number {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+export function grow(edge: Edge, every: number, o: SpikeOpts, seed: number): Spike[] {
+  const n = edge.pts.length / 2;
+  const out: Spike[] = [];
+
+  for (let i = 0; i < n; i += every) {
+    const s = seed + i * 0.371;
+
+    const u = rnd(s);
+    const reach = Math.pow(u, 2.6);
+    const len = o.maxLen * (0.06 + 0.94 * reach);
+
+    if (rnd(s + 91.3) < 0.14) continue;
+
+    const px = edge.pts[i * 2];
+    const py = edge.pts[i * 2 + 1];
+    let nx = edge.nrm[i * 2];
+    let ny = edge.nrm[i * 2 + 1];
+
+    const lean = (rnd(s + 17.7) - 0.5) * 0.9;
+    const cs = Math.cos(lean);
+    const sn = Math.sin(lean);
+    const rx = nx * cs - ny * sn;
+    const ry = nx * sn + ny * cs;
+    nx = rx;
+    ny = ry;
+
+    const room = headroom(px, py, nx, ny, o.maxLen, o.field);
+    const capped = Math.min(len, room * 0.62);
+
+    if (capped < o.root * 2.5) continue;
+
+    out.push({
+      path: spine(capped, o, s),
+      x: px,
+      y: py,
+      nx,
+      ny,
+
+      reach: capped / o.maxLen,
+
+      slack: Math.min(o.maxLen * 0.55, room * 0.62 - capped) / capped,
+    });
+  }
+
+  return out;
+}
+
+function spine(len: number, o: SpikeOpts, seed: number): number[] {
+  const steps = o.steps;
+  const sx: number[] = new Array(steps + 1);
+  const sy: number[] = new Array(steps + 1);
+  const hw: number[] = new Array(steps + 1);
+
+  const bury = o.root * 2.2;
+  let dx = 1;
+  let dy = 0;
+  let cx = -bury;
+  let cy = 0;
+
+  const wander = (rnd(seed + 3.3) - 0.5) * 0.55;
+
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps;
+    sx[k] = cx;
+    sy[k] = cy;
+
+    hw[k] = o.root * Math.pow(1 - t, 1.8);
+
+    if (k === steps) break;
+
+    const turn =
+      (rnd(seed + k * 7.13) - 0.5) * 0.22 + wander * (1 / steps);
+    const c = Math.cos(turn);
+    const s2 = Math.sin(turn);
+    const ndx = dx * c - dy * s2;
+    const ndy = dx * s2 + dy * c;
+    dx = ndx;
+    dy = ndy;
+
+    const seg = (len + bury) / steps;
+    cx += dx * seg;
+    cy += dy * seg;
+  }
+
+  const path: number[] = [];
+  for (let k = 0; k <= steps; k++) {
+    const p = Math.max(0, k - 1);
+    const q = Math.min(steps, k + 1);
+    const tx = sx[q] - sx[p];
+    const ty = sy[q] - sy[p];
+    const tl = Math.hypot(tx, ty) || 1;
+    path.push(sx[k] + (ty / tl) * hw[k], sy[k] - (tx / tl) * hw[k]);
+  }
+  for (let k = steps; k >= 0; k--) {
+    const p = Math.max(0, k - 1);
+    const q = Math.min(steps, k + 1);
+    const tx = sx[q] - sx[p];
+    const ty = sy[q] - sy[p];
+    const tl = Math.hypot(tx, ty) || 1;
+    path.push(sx[k] - (ty / tl) * hw[k], sy[k] + (tx / tl) * hw[k]);
+  }
+  return path;
+}
+
+```
+
+### spiketype/SpikeTypeCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { traceWord, prepare, type Edge } from "./outline";
+import { grow, type Spike } from "./spikes";
+import { onTransitionChange } from "../../lib/view-transition";
+
+const WORD = "mango";
+
+const PALETTE = {
+
+  ground: "#e4e4e8",
+
+  mark: "#ffffff",
+  line: "#ffc21e",
+} as const;
+
+const EVERY = 3;
+
+const MAX_LEN = 0.26;
+
+const ROOT = 0.006;
+
+const ROUGH = 0.007;
+
+const STEP = 0.006;
+
+const LINE_W = 0.0032;
+
+const RUN = 9;
+
+const BREATH_RATE = 0.55;
+
+const BREATH_AMT = 0.1;
+
+const SWAY_AMT = 0.06;
+
+const REPEL = 0.34;
+
+const REACH_RATIO = 0.3;
+
+const SPRING = 0.055;
+const DAMP = 0.86;
+
+const MAGNET = 0.012;
+
+const MAGNET_REACH = 0.34;
+const MAGNET_SPRING = 0.05;
+const MAGNET_DAMP = 0.87;
+
+const GROW_AMT = 0.9;
+
+const HUE_FROM = 43.7;
+const SAT_FROM = 100;
+const LIT_FROM = 55.9;
+const HUE_TO = 104;
+const SAT_TO = 64;
+const LIT_TO = 38;
+
+const HUE_STEPS = 24;
+
+const HUE_REACH = 0.22;
+
+const HUE_RAMP: string[] = Array.from({ length: HUE_STEPS }, (_, i) => {
+  const u = i / (HUE_STEPS - 1);
+
+  const e = u * u * (3 - 2 * u);
+  const hue = HUE_FROM + (HUE_TO - HUE_FROM) * e;
+  const sat = SAT_FROM + (SAT_TO - SAT_FROM) * e;
+  const lit = LIT_FROM + (LIT_TO - LIT_FROM) * e;
+  return `hsl(${hue.toFixed(1)} ${sat.toFixed(1)}% ${lit.toFixed(1)}%)`;
+});
+
+export function SpikeTypeCard({ bare = false }: { bare?: boolean } = {}) {
+  void bare;
+  const hostRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    const canvas = canvasRef.current;
+    if (!host || !canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let cancelled = false;
+
+    const family = getComputedStyle(host).fontFamily || "sans-serif";
+
+    let w = 0;
+    let h = 0;
+    let spikes: Spike[] = [];
+    let edges: Edge[] = [];
+
+    let widths: number[] = [];
+
+    let ang: Float32Array = new Float32Array(0);
+    let vel: Float32Array = new Float32Array(0);
+
+    let ext: Float32Array = new Float32Array(0);
+    let evel: Float32Array = new Float32Array(0);
+
+    let letterCount = 0;
+    let letterCx: number[] = [];
+
+    let letterOf: number[] = [];
+    let spikeLetter: number[] = [];
+    let lmx = new Float32Array(0);
+    let lmy = new Float32Array(0);
+    let lvx = new Float32Array(0);
+    let lvy = new Float32Array(0);
+    let pointer: { x: number; y: number } | null = null;
+
+    let px = 0;
+    let py = 0;
+    let grip = 0;
+
+    let fresh = true;
+
+    const build = () => {
+      if (cancelled) return;
+      w = host.clientWidth;
+      h = host.clientHeight;
+      if (!w || !h) return;
+
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const { contours, field } = traceWord({ word: WORD, font: family, w, h, dpr });
+      if (!contours.length) return;
+
+      spikes = [];
+      edges = [];
+
+      const groups: { lo: number; hi: number; idx: number[] }[] = [];
+      const spans = contours.map((c) => {
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (let i = 0; i < c.length; i += 2) {
+          if (c[i] < lo) lo = c[i];
+          if (c[i] > hi) hi = c[i];
+        }
+        return { lo, hi };
+      });
+      contours.forEach((_, i) => {
+        const s = spans[i];
+        const g = groups.find((q) => s.lo < q.hi && s.hi > q.lo);
+        if (g) {
+          g.lo = Math.min(g.lo, s.lo);
+          g.hi = Math.max(g.hi, s.hi);
+          g.idx.push(i);
+        } else {
+          groups.push({ lo: s.lo, hi: s.hi, idx: [i] });
+        }
+      });
+
+      groups.sort((a, b) => a.lo - b.lo);
+
+      letterOf = [];
+      spikeLetter = [];
+      contours.forEach((c, i) => {
+        const e = prepare(c, h * STEP, h * ROUGH, i * 12.9);
+        if (!e) return;
+        const li = groups.findIndex((g) => g.idx.includes(i));
+        edges.push(e);
+        letterOf.push(li < 0 ? 0 : li);
+        const before = spikes.length;
+        spikes.push(
+          ...grow(
+            e,
+            EVERY,
+            { maxLen: h * MAX_LEN, root: h * ROOT, steps: 7, field },
+            i * 53.1,
+          ),
+        );
+
+        for (let k = before; k < spikes.length; k++) spikeLetter.push(li < 0 ? 0 : li);
+      });
+
+      letterCount = groups.length;
+
+      letterCx = groups.map((g) => (g.lo + g.hi) / 2);
+      lmx = new Float32Array(letterCount);
+      lmy = new Float32Array(letterCount);
+      lvx = new Float32Array(letterCount);
+      lvy = new Float32Array(letterCount);
+
+      const base = Math.max(1, h * LINE_W) * 2;
+      const runs = Math.ceil(
+        (spikes.reduce((a, s) => a + s.path.length / 2, 0) +
+          edges.reduce((a, e) => a + e.pts.length / 2, 0)) /
+          RUN,
+      ) + 8;
+      ang = new Float32Array(spikes.length);
+      vel = new Float32Array(spikes.length);
+      ext = new Float32Array(spikes.length);
+      evel = new Float32Array(spikes.length);
+
+      widths = new Array(runs);
+      for (let i = 0; i < runs; i++) {
+        const k = 1 + Math.sin(i * 0.37) * 0.34 + Math.sin(i * 0.13 + 2.1) * 0.22;
+        widths[i] = base * Math.max(0.25, k);
+      }
+
+      draw(performance.now());
+    };
+
+    const draw = (now: number) => {
+      if (!spikes.length || !w || !h) return;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const t = now * 0.001;
+      const reach = h * REACH_RATIO;
+      const placed: number[][] = [];
+
+      const pull = h * MAGNET;
+      const span = h * MAGNET_REACH;
+      for (let li = 0; li < letterCount; li++) {
+        let gx = 0;
+        let gy = 0;
+        if (grip > 0.001) {
+          const dx = px - letterCx[li];
+          const dy = py - h / 2;
+          const d = Math.hypot(dx, dy) || 1;
+          const f = Math.max(0, 1 - d / span);
+
+          const amt = pull * f * f * grip;
+          gx = (dx / d) * amt;
+          gy = (dy / d) * amt;
+        }
+
+        const mass = 1 + (li % 2) * 0.35;
+        lvx[li] = (lvx[li] + (gx - lmx[li]) * (MAGNET_SPRING / mass)) * MAGNET_DAMP;
+        lvy[li] = (lvy[li] + (gy - lmy[li]) * (MAGNET_SPRING / mass)) * MAGNET_DAMP;
+        lmx[li] += lvx[li];
+        lmy[li] += lvy[li];
+      }
+
+      const target = pointer ? 1 : 0;
+      grip += (target - grip) * 0.12;
+      if (pointer) {
+
+        if (fresh) {
+          px = pointer.x;
+          py = pointer.y;
+          fresh = false;
+        } else {
+          px += (pointer.x - px) * 0.18;
+          py += (pointer.y - py) * 0.18;
+        }
+      }
+
+      for (let si = 0; si < spikes.length; si++) {
+        const sp = spikes[si];
+
+        const sl = spikeLetter[si] ?? 0;
+        const ox = lmx[sl] ?? 0;
+        const oy = lmy[sl] ?? 0;
+
+        const phase = t * BREATH_RATE + si * 0.7;
+        const grow = 1 + Math.sin(phase) * BREATH_AMT;
+
+        let turn = Math.sin(phase * 0.73 + 1.3) * SWAY_AMT;
+
+        let goal = 0;
+        if (grip > 0.001) {
+
+          const dx = sp.x + ox - px;
+          const dy = sp.y + oy - py;
+          const d = Math.hypot(dx, dy);
+          if (d < reach) {
+            const f = 1 - d / reach;
+
+            const side = Math.sign(sp.nx * dy - sp.ny * dx) || 1;
+            goal = f * f * REPEL * side * (0.35 + sp.reach) * grip;
+          }
+        }
+
+        const floppy = sp.reach;
+        const k = SPRING * (1.7 - floppy * 1.2);
+        const damp = DAMP - (1 - floppy) * 0.09;
+        vel[si] = (vel[si] + (goal - ang[si]) * k) * damp;
+        ang[si] += vel[si];
+        turn += ang[si];
+
+        let egoal = 0;
+        if (grip > 0.001 && sp.slack > 0.01) {
+          const dx2 = sp.x + ox - px;
+          const dy2 = sp.y + oy - py;
+          const d2 = Math.hypot(dx2, dy2);
+          if (d2 < reach) {
+            const f2 = 1 - d2 / reach;
+            egoal = f2 * f2 * sp.slack * GROW_AMT * grip;
+          }
+        }
+        evel[si] = (evel[si] + (egoal - ext[si]) * k * 1.3) * damp;
+        ext[si] += evel[si];
+
+        const c = Math.cos(turn);
+        const s2 = Math.sin(turn);
+
+        const ax = sp.nx * c - sp.ny * s2;
+        const ay = sp.nx * s2 + sp.ny * c;
+
+        const src = sp.path;
+        const dst: number[] = new Array(src.length);
+        for (let i = 0; i < src.length; i += 2) {
+
+          const lx = src[i] * (grow + ext[si]);
+          const ly = src[i + 1];
+
+          dst[i] = sp.x + ox + ax * lx - ay * ly;
+          dst[i + 1] = sp.y + oy + ay * lx + ax * ly;
+        }
+        placed.push(dst);
+      }
+
+      const subpaths: number[][] = placed;
+      edges.forEach((e, ei) => {
+
+        const li = letterOf[ei] ?? 0;
+        const dx = lmx[li] ?? 0;
+        const dy = lmy[li] ?? 0;
+        const p = e.pts;
+        const shifted: number[] = new Array(p.length);
+        for (let i = 0; i < p.length; i += 2) {
+          shifted[i] = p[i] + dx;
+          shifted[i + 1] = p[i + 1] + dy;
+        }
+        subpaths.push(shifted);
+      });
+
+      ctx.beginPath();
+      for (const p of subpaths) {
+        ctx.moveTo(p[0], p[1]);
+        for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]);
+        ctx.closePath();
+      }
+
+      ctx.fillStyle = PALETTE.mark;
+      ctx.fill("nonzero");
+
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-over";
+      ctx.strokeStyle = PALETTE.line;
+
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      let wob = 0;
+
+      const hueSpan = h * HUE_REACH;
+      let lastStep = -1;
+      ctx.strokeStyle = HUE_RAMP[0];
+
+      for (const sub of subpaths) {
+        const n = sub.length / 2;
+        for (let a = 0; a < n; a += RUN) {
+
+          ctx.lineWidth = widths[wob++ % widths.length];
+
+          const rx = sub[(a % n) * 2];
+          const ry = sub[(a % n) * 2 + 1];
+          let step = 0;
+          if (grip > 0.001) {
+            const hd = Math.hypot(rx - px, ry - py);
+            if (hd < hueSpan) {
+              const f = 1 - hd / hueSpan;
+
+              step = Math.round(f * f * grip * (HUE_STEPS - 1));
+            }
+          }
+          if (step !== lastStep) {
+            ctx.strokeStyle = HUE_RAMP[step];
+            lastStep = step;
+          }
+
+          ctx.beginPath();
+          ctx.moveTo(rx, ry);
+
+          for (let b = 1; b <= RUN; b++) {
+            const j = (a + b) % n;
+            ctx.lineTo(sub[j * 2], sub[j * 2 + 1]);
+          }
+          ctx.stroke();
+        }
+      }
+
+      ctx.fillStyle = PALETTE.ground;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    };
+
+    const ready: Promise<unknown> = document.fonts?.ready ?? Promise.resolve();
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let built = false;
+    let raf = 0;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const running = () => built && onScreen && !hidden && !inTransition && !reduced;
+
+    const frame = (now: number) => {
+      raf = 0;
+      if (!running()) return;
+      draw(now);
+      raf = requestAnimationFrame(frame);
+    };
+
+    const sync = () => {
+      if (running()) {
+        if (!raf) raf = requestAnimationFrame(frame);
+      } else if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es.some((e) => e.isIntersecting);
+        if (onScreen && !built) {
+          built = true;
+          ready.then(() => {
+            build();
+
+            sync();
+          });
+          return;
+        }
+        sync();
+      },
+      { rootMargin: "200px" },
+    );
+    io.observe(host);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    const fine = window.matchMedia("(pointer: fine)").matches;
+    const onMove = (e: PointerEvent) => {
+      const r = host.getBoundingClientRect();
+      pointer = { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const onEnter = (e: PointerEvent) => {
+      fresh = true;
+      onMove(e);
+    };
+    const onLeave = () => {
+      pointer = null;
+    };
+    if (fine) {
+      host.addEventListener("pointerenter", onEnter);
+      host.addEventListener("pointermove", onMove);
+      host.addEventListener("pointerleave", onLeave);
+    }
+
+    const ro = new ResizeObserver(() => {
+      if (built) build();
+    });
+    ro.observe(host);
+
+    return () => {
+      cancelled = true;
+      if (raf) cancelAnimationFrame(raf);
+      io.disconnect();
+      ro.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      if (fine) {
+        host.removeEventListener("pointerenter", onEnter);
+        host.removeEventListener("pointermove", onMove);
+        host.removeEventListener("pointerleave", onLeave);
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      ref={hostRef}
+      data-canvas-card
+      role="img"
+      aria-label="The word mango knocked out in cream from a bright yellow ground, outlined in leaf green, its letters ragged and bristling with hundreds of fine hand-drawn spikes of wildly varying length; the spikes breathe slowly and bend away from the pointer"
+      className="relative aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)]"
+      style={{ background: PALETTE.ground }}
+    >
+      <canvas ref={canvasRef} className="block h-full w-full" />
+    </div>
+  );
+}
+
+```

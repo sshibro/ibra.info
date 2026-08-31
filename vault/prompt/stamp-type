@@ -1,0 +1,515 @@
+Build this: a kinetic-type poster loop that repeats in a new world every pass: four lines of type on flat highlight bars fly in from the edges one axis at a time, park to be read, then scatter off — and the next palette and the next four lines fly in before the last ones have finished leaving. ONE MECHANISM CARRIES EVERYTHING: every visible thing is a line of text with a highlight bar moving along a breakpoint track, and whenever it moves it STAMPS its flat-colour silhouette where it just was. Stamps live exactly sixteen frames and then vanish ALL AT ONCE — no fade, no shrink, which is what makes them read as printed residue rather than as motion blur. The silhouette is the rounded bar UNIONED with the glyphs stroked fat in bar colour, and that union is where the descender drips along the bottom edge of a bar come from. THE CHOREOGRAPHY IS DATA, NOT AN EASING FUNCTION: four tracks of [frame, x, y] breakpoints, and inside every hop the pacing is deliberately jagged and stop-start. A line slides left, stops, drops, stops, slides again — axis-aligned throughout, never diagonal, never rotated. It runs at 20fps on a 10Hz movement cadence, so consecutive frames often repeat exactly; smoothing that stutter or fitting the tracks to a cubic ease is what kills the print-like snap, so resist it. THE WORLD IS A PARAMETER AND THE TRANSITION IS FREE: a world is three hex colours plus four strings, and the incoming pass starts twelve frames BEFORE the outgoing one ends, so for that window two worlds are on stage at once — old lines scattering off in the old bar colour, new ones flying in in the new one, both stamping. Their interleaved trails ARE the colour flood between scenes; the field swaps five frames in, under the densest part of it, as a HARD CUT. Nothing in the piece fades, and a gradient on the field is the one thing that would give away it is not print. Do not write separate transition code — deriving the flood from the overlap is what makes it hold for any pair of worlds. Stamps are COMPUTED FRESH each frame from the tracks (any line that moved during any step in the last sixteen frames contributes one), so there is no accumulation state and the loop seam, resizes and tab-resumes all land on exactly the right residue with no replay bookkeeping. DRAW ALL FOUR BARS FIRST, THEN ALL FOUR INKS — the parked rows sit 68px apart but a bar with a descender runs about 75px, so per-line bar-then-ink lets the next row's bar bite chunks out of the previous row's letterforms. Two layers costs nothing (bars are one flat colour, so bar-on-bar overlap is invisible) and keeps every glyph whole. Two rules the palette must obey or the piece dies: field and bar far apart in BOTH hue and value, and ink near-black or near-white — a low-contrast pairing reads as a stain rather than as a poster. Lines longer than the layout expects are CONDENSED horizontally to the room their own track leaves them rather than set smaller, because four different type sizes read as a layout instead of as one poster. Square 600-space composition letterboxed in the wide card; display-only, standard card lifecycle, one parked poster frame under reduced motion.
+
+The complete, self-contained implementation follows, one file per block. It is framework-agnostic core logic — wire it into your own component and mount it on an element.
+
+### stamptype/params.ts
+```ts
+export const TICK_MS = 50;
+
+export const STEP = 2;
+
+export const STAMP_TTL = 16;
+
+export const PARK_IN = 28;
+
+export const PARK_OUT = 76;
+
+export const PASS_END = 93;
+
+export const PARK_FRAMES = 48;
+
+export const PASS_OVERLAP = 12;
+
+export const FIELD_SWAP = 5;
+
+export interface World {
+
+  bg: string;
+
+  bar: string;
+
+  ink: string;
+
+  lines: [string, string, string, string];
+}
+
+export const WORLDS: World[] = [
+  {
+
+    bg: "#3f40ff", bar: "#58f683", ink: "#000000",
+    lines: ["Design is not", "how it looks.", "Design is", "how it works."],
+  },
+  {
+
+    bg: "#2a1035", bar: "#ff5c4d", ink: "#2a1035",
+    lines: ["Simplicity is", "the hardest", "thing to get", "right."],
+  },
+  {
+
+    bg: "#2e3440", bar: "#f5d06c", ink: "#2e3440",
+    lines: ["Good taste is", "a thousand", "small decisions", "in a row."],
+  },
+  {
+
+    bg: "#0f3d2e", bar: "#7cf0b8", ink: "#0f3d2e",
+    lines: ["Measure it,", "then build it.", "Guessing is", "not a method."],
+  },
+  {
+
+    bg: "#f4f4f6", bar: "#002fa7", ink: "#ffffff",
+    lines: ["Everything here", "is open.", "Take it and", "make it yours."],
+  },
+];
+
+export const HEADLINE = 71 / 600;
+
+export const BAR_PAD_X = 10 / 600;
+export const BAR_PAD_TOP = 11 / 600;
+export const BAR_PAD_BOTTOM = 8 / 600;
+export const BAR_RADIUS = 11 / 600;
+export const BAR_STROKE = 16 / 600;
+
+export const LINE_RIGHT_MARGIN = 24 / 600;
+
+export const CONDENSE_MIN = 0.72;
+
+export type Track = [number, number, number][];
+
+export const TRACKS: Track[] = [
+
+  [[1, 181, -100], [3, 181, 11], [6, 165, 16], [7, 128, 16], [10, 110, 16],
+    [11, 72, 16], [13, 69, 38], [15, 70, 90], [16, 70, 94], [17, 97, 94],
+    [19, 165, 94], [20, 170, 94], [21, 154, 94], [23, 117, 94], [24, 114, 94],
+    [25, 114, 115], [27, 114, 168], [28, 114, 172], [76, 114, 172], [77, 114, 142],
+    [79, 114, 66], [82, 96, 61], [84, 47, 61], [86, 108, 61], [88, 195, 61],
+    [91, 195, -120]],
+
+  [[12, -540, 273], [15, 16, 273], [18, 20, 267], [20, 20, 251], [22, 29, 251],
+    [24, 53, 251], [28, 53, 240], [76, 53, 240], [80, 31, 240], [82, 31, 225],
+    [84, 31, 184], [86, 0, 184], [88, 37, 264], [90, 76, 264], [93, -560, 264]],
+
+  [[8, 640, 375], [11, 97, 375], [14, 90, 365], [15, 90, 343], [18, 85, 341],
+    [19, 72, 341], [22, 71, 332], [24, 71, 308], [28, 49, 308], [76, 49, 308],
+    [80, 49, 297], [84, 49, 319], [87, 49, 266], [88, 49, 264], [90, 88, 263],
+    [93, 660, 263]],
+
+  [[4, 620, 498], [7, 118, 498], [8, 104, 498], [12, 104, 487], [13, 77, 487],
+    [15, 9, 487], [16, 4, 487], [17, 4, 469], [19, 4, 424], [22, 20, 420],
+    [23, 58, 420], [26, 61, 408], [28, 61, 376], [76, 61, 376], [80, 31, 376],
+    [83, 84, 376], [85, 63, 376], [87, 4, 376], [90, 0, 376], [93, -540, 376]],
+];
+
+```
+
+### stamptype/engine.ts
+```ts
+import {
+  BAR_PAD_BOTTOM,
+  BAR_PAD_TOP,
+  BAR_PAD_X,
+  BAR_RADIUS,
+  BAR_STROKE,
+  CONDENSE_MIN,
+  FIELD_SWAP,
+  HEADLINE,
+  LINE_RIGHT_MARGIN,
+  PARK_FRAMES,
+  PARK_IN,
+  PARK_OUT,
+  PASS_END,
+  PASS_OVERLAP,
+  STAMP_TTL,
+  STEP,
+  TICK_MS,
+  TRACKS,
+  WORLDS,
+  type Track,
+  type World,
+} from "./params";
+
+const REF = 600;
+
+const PARK_DELTA = PARK_FRAMES - (PARK_OUT - PARK_IN);
+const PASS_FRAMES = PASS_END + PARK_DELTA;
+
+const PASS_PITCH = PASS_FRAMES - PASS_OVERLAP;
+
+function toTrack(f: number): number {
+  if (f <= PARK_IN) return f;
+  if (f >= PARK_IN + PARK_FRAMES) return f - PARK_DELTA;
+
+  return PARK_IN;
+}
+
+function posAt(track: Track, f: number): [number, number] | null {
+  if (f < track[0][0] || f > track[track.length - 1][0]) return null;
+  for (let i = 1; i < track.length; i++) {
+    if (f <= track[i][0]) {
+      const [f0, x0, y0] = track[i - 1];
+      const [f1, x1, y1] = track[i];
+      const t = f1 === f0 ? 0 : (f - f0) / (f1 - f0);
+      return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
+    }
+  }
+  return null;
+}
+
+interface Metrics {
+  dx: number;
+  asc: number;
+  w: number;
+  h: number;
+
+  sx: number;
+}
+
+const PARKED_X = TRACKS.map((t) => posAt(t, PARK_IN)?.[0] ?? 0);
+
+interface Line {
+  text: string;
+  track: number;
+}
+
+export interface StampTypeOptions {
+
+  worlds?: World[];
+}
+
+export class StampType {
+  readonly ok: boolean;
+  private ctx: CanvasRenderingContext2D | null;
+  private canvas: HTMLCanvasElement;
+  private raf = 0;
+  private running = false;
+  private acc = 0;
+  private last = 0;
+  private drawnTick = -1;
+  private W = 0;
+  private H = 0;
+  private dpr = 1;
+  private family = "sans-serif";
+  private worlds: World[];
+  private lines: Line[][] = [];
+  private metrics = new Map<string, Metrics>();
+
+  constructor(canvas: HTMLCanvasElement, opts: StampTypeOptions = {}) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.ok = !!this.ctx;
+    this.worlds = opts.worlds?.length ? opts.worlds : WORLDS;
+    this.lines = this.worlds.map((w) =>
+      w.lines.map((text, i) => ({ text, track: i })),
+    );
+    if (this.ok) this.resize();
+  }
+
+  setFont(family: string) {
+    this.family = family;
+    this.metrics.clear();
+    this.drawnTick = -1;
+    if (!this.running) this.draw(this.stillTick());
+  }
+
+  resize() {
+    const r = this.canvas.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return;
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.W = r.width;
+    this.H = r.height;
+    this.canvas.width = Math.round(r.width * this.dpr);
+    this.canvas.height = Math.round(r.height * this.dpr);
+    this.drawnTick = -1;
+    if (!this.running) this.draw(this.stillTick());
+  }
+
+  start() {
+    if (this.running || !this.ok) return;
+    this.running = true;
+    this.last = performance.now();
+    const cycle = PASS_PITCH * this.worlds.length;
+    const loop = (now: number) => {
+      if (!this.running) return;
+      this.acc += Math.min(now - this.last, 250);
+      this.last = now;
+      const tick = Math.floor(this.acc / TICK_MS) % cycle;
+      if (tick !== this.drawnTick) this.draw(tick);
+      this.raf = requestAnimationFrame(loop);
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+
+  stop() {
+    this.running = false;
+    cancelAnimationFrame(this.raf);
+  }
+
+  renderStill() {
+    this.draw(this.stillTick());
+  }
+
+  destroy() {
+    this.stop();
+    this.ctx = null;
+  }
+
+  private stillTick() {
+    return PARK_IN + Math.floor(PARK_FRAMES / 2);
+  }
+
+  private measure(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    size: number,
+    room = Infinity,
+  ): Metrics {
+    const key = `${size}|${room}|${text}`;
+    const got = this.metrics.get(key);
+    if (got) return got;
+    ctx.font = `600 ${size * REF}px ${this.family}`;
+    const m = ctx.measureText(text);
+    const raw = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+    const sx = raw > room ? Math.max(CONDENSE_MIN, room / raw) : 1;
+    const met: Metrics = {
+      dx: m.actualBoundingBoxLeft * sx,
+      asc: m.actualBoundingBoxAscent,
+      w: raw * sx,
+      h: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent,
+      sx,
+    };
+    this.metrics.set(key, met);
+    return met;
+  }
+
+  private room(line: Line): number {
+    return REF - PARKED_X[line.track] - LINE_RIGHT_MARGIN * REF;
+  }
+
+  private lineMetrics(ctx: CanvasRenderingContext2D, line: Line): Metrics {
+    return this.measure(ctx, line.text, HEADLINE, this.room(line));
+  }
+
+  private place(line: Line, f: number): [number, number] | null {
+    return posAt(TRACKS[line.track], toTrack(f));
+  }
+
+  private text(
+    ctx: CanvasRenderingContext2D,
+    str: string,
+    size: number,
+    x: number,
+    y: number,
+    m: Metrics,
+    stroke: boolean,
+  ) {
+    ctx.font = `600 ${size * REF}px ${this.family}`;
+    if (m.sx === 1) {
+      if (stroke) ctx.strokeText(str, x, y);
+      ctx.fillText(str, x, y);
+      return;
+    }
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(m.sx, 1);
+    if (stroke) ctx.strokeText(str, 0, 0);
+    ctx.fillText(str, 0, 0);
+    ctx.restore();
+  }
+
+  private silhouette(
+    ctx: CanvasRenderingContext2D,
+    line: Line,
+    x: number,
+    y: number,
+    color: string,
+  ) {
+    const m = this.lineMetrics(ctx, line);
+    const padX = BAR_PAD_X * REF;
+    const padT = BAR_PAD_TOP * REF;
+    const padB = BAR_PAD_BOTTOM * REF;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x - padX, y - padT, m.w + padX * 2, m.h + padT + padB, BAR_RADIUS * REF);
+    ctx.fill();
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = BAR_STROKE * REF;
+    ctx.lineJoin = "round";
+    this.text(ctx, line.text, HEADLINE, x + m.dx, y + m.asc, m, true);
+  }
+
+  private stamps(ctx: CanvasRenderingContext2D, wi: number, f: number) {
+    const world = this.worlds[wi];
+    const lines = this.lines[wi];
+    const step0 = Math.floor(f / STEP) * STEP;
+    for (let s = step0; s > f - STAMP_TTL; s -= STEP) {
+      if (s < STEP) break;
+
+      for (const line of lines) {
+        const a = this.place(line, s - STEP);
+        const b = this.place(line, s);
+        if (!a || !b) continue;
+        if (Math.abs(a[0] - b[0]) < 1.5 && Math.abs(a[1] - b[1]) < 1.5) continue;
+        this.silhouette(ctx, line, a[0], a[1], world.bar);
+      }
+    }
+  }
+
+  private live(ctx: CanvasRenderingContext2D, wi: number, f: number) {
+    const world = this.worlds[wi];
+    const placed: [Line, [number, number]][] = [];
+    for (const line of this.lines[wi]) {
+      const p = this.place(line, f);
+      if (p) placed.push([line, p]);
+    }
+    for (const [line, p] of placed) this.silhouette(ctx, line, p[0], p[1], world.bar);
+    ctx.fillStyle = world.ink;
+    for (const [line, p] of placed) {
+      const m = this.lineMetrics(ctx, line);
+      this.text(ctx, line.text, HEADLINE, p[0] + m.dx, p[1] + m.asc, m, false);
+    }
+  }
+
+  private draw(tick: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    this.drawnTick = tick;
+    const { W, H } = this;
+    const k = H / REF;
+    const ox = (W - H) / 2;
+    const n = this.worlds.length;
+
+    const wi = Math.floor(tick / PASS_PITCH) % n;
+    const f = tick - Math.floor(tick / PASS_PITCH) * PASS_PITCH;
+    const prev = (wi - 1 + n) % n;
+    const prevF = f + PASS_PITCH;
+    const overlapping = prevF <= PASS_FRAMES;
+
+    const fieldWorld = f < FIELD_SWAP && overlapping ? prev : wi;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.fillStyle = this.worlds[fieldWorld].bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.setTransform(this.dpr * k, 0, 0, this.dpr * k, this.dpr * ox, 0);
+
+    if (overlapping) this.stamps(ctx, prev, prevF);
+    this.stamps(ctx, wi, f);
+    if (overlapping) this.live(ctx, prev, prevF);
+    this.live(ctx, wi, f);
+  }
+}
+
+```
+
+### stamptype/StampTypeCard.tsx
+```ts
+"use client";
+
+import { useEffect, useRef } from "react";
+import { StampType } from "./engine";
+import { WORLDS } from "./params";
+import { onTransitionChange } from "../../lib/view-transition";
+
+export function StampTypeCard({
+  bare = false,
+  viewTransitionName,
+}: {
+  bare?: boolean;
+  viewTransitionName?: string;
+} = {}) {
+  void bare;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let engine: StampType | null = null;
+    let onScreen = false;
+    let hidden = false;
+    let inTransition = false;
+
+    const sync = () => {
+      if (!engine || reduced) return;
+      if (onScreen && !hidden && !inTransition) engine.start();
+      else engine.stop();
+    };
+
+    const raf = requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
+      engine = new StampType(canvas);
+      if (!engine.ok) return;
+      if (reduced) engine.renderStill();
+      else sync();
+
+      if (document.fonts?.load) {
+        const probe = document.createElement("span");
+        probe.style.cssText = "position:absolute;visibility:hidden";
+        probe.style.fontFamily = "var(--font-neue-montreal)";
+        probe.textContent = "Ag";
+        document.body.appendChild(probe);
+        const fam = getComputedStyle(probe)
+          .fontFamily.split(",")[0]
+          .replace(/["']/g, "")
+          .trim();
+        probe.remove();
+        if (fam) {
+          document.fonts
+            .load(`600 1em "${fam}"`)
+            .then(() => engine?.setFont(`"${fam}", sans-serif`), () => {});
+        }
+      }
+    });
+
+    const io = new IntersectionObserver(
+      (es) => {
+        onScreen = es[0]?.isIntersecting ?? false;
+        sync();
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(canvas);
+
+    const onVis = () => {
+      hidden = document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const offTransition = onTransitionChange((active) => {
+      inTransition = active;
+      sync();
+    });
+
+    let rt = 0;
+    const onResize = () => {
+      window.clearTimeout(rt);
+      rt = window.setTimeout(() => engine?.resize(), 120);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+      offTransition();
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(rt);
+      engine?.destroy();
+    };
+  }, []);
+
+  return (
+    <div
+      data-canvas-card
+      role="img"
+      aria-label="A looping kinetic-type poster. Four lines of type on flat highlight bars fly in from the edges in square hops, hold still to be read, then scatter off. Every moving line leaves chunky blocks of flat colour where it just was. Each pass repeats the same choreography in a new palette with new words, and the two passes overlap so their trails flood the screen as the colour changes."
+
+      style={{ backgroundColor: WORLDS[0].bg, ...(viewTransitionName ? { viewTransitionName } : null) }}
+      className="relative mx-auto aspect-[1344/620] w-full select-none overflow-hidden rounded-[12px] border border-[var(--border-line)]"
+    >
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
+  );
+}
+
+```
