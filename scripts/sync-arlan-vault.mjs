@@ -56,6 +56,41 @@ function localPathFor(assetUrl) {
   return null;
 }
 
+function localizeHtml(html) {
+  const flightPayloadPattern =
+    /<script>self\.__next_f\.push\(\[1,([\s\S]*?)\]\)<\/script>/g;
+  const flightStream = [...html.matchAll(flightPayloadPattern)]
+    .map((match) => JSON.parse(match[1]))
+    .join("");
+  const textRecordPattern = /([0-9a-f]+):T([0-9a-f]+),/g;
+  const lengthAdjustments = [];
+  let match;
+
+  while ((match = textRecordPattern.exec(flightStream))) {
+    const declaredBytes = Number.parseInt(match[2], 16);
+    const contentStart = match.index + match[0].length;
+    const content = Buffer.from(flightStream.slice(contentStart))
+      .subarray(0, declaredBytes)
+      .toString("utf8");
+    const localizedContent = content.replaceAll(r2Origin, "/r2");
+
+    if (localizedContent !== content) {
+      lengthAdjustments.push({
+        before: `${match[1]}:T${match[2]},`,
+        after: `${match[1]}:T${Buffer.byteLength(localizedContent).toString(16)},`,
+      });
+    }
+
+    textRecordPattern.lastIndex = contentStart + content.length;
+  }
+
+  let localized = html.replaceAll(r2Origin, "/r2");
+  for (const { before, after } of lengthAdjustments) {
+    localized = localized.replace(before, after);
+  }
+  return localized;
+}
+
 function withNoIndex(html) {
   return html.replace("<head>", '<head><meta name="robots" content="noindex, nofollow">');
 }
@@ -138,7 +173,7 @@ if (!sourceResponse.ok) {
 }
 
 const html = await sourceResponse.text();
-const localizedHtml = html.replaceAll(r2Origin, "/r2");
+const localizedHtml = localizeHtml(html);
 await mkdir(path.join(projectRoot, "vault"), { recursive: true });
 await writeFile(path.join(projectRoot, "vault", "index.html"), withNoIndex(localizedHtml));
 
@@ -161,7 +196,7 @@ await Promise.all(
       throw new Error(`Failed to fetch ${sourceUrl}/${slug}: ${response.status}`);
     }
 
-    const sourceHtml = (await response.text()).replaceAll(r2Origin, "/r2");
+    const sourceHtml = localizeHtml(await response.text());
     const localSlug = localStudySlugs[slug] || slug;
     const motionHtml = withMotionShell(sourceHtml);
     const motionDestination = `/motion/${localSlug}/`;

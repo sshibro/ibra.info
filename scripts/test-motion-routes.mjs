@@ -36,6 +36,31 @@ async function read(relativePath) {
   }
 }
 
+function verifyFlightTextRecords(relativePath, html) {
+  const payloadPattern = /<script>self\.__next_f\.push\(\[1,([\s\S]*?)\]\)<\/script>/g;
+  const stream = [...html.matchAll(payloadPattern)]
+    .map((match) => JSON.parse(match[1]))
+    .join("");
+  const textRecordPattern = /([0-9a-f]+):T([0-9a-f]+),/g;
+  let match;
+
+  while ((match = textRecordPattern.exec(stream))) {
+    const declaredBytes = Number.parseInt(match[2], 16);
+    const contentStart = match.index + match[0].length;
+    const content = Buffer.from(stream.slice(contentStart))
+      .subarray(0, declaredBytes)
+      .toString("utf8");
+    const remainder = stream.slice(contentStart + content.length);
+
+    if (remainder && !/^(?:\n)?[0-9a-f]+:/.test(remainder)) {
+      failures.push(`${relativePath} has an invalid Flight text-record length at ${match[1]}`);
+      return;
+    }
+
+    textRecordPattern.lastIndex = contentStart + content.length;
+  }
+}
+
 const homepage = await read("index.html");
 if (!homepage.includes('href="/motion/">motion</a>')) {
   failures.push("homepage does not link the word motion to /motion/");
@@ -57,6 +82,7 @@ for (const [legacySlug, motionSlug] of Object.entries(routes)) {
   if (!motionHtml.includes('/motion/motion-shell.js')) {
     failures.push(`${motionPath} does not load the Motion shell`);
   }
+  verifyFlightTextRecords(motionPath, motionHtml);
   if (!inkHtml.includes(`url=${destination}`) || !inkHtml.includes(`href="${destination}"`)) {
     failures.push(`${inkPath} does not redirect and link to ${destination}`);
   }
