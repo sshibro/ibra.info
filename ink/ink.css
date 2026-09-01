@@ -295,7 +295,8 @@ a.title:focus-visible {
   accent-color: var(--fg);
 }
 
-.knob input[type="text"] {
+.knob input[type="text"],
+.knob input[type="number"] {
   width: 100%;
   border: 0;
   border-bottom: 1px solid var(--line-strong);
@@ -304,6 +305,17 @@ a.title:focus-visible {
   font: inherit;
   padding: 0.2rem 0;
   grid-column: 2 / -1;
+}
+
+.knob input[type="number"] {
+  grid-column: 2;
+  -moz-appearance: textfield;
+}
+
+.knob input[type="number"]::-webkit-outer-spin-button,
+.knob input[type="number"]::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
 }
 
 .knob input[type="color"] {
@@ -354,6 +366,8 @@ a.title:focus-visible {
 .actions {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
   margin-top: 1.25rem;
 }
 

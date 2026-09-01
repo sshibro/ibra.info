@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Drawably — ink</title>
+    <meta
+      name="description"
+      content="Hand-drawn UI controls. Every mount a fresh pen sketch that boils like a doodle."
+    />
+    <link rel="canonical" href="https://ibra.info/ink/drawably/" />
+    <meta name="theme-color" content="#f4f4f1" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../ink.css" />
+  </head>
+  <body>
+    <main class="doc">
+      <header class="top">
+        <h1>Drawably</h1>
+        <a class="close" href="../" aria-label="close">×</a>
+      </header>
+      <p class="essay">
+        Hand-drawn UI, generated at mount from a seed — outline, solid, and
+        scribble buttons, plus a checkbox, a toggle, and a short phrase marked
+        up with underline, highlight, and a circle. The stroke boils like a
+        doodle. Roughness is how wobbly the line is; boil is the flicker.
+        Lock a seed or resketch for another drawing.
+      </p>
+      <section class="play">
+        <div class="play-head"><span>Playground</span></div>
+        <div class="stage">
+          <iframe src="preview.html" title="Drawably"></iframe>
+        </div>
+        <form class="knobs">
+          <label class="knob">
+            <span>roughness</span>
+            <input
+              type="range"
+              name="roughness"
+              min="0"
+              max="2.5"
+              step="0.05"
+              value="1"
+            />
+            <output data-output="roughness">1.00</output>
+          </label>
+          <label class="knob">
+            <span>boil</span>
+            <input
+              type="range"
+              name="boil"
+              min="0"
+              max="1.2"
+              step="0.05"
+              value="0.3"
+            />
+            <output data-output="boil">0.30</output>
+          </label>
+          <label class="knob">
+            <span>seed</span>
+            <input type="number" name="seed" min="0" step="1" value="7" />
+            <button type="button" class="reroll" data-reroll="seed">
+              new seed
+            </button>
+          </label>
+        </form>
+      </section>
+      <p class="actions">
+        <button type="button" class="copy-pill" data-resketch>Resketch</button>
+        <button type="button" class="copy-pill" data-copy-detail>Copy code</button>
+      </p>
+    </main>
+    <script src="../ink.js"></script>
+    <script>
+      Ink.detail();
+    </script>
+  </body>
+</html>

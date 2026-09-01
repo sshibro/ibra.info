@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>drawably</title>
+    <link rel="stylesheet" href="vendor/drawably.css" />
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #f4f4f1;
+        color: #18181b;
+        font: 400 15px/1.45 Inter, system-ui, sans-serif;
+        letter-spacing: -0.016em;
+      }
+      .board {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.15rem;
+        padding: 1rem 1.1rem;
+        max-width: 100%;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.85rem 1.1rem;
+      }
+      .phrase {
+        margin: 0;
+        font-size: 1.05rem;
+        letter-spacing: -0.02em;
+        text-wrap: balance;
+        text-align: center;
+      }
+      .check-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: #2724d1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="board">
+      <div class="row">
+        <button id="outline" type="button">Outline</button>
+        <button id="solid" type="button">Solid</button>
+        <button id="scribble" type="button">Scribble</button>
+      </div>
+      <div class="row">
+        <label class="check-label">
+          <span id="check"><input type="checkbox" checked /></span>
+          Ship it
+        </label>
+        <label class="check-label">
+          <span id="tog"><input type="checkbox" /></span>
+          Boil
+        </label>
+      </div>
+      <p class="phrase">
+        a <span id="under">fresh</span>
+        <span id="high">sketch</span>
+        <span id="circ">every mount</span>
+      </p>
+    </div>
+    <script src="vendor/drawably.js"></script>
+    <script>
+      const CONFIG = {
+        roughness: 1,
+        boil: 0.3,
+        seed: 7,
+      };
+
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const sketches = [];
+      let view = true;
+      let mounted = false;
+
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "ink-visible") {
+          view = !!e.data.value;
+          if (view) ensure();
+        }
+      });
+
+      function ready() {
+        return innerWidth >= 8 && innerHeight >= 8;
+      }
+
+      function opts() {
+        return {
+          seed: Number(CONFIG.seed),
+          roughness: Number(CONFIG.roughness),
+          boil: quiet ? 0 : Number(CONFIG.boil),
+        };
+      }
+
+      function destroyAll() {
+        while (sketches.length) sketches.pop().destroy();
+        mounted = false;
+      }
+
+      function mount() {
+        if (!ready() || typeof Drawably !== "object") return;
+        destroyAll();
+        const o = opts();
+        sketches.push(
+          Drawably.drawablyButton(document.getElementById("outline"), {
+            ...o,
+            variant: "outline",
+          }),
+          Drawably.drawablyButton(document.getElementById("solid"), {
+            ...o,
+            variant: "solid",
+          }),
+          Drawably.drawablyButton(document.getElementById("scribble"), {
+            ...o,
+            variant: "scribble",
+          }),
+          Drawably.drawablyCheckbox(document.getElementById("check"), o),
+          Drawably.drawablyToggle(document.getElementById("tog"), o),
+          Drawably.drawablyUnderline(document.getElementById("under"), o),
+          Drawably.drawablyHighlight(document.getElementById("high"), o),
+          Drawably.drawablyCircle(document.getElementById("circ"), o)
+        );
+        mounted = true;
+      }
+
+      function ensure() {
+        if (!ready()) return;
+        if (!mounted) mount();
+      }
+
+      const ro = new ResizeObserver(() => {
+        if (!ready()) {
+          destroyAll();
+          return;
+        }
+        if (!mounted) mount();
+      });
+      ro.observe(document.documentElement);
+
+      window.setParams = (c) => {
+        Object.assign(CONFIG, c);
+        if (ready()) mount();
+      };
+
+      window.resketch = (seed) => {
+        const next = seed === undefined ? Date.now() % 1e9 : Number(seed);
+        CONFIG.seed = next;
+        if (!mounted) {
+          ensure();
+          return next;
+        }
+        for (const sketch of sketches) sketch.resketch(next);
+        return next;
+      };
+
+      window.snippet = (params) => {
+        const seed = Number(params.seed ?? CONFIG.seed);
+        const roughness = Number(params.roughness ?? CONFIG.roughness);
+        const boil = Number(params.boil ?? CONFIG.boil);
+        return `npm i drawably
+
+import { drawablyButton, drawablyCheckbox, drawablyToggle, drawablyUnderline, drawablyHighlight, drawablyCircle } from "drawably";
+import "drawably/style.css";
+
+const opts = { seed: ${seed}, roughness: ${roughness}, boil: ${boil} };
+
+const solid = drawablyButton(document.querySelector("#solid"), { ...opts, variant: "solid" });
+drawablyButton(document.querySelector("#outline"), { ...opts, variant: "outline" });
+drawablyButton(document.querySelector("#scribble"), { ...opts, variant: "scribble" });
+drawablyCheckbox(document.querySelector("#check"), opts);
+drawablyToggle(document.querySelector("#tog"), opts);
+drawablyUnderline(document.querySelector("#under"), opts);
+drawablyHighlight(document.querySelector("#high"), opts);
+drawablyCircle(document.querySelector("#circ"), opts);
+
+solid.resketch();
+solid.resketch(${seed});
+solid.destroy();
+`;
+      };
+
+      ensure();
+    </script>
+  </body>
+</html>

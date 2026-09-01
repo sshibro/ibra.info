@@ -131,6 +131,15 @@ for (const [legacySlug, motionSlug] of Object.entries(routes)) {
   }
   verifyFlightTextRecords(motionPath, motionHtml);
   await verifyDeclaredMedia(motionPath, motionHtml);
+  if (!legacySlug) {
+    if (!inkHtml.includes("Ink.mountGrid") || !inkHtml.includes("ink.js")) {
+      failures.push(`${inkPath} is not the live ink collection`);
+    }
+    if (inkHtml.includes("url=/motion/")) {
+      failures.push(`${inkPath} should not redirect away from /ink/`);
+    }
+    continue;
+  }
   if (!inkHtml.includes(`url=${destination}`) || !inkHtml.includes(`href="${destination}"`)) {
     failures.push(`${inkPath} does not redirect and link to ${destination}`);
   }

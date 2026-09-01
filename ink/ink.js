@@ -1,5 +1,11 @@
 (() => {
   const pieces = [
+    {
+      slug: "drawably",
+      kind: "study",
+      title: "Drawably",
+      date: "Sep 1, 2026",
+    },
     { slug: "spray-burst", kind: "toy" },
     { slug: "dot-globe", kind: "toy" },
     {
@@ -223,7 +229,7 @@
     for (const el of form.querySelectorAll("[data-output]")) {
       const field = form.elements[el.dataset.output];
       if (!field) continue;
-      if (field.name === "smoothness") {
+      if (field.name === "smoothness" || field.name === "roughness" || field.name === "boil") {
         el.textContent = Number(field.value).toFixed(2);
       } else {
         el.textContent = field.value;
@@ -372,6 +378,18 @@
         const next = (0.35 + Math.random() * 0.65).toFixed(2);
         form.elements.smoothness.value = next;
         sync();
+        return;
+      }
+      const resketch = event.target.closest("[data-resketch]");
+      if (resketch) {
+        const win = iframe.contentWindow;
+        if (win && typeof win.resketch === "function") {
+          const next = win.resketch();
+          if (form && form.elements.seed && next != null) {
+            form.elements.seed.value = String(next);
+            paintOutputs(form);
+          }
+        }
       }
     });
 
