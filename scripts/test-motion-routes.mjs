@@ -22,6 +22,7 @@ const routes = {
   vector: "vector",
   amo: "amo",
   ascii: "ascii",
+  drawably: "drawably",
 };
 
 const failures = [];
@@ -100,6 +101,9 @@ if (shell.includes("setTimeout(applyMotionIdentity")) {
 }
 if (!shell.includes('template[data-dgst]')) {
   failures.push("Motion shell does not wait for Next hydration markers to clear");
+}
+if (!shell.includes('data-motion-study="drawably"') || !shell.includes("/motion/drawably/")) {
+  failures.push("Motion shell does not register the drawably study on the grid");
 }
 
 for (const [legacySlug, motionSlug] of Object.entries(routes)) {
