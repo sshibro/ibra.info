@@ -10,11 +10,11 @@
 }
 
 @font-face {
-  font-family: "PP Mondwest";
+  font-family: "PP Pangram Rounded";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 500;
   font-display: swap;
-  src: url("/_next/static/media/PPMondwest_Regular-s.0_9ksmp-90p0c.otf") format("opentype");
+  src: url("/_next/static/media/PPPangramSansRounded_Medium-s.39bgpb86pvtq-.otf") format("opentype");
 }
 
 :root {
@@ -27,7 +27,7 @@
   --blue-deep: #1a17a8;
   --blue-soft: #2724d11f;
   --marker: #ffe14d;
-  --display: "PP Mondwest", ui-monospace, monospace;
+  --display: "PP Pangram Rounded", Geist, ui-sans-serif, system-ui, sans-serif;
 }
 
 *,
@@ -78,23 +78,25 @@ ul {
 
 h1 {
   font-family: var(--display);
-  font-size: 2.75rem;
-  font-weight: 400;
-  letter-spacing: 0;
-  line-height: 0.95;
+  font-size: 2.5rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 h2 {
   font-family: var(--display);
-  font-size: 1.05rem;
-  font-weight: 400;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   color: var(--blue);
 }
 
 .alias {
   margin-top: 0.6rem;
   font-family: var(--display);
-  font-size: 1.05rem;
+  font-size: 1rem;
+  font-weight: 500;
   color: var(--faint);
 }
 
@@ -148,7 +150,7 @@ a:hover {
 
 a.pill {
   font-family: var(--display);
-  font-size: 1.1em;
+  font-weight: 500;
   color: var(--blue);
   text-decoration-color: var(--blue);
   white-space: nowrap;
@@ -200,8 +202,8 @@ a:focus-visible {
   position: absolute;
   inset: 0;
   background: var(--marker);
-  clip-path: inset(0 100% 0 0);
-  transition: clip-path 560ms steps(18, end);
+  clip-path: polygon(-30% 0, -12% 0, -30% 100%, -30% 100%);
+  transition: clip-path 620ms cubic-bezier(0.65, 0, 0.15, 1);
   pointer-events: none;
 }
 
@@ -217,14 +219,14 @@ a:focus-visible {
 
 .vault:hover::after,
 .vault:focus-visible::after {
-  clip-path: inset(0 0 0 0);
+  clip-path: polygon(-30% 0, 130% 0, 130% 100%, -30% 100%);
 }
 
 /* once the wipe passes the text, the ink flips to blue */
 .vault:hover .vault-copy,
 .vault:focus-visible .vault-copy {
   color: var(--blue);
-  transition-delay: 220ms;
+  transition-delay: 160ms;
 }
 
 .vault:hover .vault-kicker,
@@ -232,13 +234,13 @@ a:focus-visible {
 .vault:focus-visible .vault-kicker,
 .vault:focus-visible .vault-meta {
   color: var(--blue-deep);
-  transition-delay: 220ms;
+  transition-delay: 160ms;
 }
 
 .vault:hover .vault-meta b,
 .vault:focus-visible .vault-meta b {
   color: var(--blue);
-  transition-delay: 220ms;
+  transition-delay: 160ms;
 }
 
 /* the word swaps in pixel time */
@@ -249,7 +251,7 @@ a:focus-visible {
 
 .vault-title .word > span {
   grid-area: 1 / 1;
-  transition: opacity 0s linear 300ms;
+  transition: opacity 220ms ease 120ms;
 }
 
 .vault-title .word > span:last-child {
@@ -273,14 +275,17 @@ a:focus-visible {
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
-  transition: color 0s linear 0s;
+  transition: color 260ms ease;
 }
 
 .vault-kicker {
   font-family: var(--display);
-  font-size: 0.95rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: #d9d8ff;
-  transition: color 0s linear 0s;
+  transition: color 260ms ease;
 }
 
 .vault-title {
@@ -289,13 +294,15 @@ a:focus-visible {
   gap: 0.6rem;
   font-family: var(--display);
   font-size: clamp(2rem, 6vw, 2.75rem);
-  line-height: 0.95;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 .vault-title .arrow {
   display: inline-block;
   font-size: 0.8em;
-  transition: transform 360ms steps(6, end);
+  transition: transform 420ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .vault:hover .vault-title .arrow {
@@ -306,75 +313,81 @@ a:focus-visible {
   font-size: 0.95rem;
   color: #d9d8ff;
   letter-spacing: -0.005em;
-  transition: color 0s linear 0s;
+  transition: color 260ms ease;
 }
 
 .vault-meta b {
   font-weight: 400;
   color: #fff;
-  transition: color 0s linear 0s;
+  transition: color 260ms ease;
 }
 
-/* combination dial */
+/* combination dial: a flat line drawing that turns on hover */
 .dial {
   position: relative;
   z-index: 1;
-  width: 112px;
-  height: 112px;
+  width: 104px;
+  height: 104px;
   flex: none;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, #3a37e0 0%, #1a17a8 70%, #14118a 100%);
-  box-shadow:
-    0 0 0 4px #ffffff1f,
-    0 0 0 5px #0d0b6e,
-    0 12px 28px -12px #00000099,
-    inset 0 2px 4px #ffffff40;
+  border: 2px solid #ffffffb8;
+  transition:
+    border-color 260ms ease,
+    transform 900ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .dial::before {
   content: "";
   position: absolute;
-  inset: 10px;
+  inset: 6px;
   border-radius: 50%;
-  background:
-    repeating-conic-gradient(from 0deg, #ffffffcc 0deg 1.5deg, transparent 1.5deg 12deg);
-  -webkit-mask: radial-gradient(circle, transparent 60%, #000 61%);
-  mask: radial-gradient(circle, transparent 60%, #000 61%);
-  animation: turn 24s linear infinite;
+  background: repeating-conic-gradient(from 0deg, #ffffffcc 0deg 1.6deg, transparent 1.6deg 15deg);
+  -webkit-mask: radial-gradient(circle, transparent 66%, #000 67%);
+  mask: radial-gradient(circle, transparent 66%, #000 67%);
+  transition: background 260ms ease;
 }
 
 .dial::after {
   content: "";
   position: absolute;
-  inset: 34px;
+  inset: 32px;
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #4a47ef, #201cc4 60%, #14118a);
-  box-shadow: inset 0 1px 2px #ffffff55, 0 4px 10px -4px #00000080;
+  border: 2px solid #ffffffb8;
+  transition: border-color 260ms ease;
 }
 
 .dial-mark {
   position: absolute;
-  top: 2px;
+  top: -2px;
   left: 50%;
-  width: 3px;
-  height: 14px;
-  margin-left: -1.5px;
+  width: 4px;
+  height: 18px;
+  margin-left: -2px;
   border-radius: 2px;
-  background: #ffe14d;
-  box-shadow: 0 0 10px #ffe14d99;
+  background: var(--marker);
   z-index: 1;
+  transition: background 260ms ease;
+}
+
+.vault:hover .dial,
+.vault:focus-visible .dial {
+  transform: rotate(-300deg);
+  border-color: var(--blue);
 }
 
 .vault:hover .dial::before,
 .vault:focus-visible .dial::before {
-  animation-duration: 3s;
-  animation-direction: reverse;
+  background: repeating-conic-gradient(from 0deg, var(--blue) 0deg 1.6deg, transparent 1.6deg 15deg);
 }
 
-@keyframes turn {
-  to {
-    transform: rotate(360deg);
-  }
+.vault:hover .dial::after,
+.vault:focus-visible .dial::after {
+  border-color: var(--blue);
+}
+
+.vault:hover .dial-mark,
+.vault:focus-visible .dial-mark {
+  background: var(--blue);
 }
 
 @keyframes drift {
@@ -404,7 +417,7 @@ a:focus-visible {
   }
 
   .dial::after {
-    inset: 26px;
+    inset: 27px;
   }
 }
 
@@ -425,9 +438,12 @@ a:focus-visible {
     transition: none;
   }
 
-  .vault::before,
-  .dial::before {
+  .vault::before {
     animation: none;
+  }
+
+  .dial {
+    transition: none;
   }
 }
 
