@@ -336,10 +336,25 @@
     observer.observe(grid, { childList: true });
   }
 
+  /* React stamps a __reactFiber$… key on every host node it hydrates, so the
+     deepest last node in <main> carrying one means the whole tree is claimed.
+     Touching React-managed text before that point trips a hydration mismatch. */
+  function hydrated(node) {
+    return !!node && Object.keys(node).some((key) => key.startsWith("__reactFiber"));
+  }
+
+  function lastHostNode() {
+    let node = document.querySelector("main");
+    while (node && node.lastElementChild) node = node.lastElementChild;
+    return node;
+  }
+
   function applyAfterHydration() {
     if (
       document.readyState !== "complete" ||
-      document.querySelector("template[data-dgst]")
+      document.querySelector("template[data-dgst]") ||
+      !hydrated(document.querySelector("main")) ||
+      !hydrated(lastHostNode())
     ) {
       setTimeout(applyAfterHydration, 50);
       return;
