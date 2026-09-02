@@ -107,14 +107,16 @@ main h1 {
 
 /* ---------- grid + cards ---------- */
 
+/* deposits count down from the newest, so the oldest is always no.01 and
+   a new deposit never renumbers the rest; strongroom.js sets the exact start */
 main .grid {
-  counter-reset: sr-item;
+  counter-reset: sr-item 62;
   row-gap: 2.75rem;
 }
 
 .vault-card {
   position: relative;
-  counter-increment: sr-item;
+  counter-increment: sr-item -1;
 }
 
 .vault-card [class*="rounded-[12px]"],
