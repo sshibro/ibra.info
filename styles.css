@@ -26,6 +26,7 @@
   --blue: #2724d1;
   --blue-deep: #1a17a8;
   --blue-soft: #2724d11f;
+  --marker: #ffe14d;
   --display: "PP Mondwest", ui-monospace, monospace;
 }
 
@@ -193,45 +194,93 @@ a:focus-visible {
   pointer-events: none;
 }
 
-/* light sweep */
+/* marker-yellow layer that wipes in one pixel column at a time */
 .vault::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(115deg, transparent 30%, #ffffff26 50%, transparent 70%);
-  transform: translateX(-120%);
-  transition: transform 900ms cubic-bezier(0.2, 0, 0, 1);
+  background: var(--marker);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 560ms steps(18, end);
   pointer-events: none;
 }
 
 .vault:hover,
 .vault:focus-visible {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   box-shadow:
     0 1px 0 #ffffff40 inset,
-    0 30px 70px -28px #2724d1d9;
-  color: #fff;
+    0 24px 60px -30px #2724d1b3;
   text-decoration: none;
   outline: none;
 }
 
 .vault:hover::after,
 .vault:focus-visible::after {
-  transform: translateX(120%);
+  clip-path: inset(0 0 0 0);
+}
+
+/* once the wipe passes the text, the ink flips to blue */
+.vault:hover .vault-copy,
+.vault:focus-visible .vault-copy {
+  color: var(--blue);
+  transition-delay: 220ms;
+}
+
+.vault:hover .vault-kicker,
+.vault:hover .vault-meta,
+.vault:focus-visible .vault-kicker,
+.vault:focus-visible .vault-meta {
+  color: var(--blue-deep);
+  transition-delay: 220ms;
+}
+
+.vault:hover .vault-meta b,
+.vault:focus-visible .vault-meta b {
+  color: var(--blue);
+  transition-delay: 220ms;
+}
+
+/* the word swaps in pixel time */
+.vault-title .word {
+  position: relative;
+  display: inline-grid;
+}
+
+.vault-title .word > span {
+  grid-area: 1 / 1;
+  transition: opacity 0s linear 300ms;
+}
+
+.vault-title .word > span:last-child {
+  opacity: 0;
+}
+
+.vault:hover .vault-title .word > span:first-child,
+.vault:focus-visible .vault-title .word > span:first-child {
+  opacity: 0;
+}
+
+.vault:hover .vault-title .word > span:last-child,
+.vault:focus-visible .vault-title .word > span:last-child {
+  opacity: 1;
 }
 
 .vault-copy {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
+  transition: color 0s linear 0s;
 }
 
 .vault-kicker {
   font-family: var(--display);
   font-size: 0.95rem;
   color: #d9d8ff;
+  transition: color 0s linear 0s;
 }
 
 .vault-title {
@@ -246,7 +295,7 @@ a:focus-visible {
 .vault-title .arrow {
   display: inline-block;
   font-size: 0.8em;
-  transition: transform 320ms cubic-bezier(0.2, 0, 0, 1);
+  transition: transform 360ms steps(6, end);
 }
 
 .vault:hover .vault-title .arrow {
@@ -257,16 +306,19 @@ a:focus-visible {
   font-size: 0.95rem;
   color: #d9d8ff;
   letter-spacing: -0.005em;
+  transition: color 0s linear 0s;
 }
 
 .vault-meta b {
   font-weight: 400;
   color: #fff;
+  transition: color 0s linear 0s;
 }
 
 /* combination dial */
 .dial {
   position: relative;
+  z-index: 1;
   width: 112px;
   height: 112px;
   flex: none;
@@ -364,6 +416,11 @@ a:focus-visible {
   a,
   .vault,
   .vault::after,
+  .vault-copy,
+  .vault-kicker,
+  .vault-meta,
+  .vault-meta b,
+  .vault-title .word > span,
   .vault-title .arrow {
     transition: none;
   }
