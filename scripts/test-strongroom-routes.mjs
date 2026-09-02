@@ -88,59 +88,71 @@ async function verifyDeclaredMedia(relativePath, html) {
 }
 
 const homepage = await read("index.html");
-if (!homepage.includes('href="/motion/">motion</a>')) {
-  failures.push("homepage does not link the word motion to /motion/");
+if (!homepage.includes('href="/strongroom/">strongroom</a>')) {
+  failures.push("homepage does not link the word strongroom to /strongroom/");
 }
 
-const shell = await read("motion/motion-shell.js");
-if (!shell.includes('"Motion — Ibragim Shirinov"')) {
-  failures.push("Motion shell does not set the collection title");
-}
-if (shell.includes("setTimeout(applyMotionIdentity")) {
-  failures.push("Motion shell mutates React-managed content on a fixed hydration timer");
+const shell = await read("strongroom/strongroom.js");
+if (!shell.includes('const NAME = "Strongroom"') || !shell.includes("— Ibragim Shirinov`")) {
+  failures.push("Strongroom shell does not set the collection title");
 }
 if (!shell.includes('template[data-dgst]')) {
-  failures.push("Motion shell does not wait for Next hydration markers to clear");
+  failures.push("Strongroom shell does not wait for Next hydration markers to clear");
 }
-if (!shell.includes('data-motion-study="drawably"') || !shell.includes("/motion/drawably/")) {
-  failures.push("Motion shell does not register the drawably study on the grid");
+if (!shell.includes('srStudy = "drawably"') || !shell.includes("`${ROOT}/drawably/`")) {
+  failures.push("Strongroom shell does not register the drawably study on the grid");
+}
+const stylesheet = await read("strongroom/strongroom.css");
+if (!stylesheet.includes("--bg-page: #f4f4f0") || !stylesheet.includes(".sr-hero")) {
+  failures.push("Strongroom stylesheet is missing the identity tokens or hero rules");
 }
 
 for (const [legacySlug, motionSlug] of Object.entries(routes)) {
   const suffix = motionSlug ? `${motionSlug}/` : "";
-  const motionPath = `motion/${suffix}index.html`;
+  const motionPath = `strongroom/${suffix}index.html`;
   const inkPath = `ink/${legacySlug ? `${legacySlug}/` : ""}index.html`;
-  const destination = `/motion/${suffix}`;
+  const legacyMotionPath = `motion/${suffix}index.html`;
+  const destination = `/strongroom/${suffix}`;
   const motionHtml = await read(motionPath);
   const inkHtml = await read(inkPath);
+  const legacyMotionHtml = await read(legacyMotionPath);
 
-  if (!motionHtml.includes('/motion/motion-shell.js')) {
-    failures.push(`${motionPath} does not load the Motion shell`);
+  if (!motionHtml.includes('/strongroom/strongroom.js')) {
+    failures.push(`${motionPath} does not load the Strongroom shell`);
   }
-  if (!motionSlug && !motionHtml.includes('id="motion-index-heading"')) {
-    failures.push(`${motionPath} does not render the Motion heading before hydration`);
+  if (motionSlug !== "drawably" && !motionHtml.includes('/strongroom/strongroom.css')) {
+    failures.push(`${motionPath} does not load the Strongroom stylesheet`);
+  }
+  if (!motionSlug && !motionHtml.includes('id="strongroom-index-heading"')) {
+    failures.push(`${motionPath} does not render the Strongroom heading before hydration`);
   }
   const title = motionHtml.match(/<title>([^<]+)<\/title>/)?.[1];
   const validTitle = motionSlug
-    ? title?.endsWith(" — Motion")
-    : title === "Motion — Ibragim Shirinov";
+    ? title?.endsWith(" — Strongroom")
+    : title === "Strongroom — Ibragim Shirinov";
   if (!validTitle) {
-    failures.push(`${motionPath} does not expose a server-rendered Motion title`);
+    failures.push(`${motionPath} does not expose a server-rendered Strongroom title`);
   }
   if (!motionHtml.includes(`rel="canonical" href="https://ibra.info${destination}"`)) {
-    failures.push(`${motionPath} does not expose the Motion canonical URL`);
+    failures.push(`${motionPath} does not expose the Strongroom canonical URL`);
   }
   if (!motionHtml.includes('name="author" content="Ibragim Shirinov"')) {
-    failures.push(`${motionPath} does not expose the Motion author`);
+    failures.push(`${motionPath} does not expose the Strongroom author`);
   }
   verifyFlightTextRecords(motionPath, motionHtml);
   await verifyDeclaredMedia(motionPath, motionHtml);
   if (!inkHtml.includes(`url=${destination}`) || !inkHtml.includes(`href="${destination}"`)) {
     failures.push(`${inkPath} does not redirect and link to ${destination}`);
   }
+  if (
+    !legacyMotionHtml.includes(`url=${destination}`) ||
+    !legacyMotionHtml.includes(`href="${destination}"`)
+  ) {
+    failures.push(`${legacyMotionPath} does not redirect and link to ${destination}`);
+  }
 }
 
-const promptSlugs = promptSlugsFrom(await read("motion/index.html"));
+const promptSlugs = promptSlugsFrom(await read("strongroom/index.html"));
 if (promptSlugs.length !== 41) {
   failures.push(`expected 41 prompt payloads, found ${promptSlugs.length}`);
 }

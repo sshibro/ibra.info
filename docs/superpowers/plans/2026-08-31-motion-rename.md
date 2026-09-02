@@ -1,10 +1,10 @@
-# Motion Rename Implementation Plan
+# Strongroom Rename Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Publish the verified interactive collection as Motion at `/motion/`, preserve every legacy `/ink/` URL through static redirects, and release it through PR #5.
+**Goal:** Publish the verified interactive collection as Strongroom at `/strongroom/`, preserve every legacy `/ink/` URL through static redirects, and release it through PR #5.
 
-**Architecture:** Keep `/vault/` as the no-index source-compatible runtime namespace. Generate one visitor-facing copy under `/motion/` with a focused identity/navigation shell, and replace the current `/ink/` entry files with static redirect documents. Extend the existing mirror script so future captures regenerate all three layers consistently.
+**Architecture:** Keep `/vault/` as the no-index source-compatible runtime namespace. Generate one visitor-facing copy under `/strongroom/` with a focused identity/navigation shell, and replace the current `/ink/` entry files with static redirect documents. Extend the existing mirror script so future captures regenerate all three layers consistently.
 
 **Tech Stack:** Static HTML, browser JavaScript, Node.js sync/contract scripts, GitHub Pages, GitHub pull requests.
 
@@ -12,19 +12,19 @@
 
 ## File structure
 
-- Create `motion/motion-shell.js`: Motion identity, metadata, and source-route mapping only.
-- Create `motion/**/index.html`: generated visitor-facing runtime pages.
+- Create `strongroom/strongroom.js`: Strongroom identity, metadata, and source-route mapping only.
+- Create `strongroom/**/index.html`: generated visitor-facing runtime pages.
 - Modify `ink/**/index.html`: legacy redirect documents; existing unused preview assets stay untouched.
-- Modify `scripts/sync-arlan-vault.mjs`: generate no-index Vault source pages, Motion pages, and Ink redirects.
-- Create `scripts/test-motion-routes.mjs`: deterministic static route/metadata contract.
+- Modify `scripts/sync-arlan-vault.mjs`: generate no-index Vault source pages, Strongroom pages, and Ink redirects.
+- Create `scripts/test-strongroom-routes.mjs`: deterministic static route/metadata contract.
 - Create `robots.txt`: exclude the internal `/vault/` namespace from indexing.
 - Modify `index.html`, `README.md`, `THIRD_PARTY_NOTICES.md`, and `design-qa.md`: public identity and release documentation.
 - Modify `docs/superpowers/specs/2026-08-31-motion-rename-design.md`: only if implementation reveals a factual inconsistency; no scope expansion.
 
-### Task 1: Add the failing Motion route contract
+### Task 1: Add the failing Strongroom route contract
 
 **Files:**
-- Create: `scripts/test-motion-routes.mjs`
+- Create: `scripts/test-strongroom-routes.mjs`
 
 - [ ] **Step 1: Write the static contract test**
 
@@ -68,25 +68,25 @@ async function read(relativePath) {
 }
 
 const homepage = await read("index.html");
-if (!homepage.includes('href="/motion/">motion</a>')) {
-  failures.push("homepage does not link the word motion to /motion/");
+if (!homepage.includes('href="/strongroom/">motion</a>')) {
+  failures.push("homepage does not link the word motion to /strongroom/");
 }
 
-const shell = await read("motion/motion-shell.js");
-if (!shell.includes('"Motion — Ibragim Shirinov"')) {
-  failures.push("Motion shell does not set the collection title");
+const shell = await read("motion/strongroom.js");
+if (!shell.includes('"Strongroom — Ibragim Shirinov"')) {
+  failures.push("Strongroom shell does not set the collection title");
 }
 
 for (const [legacySlug, motionSlug] of Object.entries(routes)) {
   const suffix = motionSlug ? `${motionSlug}/` : "";
-  const motionPath = `motion/${suffix}index.html`;
+  const motionPath = `strongroom/${suffix}index.html`;
   const inkPath = `ink/${legacySlug ? `${legacySlug}/` : ""}index.html`;
-  const destination = `/motion/${suffix}`;
+  const destination = `/strongroom/${suffix}`;
   const motionHtml = await read(motionPath);
   const inkHtml = await read(inkPath);
 
-  if (!motionHtml.includes('/motion/motion-shell.js')) {
-    failures.push(`${motionPath} does not load the Motion shell`);
+  if (!motionHtml.includes('/strongroom/strongroom.js')) {
+    failures.push(`${motionPath} does not load the Strongroom shell`);
   }
   if (!inkHtml.includes(`url=${destination}`) || !inkHtml.includes(`href="${destination}"`)) {
     failures.push(`${inkPath} does not redirect and link to ${destination}`);
@@ -108,53 +108,53 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Motion route contract passed for ${Object.keys(routes).length} canonical and legacy routes.`);
+console.log(`Strongroom route contract passed for ${Object.keys(routes).length} canonical and legacy routes.`);
 ```
 
 - [ ] **Step 2: Run the contract and confirm it fails before implementation**
 
-Run: `node scripts/test-motion-routes.mjs`
+Run: `node scripts/test-strongroom-routes.mjs`
 
-Expected: non-zero exit with missing `motion/index.html`, `motion/motion-shell.js`, `robots.txt`, and incorrect homepage/Ink route messages.
+Expected: non-zero exit with missing `strongroom/index.html`, `strongroom/strongroom.js`, `robots.txt`, and incorrect homepage/Ink route messages.
 
 - [ ] **Step 3: Commit the failing contract**
 
 ```bash
-git add scripts/test-motion-routes.mjs
-git commit -m "test: define the Motion route contract"
+git add scripts/test-strongroom-routes.mjs
+git commit -m "test: define the Strongroom route contract"
 ```
 
-### Task 2: Build the Motion identity shell
+### Task 2: Build the Strongroom identity shell
 
 **Files:**
-- Create: `motion/motion-shell.js`
+- Create: `strongroom/strongroom.js`
 - Delete: `ink/ink-shell.js`
 
 - [ ] **Step 1: Create the focused identity and navigation helper**
 
-Create `motion/motion-shell.js` with:
+Create `strongroom/strongroom.js` with:
 
 ```js
 (() => {
   const localStudies = {
-    "/vault/arcade-pixel": "/motion/arcade-pixel/",
-    "/vault/holo": "/motion/holo/",
-    "/vault/pixel-brushes": "/motion/pixel-brushes/",
-    "/vault/fade-motion": "/motion/fade-motion/",
-    "/vault/liquid-ui": "/motion/liquid-ui/",
-    "/vault/kinetic-typography": "/motion/kinetic/",
-    "/vault/squircle": "/motion/squircle/",
-    "/vault/ransom-note": "/motion/ransom/",
-    "/vault/chroma-glow": "/motion/chroma/",
-    "/vault/emboss": "/motion/emboss/",
-    "/vault/typer": "/motion/typer/",
-    "/vault/color-depth": "/motion/color-depth/",
-    "/vault/ghosty-reveal": "/motion/ghost/",
-    "/vault/sandbox": "/motion/symbols/",
-    "/vault/dia-gradient": "/motion/dia-gradient/",
-    "/vault/vector-editor": "/motion/vector/",
-    "/vault/amo": "/motion/amo/",
-    "/vault/midjourney": "/motion/ascii/",
+    "/vault/arcade-pixel": "/strongroom/arcade-pixel/",
+    "/vault/holo": "/strongroom/holo/",
+    "/vault/pixel-brushes": "/strongroom/pixel-brushes/",
+    "/vault/fade-motion": "/strongroom/fade-motion/",
+    "/vault/liquid-ui": "/strongroom/liquid-ui/",
+    "/vault/kinetic-typography": "/strongroom/kinetic/",
+    "/vault/squircle": "/strongroom/squircle/",
+    "/vault/ransom-note": "/strongroom/ransom/",
+    "/vault/chroma-glow": "/strongroom/chroma/",
+    "/vault/emboss": "/strongroom/emboss/",
+    "/vault/typer": "/strongroom/typer/",
+    "/vault/color-depth": "/strongroom/color-depth/",
+    "/vault/ghosty-reveal": "/strongroom/ghost/",
+    "/vault/sandbox": "/strongroom/symbols/",
+    "/vault/dia-gradient": "/strongroom/dia-gradient/",
+    "/vault/vector-editor": "/strongroom/vector/",
+    "/vault/amo": "/strongroom/amo/",
+    "/vault/midjourney": "/strongroom/ascii/",
   };
 
   function setMeta(selector, attribute, value) {
@@ -162,15 +162,15 @@ Create `motion/motion-shell.js` with:
     if (element) element.setAttribute(attribute, value);
   }
 
-  function applyMotionIdentity() {
+  function applyStrongroomIdentity() {
     const heading = document.querySelector("main h1");
     const isIndex = window.location.pathname.replace(/\/+$/, "") === "/motion";
-    if (isIndex && heading && heading.textContent !== "Motion") heading.textContent = "Motion";
+    if (isIndex && heading && heading.textContent !== "Strongroom") heading.textContent = "Strongroom";
 
     document.title = isIndex
-      ? "Motion — Ibragim Shirinov"
-      : `${heading?.textContent || "Study"} — Motion`;
-    setMeta('meta[name="description"]', "content", "Motion and interaction studies by Ibragim Shirinov.");
+      ? "Strongroom — Ibragim Shirinov"
+      : `${heading?.textContent || "Study"} — Strongroom`;
+    setMeta('meta[name="description"]', "content", "Strongroom and interaction studies by Ibragim Shirinov.");
     setMeta('link[rel="canonical"]', "href", `https://ibra.info${window.location.pathname}`);
     setMeta('meta[property="og:title"]', "content", document.title);
     setMeta('meta[property="og:url"]', "content", `https://ibra.info${window.location.pathname}`);
@@ -190,13 +190,13 @@ Create `motion/motion-shell.js` with:
 
       event.preventDefault();
       event.stopImmediatePropagation();
-      window.location.assign(destination || (url.pathname === "/vault" ? "/motion/" : "/"));
+      window.location.assign(destination || (url.pathname === "/vault" ? "/strongroom/" : "/"));
     },
     true
   );
 
-  setTimeout(applyMotionIdentity, 600);
-  setTimeout(applyMotionIdentity, 1800);
+  setTimeout(applyStrongroomIdentity, 600);
+  setTimeout(applyStrongroomIdentity, 1800);
 })();
 ```
 
@@ -206,22 +206,22 @@ Delete `ink/ink-shell.js`; redirect pages must not load a copy of the interactiv
 
 - [ ] **Step 3: Check JavaScript syntax**
 
-Run: `node --check motion/motion-shell.js`
+Run: `node --check motion/strongroom.js`
 
 Expected: exit 0 and no output.
 
 - [ ] **Step 4: Commit the identity helper**
 
 ```bash
-git add motion/motion-shell.js ink/ink-shell.js
-git commit -m "feat: add the Motion identity shell"
+git add motion/strongroom.js ink/ink-shell.js
+git commit -m "feat: add the Strongroom identity shell"
 ```
 
-### Task 3: Generate canonical Motion pages and Ink redirects
+### Task 3: Generate canonical Strongroom pages and Ink redirects
 
 **Files:**
 - Modify: `scripts/sync-arlan-vault.mjs`
-- Create/Modify: `motion/**/index.html`
+- Create/Modify: `strongroom/**/index.html`
 - Modify: `ink/**/index.html`
 - Modify: `vault/**/index.html`
 - Create: `robots.txt`
@@ -238,13 +238,13 @@ function withNoIndex(html) {
   );
 }
 
-function withMotionShell(html, isIndex = false) {
+function withStrongroomShell(html, isIndex = false) {
   const noscript = isIndex
-    ? '<noscript><style>main h1{font-size:0}main h1::after{content:"Motion";font-size:15px}</style></noscript>'
-    : '<noscript><p><a href="/motion/">Back to Motion</a></p></noscript>';
+    ? '<noscript><style>main h1{font-size:0}main h1::after{content:"Strongroom";font-size:15px}</style></noscript>'
+    : '<noscript><p><a href="/strongroom/">Back to Strongroom</a></p></noscript>';
   return html.replace(
     "</body>",
-    `${noscript}<script src="/motion/motion-shell.js"></script></body>`
+    `${noscript}<script src="/strongroom/strongroom.js"></script></body>`
   );
 }
 
@@ -257,9 +257,9 @@ function redirectHtml(destination) {
     <meta http-equiv="refresh" content="0; url=${destination}">
     <meta name="robots" content="noindex">
     <link rel="canonical" href="https://ibra.info${destination}">
-    <title>Moved to Motion</title>
+    <title>Moved to Strongroom</title>
   </head>
-  <body><p>Moved to <a href="${destination}">Motion</a>.</p></body>
+  <body><p>Moved to <a href="${destination}">Strongroom</a>.</p></body>
 </html>\n`;
 }
 ```
@@ -273,15 +273,15 @@ await writeFile(path.join(projectRoot, "vault", "index.html"), withNoIndex(local
 await mkdir(path.join(projectRoot, "motion"), { recursive: true });
 await writeFile(
   path.join(projectRoot, "motion", "index.html"),
-  withMotionShell(localizedHtml, true)
+  withStrongroomShell(localizedHtml, true)
 );
-await writeFile(path.join(projectRoot, "ink", "index.html"), redirectHtml("/motion/"));
+await writeFile(path.join(projectRoot, "ink", "index.html"), redirectHtml("/strongroom/"));
 ```
 
 For each detail page, use `localStudySlugs[slug] || slug` and write:
 
 ```js
-const publicHtml = withMotionShell(sourceHtml);
+const publicHtml = withStrongroomShell(sourceHtml);
 await writeFile(
   path.join(projectRoot, "vault", slug, "index.html"),
   withNoIndex(sourceHtml)
@@ -290,7 +290,7 @@ await mkdir(path.join(projectRoot, "motion", localSlug), { recursive: true });
 await writeFile(path.join(projectRoot, "motion", localSlug, "index.html"), publicHtml);
 await writeFile(
   path.join(projectRoot, "ink", localSlug, "index.html"),
-  redirectHtml(`/motion/${localSlug}/`)
+  redirectHtml(`/strongroom/${localSlug}/`)
 );
 ```
 
@@ -316,14 +316,14 @@ node scripts/sync-arlan-vault.mjs \
   /tmp/arlan-vault-detail-inventories.json
 ```
 
-Expected JSON: `mirroredAssets: 194`, `mirroredStudies: 18`, `legacyRedirects: 19`, and a `motionEntry` ending in `motion/index.html`.
+Expected JSON: `mirroredAssets: 194`, `mirroredStudies: 18`, `legacyRedirects: 19`, and a `motionEntry` ending in `strongroom/index.html`.
 
 - [ ] **Step 5: Run syntax and route contracts**
 
 ```bash
 node --check scripts/sync-arlan-vault.mjs
-node --check motion/motion-shell.js
-node scripts/test-motion-routes.mjs
+node --check motion/strongroom.js
+node scripts/test-strongroom-routes.mjs
 ```
 
 Expected: both syntax checks exit 0; route contract reports 19 canonical and legacy routes.
@@ -332,7 +332,7 @@ Expected: both syntax checks exit 0; route contract reports 19 canonical and leg
 
 ```bash
 git add scripts/sync-arlan-vault.mjs motion ink vault robots.txt
-git commit -m "feat: publish the collection as Motion"
+git commit -m "feat: publish the collection as Strongroom"
 ```
 
 ### Task 4: Update public copy and documentation
@@ -354,7 +354,7 @@ Replace:
 with:
 
 ```html
-<a class="pill" href="/motion/">motion</a>
+<a class="pill" href="/strongroom/">motion</a>
 ```
 
 - [ ] **Step 2: Update repository documentation**
@@ -362,31 +362,31 @@ with:
 Replace the collection description in `README.md` with:
 
 ```markdown
-`/motion/` is the public collection of motion and interaction studies. It preserves the complete Arlan Vault runtime: 41 prompt studies, 18 named studies, playgrounds, source panels, fonts, media, and animation code.
+`/strongroom/` is the public collection of motion and interaction studies. It preserves the complete Arlan Vault runtime: 41 prompt studies, 18 named studies, playgrounds, source panels, fonts, media, and animation code.
 
-`/vault/` stores the source-compatible captured runtime and is excluded from indexing. `/ink/` contains compatibility redirects to the matching Motion routes. GitHub Pages needs the checked-in `.nojekyll` file so the mirrored `/_next/` assets are served.
+`/vault/` stores the source-compatible captured runtime and is excluded from indexing. `/ink/` contains compatibility redirects to the matching Strongroom routes. GitHub Pages needs the checked-in `.nojekyll` file so the mirrored `/_next/` assets are served.
 ```
 
-Replace “The Ink interaction collection” in `THIRD_PARTY_NOTICES.md` with “The Motion interaction collection.”
+Replace “The Ink interaction collection” in `THIRD_PARTY_NOTICES.md` with “The Strongroom interaction collection.”
 
 - [ ] **Step 3: Update the QA record**
 
 Apply these exact report changes in `design-qa.md`:
 
 ```markdown
-# Motion / Vault design QA
+# Strongroom / Vault design QA
 ```
 
-Replace visitor-facing `Ink` with `Motion`, replace visitor-facing `/ink/` URLs with `/motion/`, and add this functional result:
+Replace visitor-facing `Ink` with `Strongroom`, replace visitor-facing `/ink/` URLs with `/strongroom/`, and add this functional result:
 
 ```markdown
-- The static route contract passed for 19 canonical Motion routes and 19 legacy Ink redirects; `/vault/` is no-index and excluded by `robots.txt`.
+- The static route contract passed for 19 canonical Strongroom routes and 19 legacy Ink redirects; `/vault/` is no-index and excluded by `robots.txt`.
 ```
 
 - [ ] **Step 4: Run documentation and route checks**
 
 ```bash
-node scripts/test-motion-routes.mjs
+node scripts/test-strongroom-routes.mjs
 git diff --check
 rg -n 'href="/ink/">ink|ink — Ibragim|Ink interaction collection' index.html README.md THIRD_PARTY_NOTICES.md design-qa.md motion
 ```
@@ -397,7 +397,7 @@ Expected: route contract passes; `git diff --check` exits 0; the final `rg` retu
 
 ```bash
 git add index.html README.md THIRD_PARTY_NOTICES.md design-qa.md
-git commit -m "docs: rename the collection to Motion"
+git commit -m "docs: rename the collection to Strongroom"
 ```
 
 ### Task 5: Run local functional and visual verification
@@ -419,7 +419,7 @@ Expected: 19 successful responses.
 
 - [ ] **Step 2: Verify legacy redirects**
 
-Run: `node scripts/test-motion-routes.mjs`
+Run: `node scripts/test-strongroom-routes.mjs`
 
 Expected: 19 correct redirect documents.
 
@@ -427,23 +427,23 @@ Expected: 19 correct redirect documents.
 
 Using the approved browser surface:
 
-- Load `/motion/` and confirm heading `Motion` with zero console errors.
+- Load `/strongroom/` and confirm heading `Strongroom` with zero console errors.
 - Scroll the entire landing page.
-- Open a named study and confirm the destination uses `/motion/`.
-- Use the detail close control and confirm it returns to `/motion/`.
+- Open a named study and confirm the destination uses `/strongroom/`.
+- Use the detail close control and confirm it returns to `/strongroom/`.
 - Exercise one prompt control and the Arcade playground.
 - Load all 18 detail routes and confirm expected headings with zero console errors.
 
 - [ ] **Step 4: Verify responsive fidelity**
 
-Capture `/motion/` at 1440×1000 and 390×844, combine each implementation capture with its existing source capture, and inspect typography, margins, card width, radii, assets, and footer. The only intended difference is the `Motion` heading and ibra.info metadata.
+Capture `/strongroom/` at 1440×1000 and 390×844, combine each implementation capture with its existing source capture, and inspect typography, margins, card width, radii, assets, and footer. The only intended difference is the `Strongroom` heading and ibra.info metadata.
 
 - [ ] **Step 5: Verify local assets and crawler rules**
 
 Run:
 
 ```bash
-node scripts/test-motion-routes.mjs
+node scripts/test-strongroom-routes.mjs
 test "$(rg -o 'https://pub-58a0dfd4417141169bd84ab545cd7830\.r2\.dev' motion vault _next | wc -l | tr -d ' ')" = 0
 test "$(find r2 pixel _next/static/media -type f | wc -l | tr -d ' ')" -ge 63
 ```
@@ -479,10 +479,10 @@ If no fixes are needed, do not create an empty commit. If fixes are required:
 
 ```bash
 git add motion ink vault scripts index.html README.md THIRD_PARTY_NOTICES.md design-qa.md robots.txt
-git commit -m "fix: resolve Motion QA findings"
+git commit -m "fix: resolve Strongroom QA findings"
 ```
 
-### Task 6: Update PR #5 and release Motion
+### Task 6: Update PR #5 and release Strongroom
 
 **Files:**
 - No local file changes expected.
@@ -495,7 +495,7 @@ Expected: `origin/codex/ink-vault-exact` advances to the local HEAD.
 
 - [ ] **Step 2: Update PR #5**
 
-Set the title to `Publish the complete Motion interaction collection` and update the body with the canonical `/motion/` route, 19 Ink redirects, 18 full studies, local assets, and final QA results.
+Set the title to `Publish the complete Strongroom interaction collection` and update the body with the canonical `/strongroom/` route, 19 Ink redirects, 18 full studies, local assets, and final QA results.
 
 - [ ] **Step 3: Re-read PR state and checks**
 
@@ -509,11 +509,11 @@ Merge with the repository-supported squash method only after the head SHA is rev
 
 Poll GitHub Pages/workflow state and the public site without intervals longer than 60 seconds. Continue until:
 
-- `https://ibra.info/` links to `/motion/`.
-- `https://ibra.info/motion/` returns successfully and displays `Motion`.
+- `https://ibra.info/` links to `/strongroom/`.
+- `https://ibra.info/strongroom/` returns successfully and displays `Strongroom`.
 - A representative detail route returns successfully.
-- `https://ibra.info/ink/` reaches `/motion/`.
+- `https://ibra.info/ink/` reaches `/strongroom/`.
 
 - [ ] **Step 6: Final handoff**
 
-Return the live Motion URL, PR link, merge SHA, and concise verification summary. Do not report the release as live before all four public checks pass.
+Return the live Strongroom URL, PR link, merge SHA, and concise verification summary. Do not report the release as live before all four public checks pass.

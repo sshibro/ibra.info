@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "CreativeWork",
+        "name": "Drawably",
+        "url": "https://ibra.info/strongroom/drawably/",
+        "author": {
+          "@type": "Person",
+          "name": "Ibragim Shirinov",
+          "url": "https://ibra.info/"
+        },
+        "isPartOf": {
+          "@type": "CollectionPage",
+          "name": "Strongroom",
+          "url": "https://ibra.info/strongroom/"
+        }
+      }
+    </script>
+    <title>Drawably — Strongroom</title>
+    <meta
+      name="description"
+      content="The Strongroom — interaction studies, prompts and working code kept by Ibragim Shirinov."
+    />
+    <link rel="canonical" href="https://ibra.info/strongroom/drawably/" />
+    <meta name="author" content="Ibragim Shirinov" />
+    <meta name="creator" content="Ibragim Shirinov" />
+    <meta name="publisher" content="Ibragim Shirinov" />
+    <meta property="og:title" content="Drawably — Strongroom" />
+    <meta property="og:url" content="https://ibra.info/strongroom/drawably/" />
+    <meta property="og:type" content="article" />
+    <meta name="theme-color" content="#f3efe6" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="author" href="https://ibra.info/" />
+    <style>
+      @font-face {
+        font-family: "PP Neue Gstaad";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("/_next/static/media/PPNeueGstaad_Regular-s.p.0z_7eq9_d6y9b.otf")
+          format("opentype");
+      }
+
+      @font-face {
+        font-family: "PP Mondwest";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("/_next/static/media/PPMondwest_Regular-s.0_9ksmp-90p0c.otf")
+          format("opentype");
+      }
+
+      :root {
+        --text-primary: #141414;
+        --text-secondary: #5b5b57;
+        --text-tertiary: #9a9a94;
+        --border-line: #e2e2da;
+        --border-ring: #1414142e;
+        --bg-page: #f4f4f0;
+        --bg-hover: #ebebe5;
+        --bg-surface: #ffffff;
+        --sr-blue: #2724d1;
+        --sr-blue-soft: #2724d11f;
+        --sr-display: "PP Mondwest", ui-monospace, monospace;
+        --ease-out: cubic-bezier(0.215, 0.61, 0.355, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg-page);
+        color: var(--text-primary);
+        font-family: "PP Neue Gstaad", ui-sans-serif, system-ui, sans-serif;
+        font-size: 15px;
+        font-weight: 400;
+        line-height: 1.7;
+        letter-spacing: -0.016em;
+      }
+
+      main {
+        width: min(560px, calc(100% - 3rem));
+        margin: 0 auto;
+        padding: 6rem 0 5rem;
+      }
+
+      article {
+        display: flex;
+        flex-direction: column;
+        gap: 2.5rem;
+      }
+
+      header.top,
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+        font-size: inherit;
+        font-weight: 400;
+      }
+
+      h1 {
+        font-family: var(--sr-display);
+        font-size: 44px;
+        line-height: 0.95;
+        letter-spacing: 0;
+      }
+
+      .eyebrow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        white-space: nowrap;
+        gap: 0.6rem;
+        margin-top: -1.6rem;
+        font-family: var(--sr-display);
+        font-size: 15px;
+        line-height: 1.2;
+        color: var(--text-tertiary);
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--sr-blue);
+        box-shadow: 0 0 0 3px var(--sr-blue-soft);
+      }
+
+      .eyebrow b {
+        font-weight: 400;
+        color: var(--sr-blue);
+      }
+
+      .section-head h2 {
+        font-family: var(--sr-display);
+        font-size: 16px;
+        color: var(--text-secondary);
+      }
+
+      .close {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.7rem;
+        height: 1.7rem;
+        border-radius: 0.375rem;
+        color: var(--text-secondary);
+        text-decoration: none;
+      }
+
+      .close:hover,
+      .close:focus-visible {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+      }
+
+      .hero,
+      .stage {
+        overflow: hidden;
+        border: 1px solid var(--border-line);
+        border-radius: 8px;
+        background: var(--bg-hover);
+        aspect-ratio: 1344 / 620;
+      }
+
+      .hero iframe,
+      .stage iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: var(--bg-page);
+      }
+
+      .copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .section-head {
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-line);
+      }
+
+      .playground {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .knobs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        padding: 0.85rem;
+        border: 1px solid var(--border-line);
+        border-top: 0;
+        border-radius: 0 0 8px 8px;
+        background: var(--bg-hover);
+        margin-top: -1rem;
+      }
+
+      .stage {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+
+      .knob {
+        display: grid;
+        grid-template-columns: 6.5rem 1fr auto;
+        align-items: center;
+        gap: 0.7rem;
+        min-height: 2rem;
+        padding: 0 0.75rem;
+        border: 1px solid var(--border-line);
+        border-radius: 0.5rem;
+        background: var(--bg-page);
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+
+      .knob input[type="range"] {
+        width: 100%;
+        accent-color: var(--sr-blue);
+      }
+
+      .knob input[type="color"] {
+        width: 100%;
+        height: 1.4rem;
+        padding: 0;
+        border: 1px solid var(--border-line);
+        border-radius: 0.35rem;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .knob input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 2px;
+      }
+
+      .knob input[type="color"]::-webkit-color-swatch {
+        border: 0;
+        border-radius: 0.25rem;
+      }
+
+      .knob-group {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.55rem;
+      }
+
+      .knob-group .knob {
+        grid-template-columns: auto 1fr;
+      }
+
+      @media (max-width: 480px) {
+        .knob-group {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .knob input[type="number"] {
+        width: 5.5rem;
+        border: 0;
+        background: transparent;
+        color: var(--text-primary);
+        font: inherit;
+        text-align: right;
+        -moz-appearance: textfield;
+      }
+
+      .knob input[type="number"]::-webkit-outer-spin-button,
+      .knob input[type="number"]::-webkit-inner-spin-button {
+        appearance: none;
+        margin: 0;
+      }
+
+      .knob output {
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .ghost {
+        appearance: none;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: var(--sr-blue);
+        color: #fff;
+        font: inherit;
+        font-family: var(--sr-display);
+        font-size: 13px;
+        height: 1.75rem;
+        padding: 0 0.75rem;
+        cursor: pointer;
+      }
+
+      .ghost:hover,
+      .ghost:focus-visible {
+        border-color: transparent;
+        color: #fff;
+        background: var(--text-primary);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+      }
+
+      .credits {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .credit {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #0000000d;
+        color: var(--text-secondary);
+      }
+
+      .credit:last-child {
+        border-bottom: 0;
+      }
+
+      .credit span:last-child {
+        color: var(--text-primary);
+      }
+
+      .code {
+        margin: 0;
+        padding: 0.9rem 1rem;
+        overflow: auto;
+        border: 1px solid var(--border-line);
+        border-radius: 8px;
+        background: var(--bg-hover);
+        color: var(--text-primary);
+        font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: pre;
+      }
+
+      .license {
+        margin-top: 0.5rem;
+        text-align: center;
+        color: var(--text-tertiary);
+        font-family: var(--sr-display);
+        font-size: 14px;
+      }
+
+      .license a {
+        color: var(--sr-blue);
+      }
+
+      .license a {
+        color: inherit;
+        text-underline-offset: 2px;
+      }
+
+      .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 1.4rem;
+        transform: translateX(-50%);
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+        background: var(--sr-blue);
+        color: #fff;
+        font-family: var(--sr-display);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <header class="top">
+          <h1>Drawably</h1>
+          <a class="close" href="/strongroom/" aria-label="Close">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          </a>
+        </header>
+
+        <p class="eyebrow"><b>study 19</b><span>·</span><span>Sep 1, 2026</span><span>·</span><span>newest deposit</span></p>
+
+        <div class="hero">
+          <iframe src="preview.html" title="Drawably"></iframe>
+        </div>
+
+        <div class="copy">
+          <p>
+            Hand-drawn UI controls. Every mount generates a fresh pen sketch
+            from a seed, and the stroke boils like an animated doodle.
+          </p>
+          <p>
+            Outline, solid, and scribble buttons, plus a checkbox, a toggle, and
+            a short phrase marked with underline, highlight, and a circle.
+            Roughness is how wobbly the line is; boil is the flicker. Pick your
+            own ink, marker and paper, lock a seed, or resketch for another
+            drawing.
+          </p>
+        </div>
+
+        <section class="playground" aria-labelledby="playground-heading">
+          <header class="section-head">
+            <h2 id="playground-heading">Playground</h2>
+            <button type="button" class="ghost" data-resketch>Resketch</button>
+          </header>
+          <div class="stage">
+            <iframe
+              data-playground
+              src="preview.html"
+              title="Drawably playground"
+            ></iframe>
+          </div>
+          <form class="knobs">
+            <label class="knob">
+              <span>Roughness</span>
+              <input
+                type="range"
+                name="roughness"
+                min="0"
+                max="2.5"
+                step="0.05"
+                value="1"
+              />
+              <output data-output="roughness">1.00</output>
+            </label>
+            <label class="knob">
+              <span>Boil</span>
+              <input
+                type="range"
+                name="boil"
+                min="0"
+                max="1.2"
+                step="0.05"
+                value="0.3"
+              />
+              <output data-output="boil">0.30</output>
+            </label>
+            <div class="knob-group">
+              <label class="knob">
+                <span>Ink</span>
+                <input type="color" name="ink" value="#2724d1" />
+              </label>
+              <label class="knob">
+                <span>Marker</span>
+                <input type="color" name="marker" value="#ffe14d" />
+              </label>
+              <label class="knob">
+                <span>Paper</span>
+                <input type="color" name="paper" value="#f7f7ff" />
+              </label>
+            </div>
+            <label class="knob">
+              <span>Seed</span>
+              <input type="number" name="seed" min="0" step="1" value="7" />
+              <button type="button" class="ghost" data-reroll="seed">
+                New seed
+              </button>
+            </label>
+          </form>
+        </section>
+
+        <section aria-labelledby="code-heading">
+          <header class="section-head">
+            <h2 id="code-heading">Code</h2>
+            <button type="button" class="ghost" data-copy-detail>Copy</button>
+          </header>
+          <pre class="code" data-snippet></pre>
+        </section>
+
+        <section aria-labelledby="credits-heading">
+          <header class="section-head">
+            <h2 id="credits-heading">Credits</h2>
+          </header>
+          <div class="credits">
+            <div class="credit">
+              <span>Package</span>
+              <span>drawably 0.3.10</span>
+            </div>
+            <div class="credit">
+              <span>Date</span>
+              <span>Sep 1, 2026</span>
+            </div>
+            <div class="credit">
+              <span>Tags</span>
+              <span>SVG, Sketch, UI, Colour</span>
+            </div>
+          </div>
+        </section>
+
+        <p class="license">
+          <a href="https://opensource.org/licenses/MIT">MIT</a> · take what you need
+        </p>
+      </article>
+    </main>
+    <noscript><p><a href="/strongroom/">Back to the Strongroom</a></p></noscript>
+    <script src="/strongroom/strongroom.js"></script>
+    <script src="study.js"></script>
+  </body>
+</html>

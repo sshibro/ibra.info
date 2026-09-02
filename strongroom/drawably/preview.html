@@ -6,6 +6,21 @@
     <title>drawably</title>
     <link rel="stylesheet" href="vendor/drawably.css" />
     <style>
+      @font-face {
+        font-family: "PP Neue Gstaad";
+        font-weight: 400;
+        font-display: swap;
+        src: url("/_next/static/media/PPNeueGstaad_Regular-s.p.0z_7eq9_d6y9b.otf") format("opentype");
+      }
+
+      :root {
+        --ink: #2724d1;
+        --marker: #ffe14d;
+        --paper: #f7f7ff;
+        --drawably-stroke: var(--ink);
+        --drawably-fill: var(--ink);
+      }
+
       html,
       body {
         height: 100%;
@@ -15,9 +30,9 @@
         display: grid;
         place-items: center;
         overflow: hidden;
-        background: #fcfcfc;
-        color: #1b1b1b;
-        font: 400 15px/1.45 Inter, system-ui, sans-serif;
+        background: var(--paper);
+        color: var(--ink);
+        font: 400 15px/1.45 "PP Neue Gstaad", ui-sans-serif, system-ui, sans-serif;
         letter-spacing: -0.016em;
       }
       .board {
@@ -46,7 +61,7 @@
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
-        color: #2724d1;
+        color: var(--ink);
       }
     </style>
   </head>
@@ -79,7 +94,17 @@
         roughness: 1,
         boil: 0.3,
         seed: 7,
+        ink: "#2724d1",
+        marker: "#ffe14d",
+        paper: "#f7f7ff",
       };
+
+      function paintColours() {
+        const root = document.documentElement.style;
+        root.setProperty("--ink", CONFIG.ink);
+        root.setProperty("--marker", CONFIG.marker);
+        root.setProperty("--paper", CONFIG.paper);
+      }
 
       const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
       const sketches = [];
@@ -116,6 +141,7 @@
       function mount() {
         if (!ready() || typeof Drawably !== "object") return;
         destroyAll();
+        paintColours();
         const o = opts();
         sketches.push(
           Drawably.drawablyButton(document.getElementById("outline"), {
@@ -133,7 +159,11 @@
           Drawably.drawablyCheckbox(document.getElementById("check"), o),
           Drawably.drawablyToggle(document.getElementById("tog"), o),
           Drawably.drawablyUnderline(document.getElementById("under"), o),
-          Drawably.drawablyHighlight(document.getElementById("high"), o),
+          Drawably.drawablyHighlight(document.getElementById("high"), {
+            ...o,
+            fill: "var(--marker)",
+            stroke: "var(--marker)",
+          }),
           Drawably.drawablyCircle(document.getElementById("circ"), o)
         );
         mounted = true;
@@ -155,6 +185,7 @@
 
       window.setParams = (c) => {
         Object.assign(CONFIG, c);
+        paintColours();
         if (ready() && view) mount();
       };
 
@@ -173,10 +204,18 @@
         const seed = Number(params.seed ?? CONFIG.seed);
         const roughness = Number(params.roughness ?? CONFIG.roughness);
         const boil = Number(params.boil ?? CONFIG.boil);
+        const ink = params.ink ?? CONFIG.ink;
+        const marker = params.marker ?? CONFIG.marker;
+        const paper = params.paper ?? CONFIG.paper;
         return `npm i drawably
 
 import { drawablyButton, drawablyCheckbox, drawablyToggle, drawablyUnderline, drawablyHighlight, drawablyCircle } from "drawably";
 import "drawably/style.css";
+
+/* colours: the stroke and fill are CSS variables, so theme them once */
+document.documentElement.style.setProperty("--drawably-stroke", "${ink}");
+document.documentElement.style.setProperty("--drawably-fill", "${ink}");
+document.body.style.background = "${paper}";
 
 const opts = { seed: ${seed}, roughness: ${roughness}, boil: ${boil} };
 
@@ -186,7 +225,7 @@ drawablyButton(document.querySelector("#scribble"), { ...opts, variant: "scribbl
 drawablyCheckbox(document.querySelector("#check"), opts);
 drawablyToggle(document.querySelector("#tog"), opts);
 drawablyUnderline(document.querySelector("#under"), opts);
-drawablyHighlight(document.querySelector("#high"), opts);
+drawablyHighlight(document.querySelector("#high"), { ...opts, fill: "${marker}", stroke: "${marker}" });
 drawablyCircle(document.querySelector("#circ"), opts);
 
 solid.resketch();

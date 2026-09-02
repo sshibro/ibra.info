@@ -9,7 +9,7 @@ import { mkdtemp } from "node:fs/promises";
 const exec = promisify(execFile);
 const version = process.argv[2] || "0.3.10";
 const root = process.cwd();
-const outDir = path.join(root, "motion", "drawably", "vendor");
+const outDir = path.join(root, "strongroom", "drawably", "vendor");
 
 const work = await mkdtemp(path.join(tmpdir(), "drawably-vendor-"));
 await exec("npm", ["pack", `drawably@${version}`], { cwd: work });
@@ -36,4 +36,4 @@ await copyFile(path.join(pkg, "style.css"), path.join(outDir, "drawably.css"));
 await copyFile(path.join(pkg, "LICENSE"), path.join(outDir, "LICENSE"));
 await writeFile(path.join(outDir, "VERSION"), `${version}\n`, "utf8");
 
-console.log(`Vendored drawably@${version} into motion/drawably/vendor/`);
+console.log(`Vendored drawably@${version} into strongroom/drawably/vendor/`);

@@ -58,6 +58,8 @@
       if (!el.name || el.disabled) continue;
       if (el.type === "range" || el.type === "number") {
         data[el.name] = Number(el.value);
+      } else if (el.type === "color") {
+        data[el.name] = /^#[0-9a-f]{6}$/i.test(el.value) ? el.value : undefined;
       } else {
         data[el.name] = el.value;
       }
