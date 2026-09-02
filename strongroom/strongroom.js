@@ -203,7 +203,15 @@
     if (arrow && arrow.textContent !== "·") arrow.textContent = "·";
   }
 
+  function applyNumbering() {
+    const grid = document.querySelector("main .grid");
+    if (!grid) return;
+    const total = grid.querySelectorAll(".vault-card").length;
+    if (total) grid.style.counterReset = `sr-item ${total + 1}`;
+  }
+
   function applyIndexIntro() {
+    applyNumbering();
     const header = document.querySelector("main section > header");
     if (!header) return;
     const named = Object.keys(studies).length;
@@ -241,7 +249,8 @@
 
     const header = document.querySelector("main article > header");
     if (header && !document.querySelector(".sr-detail-eyebrow")) {
-      const index = Object.keys(studies).indexOf(slug) + 1;
+      const order = Object.keys(studies);
+      const index = order.length - order.indexOf(slug);
       const eyebrow = document.createElement("p");
       eyebrow.className = "sr-eyebrow sr-detail-eyebrow";
       eyebrow.innerHTML = `<b>study ${String(index).padStart(2, "0")}</b><span>·</span><span>${study.date}</span><span>·</span><span>mit</span>`;
@@ -307,6 +316,7 @@
       </div>
     `;
     grid.insertBefore(card, first);
+    applyNumbering();
 
     const frame = card.querySelector(".sr-hero-frame");
     const io = new IntersectionObserver(
@@ -332,6 +342,7 @@
       else if (grid.firstElementChild && !grid.firstElementChild.classList.contains("sr-hero")) {
         grid.insertBefore(grid.querySelector(".sr-hero"), grid.firstElementChild);
       }
+      applyNumbering();
     });
     observer.observe(grid, { childList: true });
   }
