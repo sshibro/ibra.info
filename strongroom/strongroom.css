@@ -27,7 +27,7 @@
   --sr-blue-soft: #2724d11f;
   --sr-blue-tint: #eeeeff;
   --sr-ink: #141414;
-  --sr-display: var(--font-pangram, "PP Pangram Rounded"), "PP Pangram Rounded", ui-sans-serif, system-ui, sans-serif;
+  --sr-display: var(--font-mondwest, "PP Mondwest"), "PP Mondwest", ui-monospace, monospace;
   --sr-radius: 8px;
 }
 
@@ -44,10 +44,10 @@ html {
 
 main h1 {
   font-family: var(--sr-display) !important;
-  font-size: 40px !important;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.03em;
+  font-size: 44px !important;
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: 0;
   word-spacing: 0;
   color: var(--text-primary);
 }
@@ -71,10 +71,9 @@ main h1 {
   white-space: nowrap;
   margin: 0;
   font-family: var(--sr-display);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 15px;
   line-height: 1.2;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   word-spacing: 0;
   color: var(--text-tertiary);
 }
@@ -151,9 +150,8 @@ main .grid {
   backdrop-filter: blur(6px);
   color: var(--sr-blue);
   font-family: var(--sr-display);
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  font-size: 13px;
+  letter-spacing: 0;
   line-height: 1.25;
   word-spacing: 0;
   pointer-events: none;
@@ -177,8 +175,7 @@ a.vault-card::before {
 /* named-study rows */
 a.vault-card .tabular-nums {
   font-family: var(--sr-display);
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 14px;
   letter-spacing: 0;
   word-spacing: 0;
   color: var(--text-tertiary);
@@ -199,9 +196,8 @@ a.vault-card:hover .truncate {
   background: var(--sr-blue);
   color: #fff;
   font-family: var(--sr-display);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  font-size: 13px;
+  letter-spacing: 0;
   word-spacing: 0;
   box-shadow: 0 1px 2px #2724d14d;
 }
@@ -274,9 +270,8 @@ a.vault-card:hover .truncate {
   background: var(--sr-blue);
   color: #fff;
   font-family: var(--sr-display);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: 12px;
+  letter-spacing: 0;
   line-height: 1.3;
   word-spacing: 0;
 }
@@ -285,8 +280,7 @@ a.vault-card:hover .truncate {
   flex-shrink: 0;
   color: var(--text-tertiary);
   font-family: var(--sr-display);
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 14px;
   letter-spacing: 0;
   word-spacing: 0;
 }
@@ -295,8 +289,7 @@ a.vault-card:hover .truncate {
 
 .sr-footer {
   font-family: var(--sr-display);
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 14px;
   letter-spacing: 0;
   word-spacing: 0;
   color: var(--text-tertiary);

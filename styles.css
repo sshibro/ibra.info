@@ -10,11 +10,11 @@
 }
 
 @font-face {
-  font-family: "PP Pangram Rounded";
+  font-family: "PP Mondwest";
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400;
   font-display: swap;
-  src: url("/_next/static/media/PPPangramSansRounded_Medium-s.39bgpb86pvtq-.otf") format("opentype");
+  src: url("/_next/static/media/PPMondwest_Regular-s.0_9ksmp-90p0c.otf") format("opentype");
 }
 
 :root {
@@ -27,7 +27,7 @@
   --blue-deep: #1a17a8;
   --blue-soft: #2724d11f;
   --marker: #ffe14d;
-  --display: "PP Pangram Rounded", Geist, ui-sans-serif, system-ui, sans-serif;
+  --display: "PP Mondwest", ui-monospace, monospace;
 }
 
 *,
@@ -78,25 +78,23 @@ ul {
 
 h1 {
   font-family: var(--display);
-  font-size: 2.5rem;
-  font-weight: 500;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  font-size: 2.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 0.95;
 }
 
 h2 {
   font-family: var(--display);
-  font-size: 0.95rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-size: 1.05rem;
+  font-weight: 400;
   color: var(--blue);
 }
 
 .alias {
   margin-top: 0.6rem;
   font-family: var(--display);
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 1.05rem;
   color: var(--faint);
 }
 
@@ -150,7 +148,7 @@ a:hover {
 
 a.pill {
   font-family: var(--display);
-  font-weight: 500;
+  font-size: 1.1em;
   color: var(--blue);
   text-decoration-color: var(--blue);
   white-space: nowrap;
@@ -280,10 +278,7 @@ a:focus-visible {
 
 .vault-kicker {
   font-family: var(--display);
-  font-size: 0.8rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.95rem;
   color: #d9d8ff;
   transition: color 260ms ease;
 }
@@ -294,9 +289,7 @@ a:focus-visible {
   gap: 0.6rem;
   font-family: var(--display);
   font-size: clamp(2rem, 6vw, 2.75rem);
-  font-weight: 500;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  line-height: 0.95;
 }
 
 .vault-title .arrow {
@@ -322,78 +315,39 @@ a:focus-visible {
   transition: color 260ms ease;
 }
 
-/* combination dial: a flat line drawing that turns on hover */
+/* combination dial: pixel art on a 4px grid, turns in crisp quarter steps */
 .dial {
   position: relative;
   z-index: 1;
-  width: 104px;
-  height: 104px;
+  display: block;
+  width: 96px;
+  height: 96px;
   flex: none;
-  border-radius: 50%;
-  border: 2px solid #ffffffb8;
+  color: #fff;
+  image-rendering: pixelated;
   transition:
-    border-color 260ms ease,
-    transform 900ms cubic-bezier(0.2, 0, 0, 1);
+    transform 640ms steps(3, end),
+    color 200ms ease 200ms;
 }
 
-.dial::before {
-  content: "";
-  position: absolute;
-  inset: 6px;
-  border-radius: 50%;
-  background: repeating-conic-gradient(from 0deg, #ffffffcc 0deg 1.6deg, transparent 1.6deg 15deg);
-  -webkit-mask: radial-gradient(circle, transparent 66%, #000 67%);
-  mask: radial-gradient(circle, transparent 66%, #000 67%);
-  transition: background 260ms ease;
+.dial .d-ink {
+  fill: currentColor;
 }
 
-.dial::after {
-  content: "";
-  position: absolute;
-  inset: 32px;
-  border-radius: 50%;
-  border: 2px solid #ffffffb8;
-  transition: border-color 260ms ease;
-}
-
-.dial-mark {
-  position: absolute;
-  top: -2px;
-  left: 50%;
-  width: 4px;
-  height: 18px;
-  margin-left: -2px;
-  border-radius: 2px;
-  background: var(--marker);
-  z-index: 1;
-  transition: background 260ms ease;
+.dial .d-mark {
+  fill: var(--marker);
+  transition: fill 200ms ease 200ms;
 }
 
 .vault:hover .dial,
 .vault:focus-visible .dial {
-  transform: rotate(-300deg);
-  border-color: var(--blue);
+  transform: rotate(-270deg);
+  color: var(--blue);
 }
 
-.vault:hover .dial::before,
-.vault:focus-visible .dial::before {
-  background: repeating-conic-gradient(from 0deg, var(--blue) 0deg 1.6deg, transparent 1.6deg 15deg);
-}
-
-.vault:hover .dial::after,
-.vault:focus-visible .dial::after {
-  border-color: var(--blue);
-}
-
-.vault:hover .dial-mark,
-.vault:focus-visible .dial-mark {
-  background: var(--blue);
-}
-
-@keyframes drift {
-  to {
-    background-position: 36px 18px;
-  }
+.vault:hover .dial .d-mark,
+.vault:focus-visible .dial .d-mark {
+  fill: var(--blue);
 }
 
 @media (min-width: 640px) {
@@ -410,14 +364,10 @@ a:focus-visible {
   }
 
   .dial {
-    width: 88px;
-    height: 88px;
+    width: 72px;
+    height: 72px;
     justify-self: end;
     order: -1;
-  }
-
-  .dial::after {
-    inset: 27px;
   }
 }
 
