@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>drawably — hero</title>
+    <link rel="stylesheet" href="vendor/drawably.css" />
+    <style>
+      @font-face {
+        font-family: "PP Neue Gstaad";
+        font-weight: 400;
+        font-display: swap;
+        src: url("/_next/static/media/PPNeueGstaad_Regular-s.p.0z_7eq9_d6y9b.otf") format("opentype");
+      }
+      @font-face {
+        font-family: "PP Neue Gstaad";
+        font-weight: 700;
+        font-display: swap;
+        src: url("/_next/static/media/PPNeueGstaad_Bold-s.p.3dw1eu_9tmopu.otf") format("opentype");
+      }
+      @font-face {
+        font-family: "PP Mondwest";
+        font-weight: 400;
+        font-display: swap;
+        src: url("/_next/static/media/PPMondwest_Regular-s.0_9ksmp-90p0c.otf") format("opentype");
+      }
+
+      :root {
+        --paper: #f7f7ff;
+        --ink: #2724d1;
+        --ink-soft: #55549a;
+        --marker: #ffe14d;
+        --drawably-stroke: var(--ink);
+        --drawably-fill: var(--ink);
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        position: relative;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 40%, #ffffff 0%, var(--paper) 60%, #ececff 100%);
+        color: var(--ink);
+        font: 400 15px/1.4 "PP Neue Gstaad", ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.016em;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* graph-paper dots */
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(#2724d126 0.9px, transparent 1px);
+        background-size: 18px 18px;
+        mask-image: radial-gradient(circle at 50% 50%, #000 30%, transparent 78%);
+        -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 30%, transparent 78%);
+        pointer-events: none;
+      }
+
+      .board {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: clamp(10px, 3.2vh, 22px);
+        padding: 4vh 6vw;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .stamp {
+        display: inline-flex;
+        margin-bottom: 2px;
+        align-items: center;
+        padding: 3px 10px 2px;
+        font: 400 13px/1.4 "PP Mondwest", ui-monospace, monospace;
+        color: var(--ink);
+        transform: rotate(-4deg);
+      }
+
+      .date {
+        position: absolute;
+        right: clamp(14px, 4.5vw, 34px);
+        top: clamp(12px, 5vh, 30px);
+        font: 400 13px/1.4 "PP Mondwest", ui-monospace, monospace;
+        color: var(--ink-soft);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 8.6vw, 54px);
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        color: var(--ink);
+      }
+
+      h1 span {
+        display: inline-block;
+        padding: 0.08em 0.28em;
+      }
+
+      .phrase {
+        margin: 0;
+        font-size: clamp(14px, 3.1vw, 18px);
+        color: var(--ink-soft);
+        text-align: center;
+        text-wrap: balance;
+      }
+
+      .phrase span {
+        color: var(--ink);
+        padding: 0 0.1em;
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 10px 14px;
+      }
+
+      .row button {
+        font-family: inherit;
+        font-size: 14px;
+        letter-spacing: -0.01em;
+      }
+
+      .check-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 14px;
+        color: var(--ink);
+      }
+
+      .sketch {
+        opacity: 0;
+        transform: translateY(6px);
+        transition:
+          opacity 420ms cubic-bezier(0.2, 0, 0, 1),
+          transform 520ms cubic-bezier(0.2, 0, 0, 1);
+      }
+
+      .sketch.on {
+        opacity: 1;
+        transform: none;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sketch {
+          opacity: 1;
+          transform: none;
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <span class="date sketch" id="date">01 · 09 · 26</span>
+
+    <div class="board">
+      <span class="stamp sketch" id="stamp">new deposit</span>
+      <h1 class="sketch"><span id="title">Drawably</span></h1>
+      <p class="phrase sketch">
+        hand-drawn UI that
+        <span id="boils">boils</span> on every
+        <span id="mount">mount</span>
+      </p>
+      <div class="row sketch" id="buttons">
+        <button id="outline" type="button">Outline</button>
+        <button id="solid" type="button">Solid</button>
+        <button id="scribble" type="button">Scribble</button>
+      </div>
+      <div class="row sketch" id="controls">
+        <label class="check-label">
+          <span id="check"><input type="checkbox" checked /></span>
+          Ship it
+        </label>
+        <label class="check-label">
+          <span id="radio"><input type="radio" checked /></span>
+          Keep it loose
+        </label>
+        <label class="check-label">
+          <span id="tog"><input type="checkbox" checked /></span>
+          Boil
+        </label>
+      </div>
+    </div>
+
+    <script src="vendor/drawably.js"></script>
+    <script>
+      const quiet = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const BASE = { roughness: 1.05, boil: quiet ? 0 : 0.34, seed: 91 };
+      const sketches = [];
+      const timers = [];
+      let view = true;
+      let mounted = false;
+      let cycle = 0;
+
+      window.addEventListener("message", (e) => {
+        const data = e.data;
+        if (!data || (data.type !== "motion-visible" && data.type !== "ink-visible")) return;
+        view = !!data.value;
+        if (view) ensure();
+        else destroyAll();
+      });
+
+      const $ = (id) => document.getElementById(id);
+      const ready = () => innerWidth >= 8 && innerHeight >= 8;
+      const wait = (ms) => new Promise((r) => timers.push(setTimeout(r, ms)));
+
+      function destroyAll() {
+        while (timers.length) clearTimeout(timers.pop());
+        while (sketches.length) sketches.pop().destroy();
+        for (const el of document.querySelectorAll(".sketch")) el.classList.remove("on");
+        mounted = false;
+      }
+
+      function reveal(el) {
+        el.classList.add("on");
+      }
+
+      async function mount() {
+        if (!ready() || typeof Drawably !== "object") return;
+        destroyAll();
+        mounted = true;
+        const D = Drawably;
+        const o = (k) => ({ ...BASE, seed: BASE.seed + k });
+        const step = quiet ? 0 : 140;
+
+        reveal($("stamp"));
+        reveal($("date"));
+        sketches.push(D.drawablyBadge($("stamp"), { ...o(1), variant: "outline", roughness: 1.3 }));
+        await wait(step);
+
+        reveal($("title").closest(".sketch"));
+        sketches.push(D.drawablyCircle($("title"), { ...o(2), roughness: 1.4 }));
+        await wait(step * 1.4);
+
+        reveal($("boils").closest(".sketch"));
+        sketches.push(
+          D.drawablyHighlight($("boils"), { ...o(3), fill: "var(--marker)", stroke: "var(--marker)" }),
+          D.drawablyUnderline($("mount"), o(4))
+        );
+        await wait(step * 1.2);
+
+        reveal($("buttons"));
+        sketches.push(
+          D.drawablyButton($("outline"), { ...o(5), variant: "outline" }),
+          D.drawablyButton($("solid"), { ...o(6), variant: "solid" }),
+          D.drawablyButton($("scribble"), { ...o(7), variant: "scribble" })
+        );
+        await wait(step);
+
+        reveal($("controls"));
+        sketches.push(
+          D.drawablyCheckbox($("check"), o(8)),
+          D.drawablyRadio($("radio"), o(9)),
+          D.drawablyToggle($("tog"), o(10))
+        );
+
+        if (!quiet) loop();
+      }
+
+      /* every few seconds one group is re-sketched, so the card keeps
+         drawing itself while it sits in the grid */
+      async function loop() {
+        while (mounted && view) {
+          await wait(3600);
+          if (!mounted || !view) return;
+          cycle += 1;
+          const seed = BASE.seed + cycle * 131;
+          const group = sketches.slice((cycle % 4) * 3, (cycle % 4) * 3 + 3);
+          for (const sketch of group) sketch.resketch(seed);
+        }
+      }
+
+      function ensure() {
+        if (!view || !ready()) return;
+        if (!mounted) mount();
+      }
+
+      new ResizeObserver(() => {
+        if (!ready()) {
+          destroyAll();
+          return;
+        }
+        if (view && !mounted) mount();
+      }).observe(document.documentElement);
+
+      document.fonts?.ready.then(() => {
+        if (mounted) for (const s of sketches) s.resketch(BASE.seed);
+      });
+
+      ensure();
+    </script>
+  </body>
+</html>

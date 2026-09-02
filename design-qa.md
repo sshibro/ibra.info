@@ -1,4 +1,4 @@
-# Motion / Vault design QA
+# Strongroom / Vault design QA
 
 ## Final result
 
@@ -6,7 +6,7 @@ passed
 
 ## Source truth and implementation evidence
 
-The combined files place the Arlan Vault reference on the left and the local Motion implementation on the right.
+The combined files place the Arlan Vault reference on the left and the local Strongroom implementation on the right.
 
 | Surface | Source truth | Implementation | Combined comparison |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ The combined files place the Arlan Vault reference on the left and the local Mot
 - P1: none.
 - P2: none.
 - Layout, content order, margins, 528/342 px card widths, radii, borders, typography, colors, imagery, icons, and responsive behavior match the source at the tested viewports.
-- The only intentional landing difference is the requested `Vault` → `Motion` heading and ibra.info metadata/routes.
+- The only intentional landing difference is the requested `Vault` → `Strongroom` heading and ibra.info metadata/routes.
 - No replacement CSS art, handcrafted SVG approximation, placeholder imagery, or substituted animation was introduced.
 
 ## Functional and accessibility checks
@@ -39,8 +39,8 @@ The combined files place the Arlan Vault reference on the left and the local Mot
 - Verified prompt controls, named-card navigation, detail-page close navigation, the Arcade playground, and its Remix control through visible browser interaction.
 - Source semantics, labels, alt text, keyboard-focus behavior, reduced-motion handling, and mobile control treatment are preserved because the original runtime is retained.
 - Browser inventories covered 849 observed asset references / 194 unique local files. The mirror also includes six declared VP9/MP4 fallbacks that the capture browser did not select. The asset check reported zero missing files and zero remaining R2 hotlinks in the delivered HTML/runtime.
-- The static route contract passed for 19 canonical Motion routes and 19 legacy Ink redirects; `/vault/` is no-index and excluded by `robots.txt`.
-- All 41 prompt-copy payloads are served locally, and server-rendered titles, canonical URLs, authorship, and structured data identify the public collection as Motion.
+- The static route contract passed for 19 canonical Strongroom routes and 19 legacy Ink redirects; `/vault/` is no-index and excluded by `robots.txt`.
+- All 41 prompt-copy payloads are served locally, and server-rendered titles, canonical URLs, authorship, and structured data identify the public collection as Strongroom.
 
 ## Iteration history
 

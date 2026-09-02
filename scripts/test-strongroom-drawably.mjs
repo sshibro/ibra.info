@@ -21,16 +21,16 @@ if (!homepage.includes("also shibro")) {
 if (homepage.includes("shibro°") || homepage.includes("shibro&deg;")) {
   failures.push("homepage alias includes a degree symbol");
 }
-if (!homepage.includes('href="/motion/">motion</a>')) {
-  failures.push("homepage does not link the word motion to /motion/");
+if (!homepage.includes('href="/strongroom/">strongroom</a>')) {
+  failures.push("homepage does not link the word strongroom to /strongroom/");
 }
-if (!homepage.includes("On the side, I build different visuals I love over in")) {
-  failures.push("homepage motion sentence changed");
+if (!homepage.includes("locked away in the")) {
+  failures.push("homepage strongroom sentence changed");
 }
 
 const inkIndex = await read("ink/index.html");
-if (!inkIndex.includes("url=/motion/") || !inkIndex.includes('href="/motion/"')) {
-  failures.push("ink landing is not a redirect to /motion/");
+if (!inkIndex.includes("url=/strongroom/") || !inkIndex.includes('href="/strongroom/"')) {
+  failures.push("ink landing is not a redirect to /strongroom/");
 }
 if (inkIndex.includes("Ink.mountGrid") || inkIndex.includes("<h1>ink</h1>")) {
   failures.push("ink landing was restored as a public collection");
@@ -38,50 +38,66 @@ if (inkIndex.includes("Ink.mountGrid") || inkIndex.includes("<h1>ink</h1>")) {
 
 const inkStudy = await read("ink/drawably/index.html");
 if (
-  !inkStudy.includes("url=/motion/drawably/") ||
-  !inkStudy.includes('href="/motion/drawably/"')
+  !inkStudy.includes("url=/strongroom/drawably/") ||
+  !inkStudy.includes('href="/strongroom/drawably/"')
 ) {
-  failures.push("ink/drawably is not a redirect to /motion/drawably/");
+  failures.push("ink/drawably is not a redirect to /strongroom/drawably/");
 }
 if (inkStudy.includes("preview.html") || inkStudy.includes("Ink.detail")) {
   failures.push("ink/drawably still hosts the public study");
 }
 
-const shell = await read("motion/motion-shell.js");
+const shell = await read("strongroom/strongroom.js");
 for (const needle of [
-  'data-motion-study="drawably"',
-  "/motion/drawably/",
+  'srStudy = "drawably"',
+  "`${ROOT}/drawably/`",
+  "`${ROOT}/drawably/hero.html`",
   'sandbox", "allow-scripts"',
   "motion-visible",
-  "injectDrawablyStudy",
+  "injectHero",
+  "grid.insertBefore(card, first)",
 ]) {
   if (!shell.includes(needle)) {
-    failures.push(`motion-shell.js missing ${needle}`);
+    failures.push(`strongroom.js missing ${needle}`);
   }
 }
-if (shell.includes("setTimeout(applyMotionIdentity")) {
-  failures.push("Motion shell mutates React-managed content on a fixed hydration timer");
+
+const hero = await read("strongroom/drawably/hero.html");
+for (const needle of [
+  "drawablyBadge",
+  "drawablyCircle",
+  "drawablyHighlight",
+  "drawablyUnderline",
+  "drawablyButton",
+  "drawablyCheckbox",
+  "drawablyRadio",
+  "drawablyToggle",
+  "motion-visible",
+  "prefers-reduced-motion",
+  "innerWidth >= 8",
+]) {
+  if (!hero.includes(needle)) failures.push(`drawably hero missing ${needle}`);
 }
 
-const detail = await read("motion/drawably/index.html");
+const detail = await read("strongroom/drawably/index.html");
 for (const needle of [
-  "Drawably — Motion",
-  'rel="canonical" href="https://ibra.info/motion/drawably/"',
+  "Drawably — Strongroom",
+  'rel="canonical" href="https://ibra.info/strongroom/drawably/"',
   'name="author" content="Ibragim Shirinov"',
   "roughness",
   "boil",
   "seed",
   "data-resketch",
   "data-copy-detail",
-  "/motion/motion-shell.js",
+  "/strongroom/strongroom.js",
 ]) {
   if (!detail.includes(needle)) failures.push(`drawably customize page missing ${needle}`);
 }
-if (/\bvault\b/i.test(detail) || /\bink\b/i.test(detail.replace(/drawably/gi, ""))) {
-  failures.push("drawably customize page mentions ink or vault");
+if (/\/vault\b/i.test(detail) || /\/ink\//i.test(detail) || /Back to (Ink|Vault)/i.test(detail)) {
+  failures.push("drawably customize page links the old ink or vault routes");
 }
 
-const preview = await read("motion/drawably/preview.html");
+const preview = await read("strongroom/drawably/preview.html");
 for (const needle of [
   'variant: "outline"',
   'variant: "solid"',
@@ -102,9 +118,9 @@ for (const needle of [
   if (!preview.includes(needle)) failures.push(`drawably preview missing ${needle}`);
 }
 
-const vendor = await read("motion/drawably/vendor/drawably.js");
-const css = await read("motion/drawably/vendor/drawably.css");
-const version = (await read("motion/drawably/vendor/VERSION")).trim();
+const vendor = await read("strongroom/drawably/vendor/drawably.js");
+const css = await read("strongroom/drawably/vendor/drawably.css");
+const version = (await read("strongroom/drawably/vendor/VERSION")).trim();
 if (version !== "0.3.10") {
   failures.push(`vendored drawably is ${version || "missing"}, expected 0.3.10`);
 }
@@ -120,4 +136,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("motion drawably study contract passed");
+console.log("strongroom drawably study contract passed");

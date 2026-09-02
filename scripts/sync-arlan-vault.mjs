@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { localStudySlugs, redirectHtml, strongroomPage } from "./strongroom-identity.mjs";
 
 const [inventoryPath, projectRoot = process.cwd(), detailInventoryPath] = process.argv.slice(2);
 
@@ -20,26 +21,6 @@ const capturedAssets = [
   ...detailCapture.pages.flatMap((page) => page.inventory.assets),
 ];
 
-const localStudySlugs = {
-  "arcade-pixel": "arcade-pixel",
-  holo: "holo",
-  "pixel-brushes": "pixel-brushes",
-  "fade-motion": "fade-motion",
-  "liquid-ui": "liquid-ui",
-  "kinetic-typography": "kinetic",
-  squircle: "squircle",
-  "ransom-note": "ransom",
-  "chroma-glow": "chroma",
-  emboss: "emboss",
-  typer: "typer",
-  "color-depth": "color-depth",
-  "ghosty-reveal": "ghost",
-  sandbox: "symbols",
-  "dia-gradient": "dia-gradient",
-  "vector-editor": "vector",
-  amo: "amo",
-  midjourney: "ascii",
-};
 
 function localPathFor(assetUrl) {
   const url = new URL(assetUrl);
@@ -91,68 +72,7 @@ function localizeHtml(html) {
   return localized;
 }
 
-function escapeAttribute(value) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
 
-function withMotionMetadata(html, pathname, isIndex = false) {
-  const sourceTitle = html.match(/<title>([^<]+)<\/title>/)?.[1] || "Study";
-  const title = isIndex ? "Motion — Ibragim Shirinov" : `${sourceTitle} — Motion`;
-  const canonical = `https://ibra.info${pathname}`;
-  const description = "Motion and interaction studies by Ibragim Shirinov.";
-  const structuredData = JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": isIndex ? "CollectionPage" : "CreativeWork",
-    name: isIndex ? "Motion" : sourceTitle,
-    url: canonical,
-    author: {
-      "@type": "Person",
-      name: "Ibragim Shirinov",
-      url: "https://ibra.info/",
-    },
-    ...(isIndex
-      ? {}
-      : {
-          isPartOf: {
-            "@type": "CollectionPage",
-            name: "Motion",
-            url: "https://ibra.info/motion/",
-          },
-        }),
-  });
-
-  let updated = html
-    .replace(/<title>[^<]+<\/title>/, `<title>${escapeAttribute(title)}</title>`)
-    .replace(/<link rel="author"[^>]*>/, '<link rel="author" href="https://ibra.info/"/>')
-    .replace(/<meta name="author"[^>]*>/, '<meta name="author" content="Ibragim Shirinov"/>')
-    .replace(/<meta name="creator"[^>]*>/, '<meta name="creator" content="Ibragim Shirinov"/>')
-    .replace(/<meta name="publisher"[^>]*>/, '<meta name="publisher" content="Ibragim Shirinov"/>')
-    .replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${canonical}"/>`)
-    .replace(/<meta property="og:title"[^>]*>/, `<meta property="og:title" content="${escapeAttribute(title)}"/>`)
-    .replace(/<meta property="og:url"[^>]*>/, `<meta property="og:url" content="${canonical}"/>`)
-    .replace(/<meta name="twitter:title"[^>]*>/, `<meta name="twitter:title" content="${escapeAttribute(title)}"/>`);
-
-  if (/<meta name="description"[^>]*>/.test(updated)) {
-    updated = updated.replace(
-      /<meta name="description"[^>]*>/,
-      `<meta name="description" content="${description}"/>`
-    );
-  } else {
-    updated = updated.replace(
-      "<head>",
-      `<head><meta name="description" content="${description}"/>`
-    );
-  }
-
-  return updated.replace(
-    "<head>",
-    `<head><script type="application/ld+json">${structuredData}</script>`
-  );
-}
 
 function promptSlugsFrom(html) {
   const marker = '\\"promptSlugs\\":';
@@ -167,33 +87,6 @@ function withNoIndex(html) {
   return html.replace("<head>", '<head><meta name="robots" content="noindex, nofollow">');
 }
 
-function withMotionShell(html, isIndex = false) {
-  const headingStyle = isIndex
-    ? '<style id="motion-index-heading">main h1{font-size:0}main h1::after{content:"Motion";font-size:15px}</style>'
-    : "";
-  const noscript = isIndex
-    ? '<noscript><style>main h1{font-size:0}main h1::after{content:"Motion";font-size:15px}</style></noscript>'
-    : '<noscript><p><a href="/motion/">Back to Motion</a></p></noscript>';
-  return html.replace(
-    "</body>",
-    `${headingStyle}${noscript}<script src="/motion/motion-shell.js"></script></body>`
-  );
-}
-
-function redirectHtml(destination) {
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="0; url=${destination}">
-    <meta name="robots" content="noindex">
-    <link rel="canonical" href="https://ibra.info${destination}">
-    <title>Moved to Motion</title>
-  </head>
-  <body><p>Moved to <a href="${destination}">Motion</a>.</p></body>
-</html>\n`;
-}
 
 async function download(url, destination) {
   const response = await fetch(url, {
@@ -309,14 +202,16 @@ await mkdir(path.join(projectRoot, "vault"), { recursive: true });
 const mirroredPrompts = await mirrorPromptPayloads(html);
 await writeFile(path.join(projectRoot, "vault", "index.html"), withNoIndex(localizedHtml));
 
-await mkdir(path.join(projectRoot, "motion"), { recursive: true });
+await mkdir(path.join(projectRoot, "strongroom"), { recursive: true });
 await writeFile(
-  path.join(projectRoot, "motion", "index.html"),
-  withMotionShell(withMotionMetadata(localizedHtml, "/motion/", true), true)
+  path.join(projectRoot, "strongroom", "index.html"),
+  strongroomPage(localizedHtml, "/strongroom/", true)
 );
 
 await mkdir(path.join(projectRoot, "ink"), { recursive: true });
-await writeFile(path.join(projectRoot, "ink", "index.html"), redirectHtml("/motion/"));
+await writeFile(path.join(projectRoot, "ink", "index.html"), redirectHtml("/strongroom/"));
+await mkdir(path.join(projectRoot, "motion"), { recursive: true });
+await writeFile(path.join(projectRoot, "motion", "index.html"), redirectHtml("/strongroom/"));
 
 await Promise.all(
   detailCapture.pages.map(async ({ slug }) => {
@@ -332,21 +227,24 @@ await Promise.all(
     await mirrorDeclaredMedia(rawHtml);
     const sourceHtml = localizeHtml(rawHtml);
     const localSlug = localStudySlugs[slug] || slug;
-    const motionDestination = `/motion/${localSlug}/`;
-    const motionHtml = withMotionShell(
-      withMotionMetadata(sourceHtml, motionDestination)
-    );
+    const motionDestination = `/strongroom/${localSlug}/`;
+    const motionHtml = strongroomPage(sourceHtml, motionDestination);
 
     await mkdir(path.join(projectRoot, "vault", slug), { recursive: true });
     await writeFile(
       path.join(projectRoot, "vault", slug, "index.html"),
       withNoIndex(sourceHtml)
     );
-    await mkdir(path.join(projectRoot, "motion", localSlug), { recursive: true });
-    await writeFile(path.join(projectRoot, "motion", localSlug, "index.html"), motionHtml);
+    await mkdir(path.join(projectRoot, "strongroom", localSlug), { recursive: true });
+    await writeFile(path.join(projectRoot, "strongroom", localSlug, "index.html"), motionHtml);
     await mkdir(path.join(projectRoot, "ink", localSlug), { recursive: true });
     await writeFile(
       path.join(projectRoot, "ink", localSlug, "index.html"),
+      redirectHtml(motionDestination)
+    );
+    await mkdir(path.join(projectRoot, "motion", localSlug), { recursive: true });
+    await writeFile(
+      path.join(projectRoot, "motion", localSlug, "index.html"),
       redirectHtml(motionDestination)
     );
   })
@@ -378,8 +276,8 @@ console.log(
       mirroredPrompts,
       scripts: downloadable.filter((asset) => asset.destination.endsWith(".js")).length,
       sourceRuntime: path.join(projectRoot, "vault", "index.html"),
-      motionEntry: path.join(projectRoot, "motion", "index.html"),
-      legacyRedirects: detailCapture.pages.length + 1,
+      motionEntry: path.join(projectRoot, "strongroom", "index.html"),
+      legacyRedirects: (detailCapture.pages.length + 1) * 2,
       mirroredStudies: detailCapture.pages.length,
     },
     null,
