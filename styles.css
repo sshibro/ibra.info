@@ -26,6 +26,7 @@
   --blue: #2724d1;
   --blue-deep: #1a17a8;
   --blue-soft: #2724d11f;
+  --marker: #ffe14d;
   --display: "PP Mondwest", ui-monospace, monospace;
 }
 
@@ -193,45 +194,93 @@ a:focus-visible {
   pointer-events: none;
 }
 
-/* light sweep */
+/* marker-yellow layer that wipes in one pixel column at a time */
 .vault::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(115deg, transparent 30%, #ffffff26 50%, transparent 70%);
-  transform: translateX(-120%);
-  transition: transform 900ms cubic-bezier(0.2, 0, 0, 1);
+  background: var(--marker);
+  clip-path: polygon(-30% 0, -12% 0, -30% 100%, -30% 100%);
+  transition: clip-path 620ms cubic-bezier(0.65, 0, 0.15, 1);
   pointer-events: none;
 }
 
 .vault:hover,
 .vault:focus-visible {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   box-shadow:
     0 1px 0 #ffffff40 inset,
-    0 30px 70px -28px #2724d1d9;
-  color: #fff;
+    0 24px 60px -30px #2724d1b3;
   text-decoration: none;
   outline: none;
 }
 
 .vault:hover::after,
 .vault:focus-visible::after {
-  transform: translateX(120%);
+  clip-path: polygon(-30% 0, 130% 0, 130% 100%, -30% 100%);
+}
+
+/* once the wipe passes the text, the ink flips to blue */
+.vault:hover .vault-copy,
+.vault:focus-visible .vault-copy {
+  color: var(--blue);
+  transition-delay: 160ms;
+}
+
+.vault:hover .vault-kicker,
+.vault:hover .vault-meta,
+.vault:focus-visible .vault-kicker,
+.vault:focus-visible .vault-meta {
+  color: var(--blue-deep);
+  transition-delay: 160ms;
+}
+
+.vault:hover .vault-meta b,
+.vault:focus-visible .vault-meta b {
+  color: var(--blue);
+  transition-delay: 160ms;
+}
+
+/* the word swaps in pixel time */
+.vault-title .word {
+  position: relative;
+  display: inline-grid;
+}
+
+.vault-title .word > span {
+  grid-area: 1 / 1;
+  transition: opacity 220ms ease 120ms;
+}
+
+.vault-title .word > span:last-child {
+  opacity: 0;
+}
+
+.vault:hover .vault-title .word > span:first-child,
+.vault:focus-visible .vault-title .word > span:first-child {
+  opacity: 0;
+}
+
+.vault:hover .vault-title .word > span:last-child,
+.vault:focus-visible .vault-title .word > span:last-child {
+  opacity: 1;
 }
 
 .vault-copy {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
+  transition: color 260ms ease;
 }
 
 .vault-kicker {
   font-family: var(--display);
   font-size: 0.95rem;
   color: #d9d8ff;
+  transition: color 260ms ease;
 }
 
 .vault-title {
@@ -246,7 +295,7 @@ a:focus-visible {
 .vault-title .arrow {
   display: inline-block;
   font-size: 0.8em;
-  transition: transform 320ms cubic-bezier(0.2, 0, 0, 1);
+  transition: transform 420ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .vault:hover .vault-title .arrow {
@@ -257,78 +306,48 @@ a:focus-visible {
   font-size: 0.95rem;
   color: #d9d8ff;
   letter-spacing: -0.005em;
+  transition: color 260ms ease;
 }
 
 .vault-meta b {
   font-weight: 400;
   color: #fff;
+  transition: color 260ms ease;
 }
 
-/* combination dial */
+/* combination dial: pixel art on a 4px grid, turns in crisp quarter steps */
 .dial {
   position: relative;
-  width: 112px;
-  height: 112px;
-  flex: none;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, #3a37e0 0%, #1a17a8 70%, #14118a 100%);
-  box-shadow:
-    0 0 0 4px #ffffff1f,
-    0 0 0 5px #0d0b6e,
-    0 12px 28px -12px #00000099,
-    inset 0 2px 4px #ffffff40;
-}
-
-.dial::before {
-  content: "";
-  position: absolute;
-  inset: 10px;
-  border-radius: 50%;
-  background:
-    repeating-conic-gradient(from 0deg, #ffffffcc 0deg 1.5deg, transparent 1.5deg 12deg);
-  -webkit-mask: radial-gradient(circle, transparent 60%, #000 61%);
-  mask: radial-gradient(circle, transparent 60%, #000 61%);
-  animation: turn 24s linear infinite;
-}
-
-.dial::after {
-  content: "";
-  position: absolute;
-  inset: 34px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #4a47ef, #201cc4 60%, #14118a);
-  box-shadow: inset 0 1px 2px #ffffff55, 0 4px 10px -4px #00000080;
-}
-
-.dial-mark {
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  width: 3px;
-  height: 14px;
-  margin-left: -1.5px;
-  border-radius: 2px;
-  background: #ffe14d;
-  box-shadow: 0 0 10px #ffe14d99;
   z-index: 1;
+  display: block;
+  width: 96px;
+  height: 96px;
+  flex: none;
+  color: #fff;
+  image-rendering: pixelated;
+  transition:
+    transform 640ms steps(3, end),
+    color 200ms ease 200ms;
 }
 
-.vault:hover .dial::before,
-.vault:focus-visible .dial::before {
-  animation-duration: 3s;
-  animation-direction: reverse;
+.dial .d-ink {
+  fill: currentColor;
 }
 
-@keyframes turn {
-  to {
-    transform: rotate(360deg);
-  }
+.dial .d-mark {
+  fill: var(--marker);
+  transition: fill 200ms ease 200ms;
 }
 
-@keyframes drift {
-  to {
-    background-position: 36px 18px;
-  }
+.vault:hover .dial,
+.vault:focus-visible .dial {
+  transform: rotate(-270deg);
+  color: var(--blue);
+}
+
+.vault:hover .dial .d-mark,
+.vault:focus-visible .dial .d-mark {
+  fill: var(--blue);
 }
 
 @media (min-width: 640px) {
@@ -345,14 +364,10 @@ a:focus-visible {
   }
 
   .dial {
-    width: 88px;
-    height: 88px;
+    width: 72px;
+    height: 72px;
     justify-self: end;
     order: -1;
-  }
-
-  .dial::after {
-    inset: 26px;
   }
 }
 
@@ -364,13 +379,21 @@ a:focus-visible {
   a,
   .vault,
   .vault::after,
+  .vault-copy,
+  .vault-kicker,
+  .vault-meta,
+  .vault-meta b,
+  .vault-title .word > span,
   .vault-title .arrow {
     transition: none;
   }
 
-  .vault::before,
-  .dial::before {
+  .vault::before {
     animation: none;
+  }
+
+  .dial {
+    transition: none;
   }
 }
 
